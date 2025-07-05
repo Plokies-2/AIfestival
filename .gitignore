@@ -1,7 +1,42 @@
-node_modules
+# Node.js dependencies
+node_modules/
 
+# Next.js 빌드·개발 아티팩트
+.next/
+out/          # next export 결과물
+dist/         # 커스텀 빌드 디렉터리
+.build/       # 일부 설정에서 쓰는 빌드 폴더
+
+# Python 캐시
 __pycache__/
-src/**/__pycache__/
+**/__pycache__/
+
+# Python 가상환경
+venv/
 .env
 .env.local
+.env.*.local
 
+# 로그 파일
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
+
+# 테스트 커버리지
+coverage/
+*.lcov
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 기타 캐시·임시 파일
+.cache/
+.cache-loader/
+.tmp/
+.pnp.*
+**/.turbo/
