@@ -1,0 +1,29 @@
+{
+  "lstm": {
+    "symbol": "INTC",
+    "train_until": "2025-06-03",
+    "predictions": [
+      {
+        "date": "2025-06-04",
+        "pred_prob_up": 0.5043,
+        "predicted_label": 1,
+        "actual_label": 0,
+        "result_color": "red"
+      },
+      {
+        "date": "2025-06-05",
+        "pred_prob_up": 0.5042,
+        "predicted_label": 1,
+        "actual_label": 0,
+        "result_color": "red"
+      }
+    ],
+    "summary_ko": "모두 예측 실패 결과 : red"
+  },
+  "mfi": {
+    "symbol": "INTC",
+    "date": "2025-06-05",
+    "mfi_14": 29.48,
+    "traffic_light": "yellow"
+  }
+}

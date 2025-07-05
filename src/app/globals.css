@@ -1,0 +1,289 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ───────── 모던 디자인 시스템 ───────── */
+@layer base {
+  :root {
+    /* 색상 팔레트 */
+    --primary: 59 130 246; /* blue-500 */
+    --primary-dark: 37 99 235; /* blue-600 */
+    --primary-light: 147 197 253; /* blue-300 */
+
+    --secondary: 99 102 241; /* indigo-500 */
+    --accent: 168 85 247; /* purple-500 */
+
+    --background: 248 250 252; /* slate-50 */
+    --surface: 255 255 255; /* white */
+    --surface-dark: 241 245 249; /* slate-100 */
+
+    --text-primary: 15 23 42; /* slate-900 */
+    --text-secondary: 71 85 105; /* slate-600 */
+    --text-muted: 148 163 184; /* slate-400 */
+
+    --border: 226 232 240; /* slate-200 */
+    --border-light: 241 245 249; /* slate-100 */
+
+    --success: 34 197 94; /* green-500 */
+    --warning: 245 158 11; /* amber-500 */
+    --error: 239 68 68; /* red-500 */
+
+    /* 그림자 */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+    /* 반지름 */
+    --radius-sm: 0.375rem;
+    --radius: 0.5rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.5rem;
+  }
+
+  .dark {
+    /* 다크 모드 색상 */
+    --primary: 96 165 250; /* blue-400 */
+    --primary-dark: 59 130 246; /* blue-500 */
+    --primary-light: 147 197 253; /* blue-300 */
+
+    --secondary: 129 140 248; /* indigo-400 */
+    --accent: 196 181 253; /* purple-400 */
+
+    --background: 15 23 42; /* slate-900 */
+    --surface: 30 41 59; /* slate-800 */
+    --surface-dark: 51 65 85; /* slate-700 */
+
+    --text-primary: 248 250 252; /* slate-50 */
+    --text-secondary: 203 213 225; /* slate-300 */
+    --text-muted: 148 163 184; /* slate-400 */
+
+    --border: 51 65 85; /* slate-700 */
+    --border-light: 71 85 105; /* slate-600 */
+  }
+}
+
+/* 기본 스타일 */
+@layer base {
+  * {
+    @apply border-slate-200;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    @apply bg-slate-50 text-slate-900 antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* 스크롤바 스타일링 */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-slate-100;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400;
+  }
+}
+/* ───── 번개(Static-Route Indicator) 완전 숨김 ───── */
+[data-nextjs-route-indicator],
+[data-next-route-indicator],
+#next-route-indicator {
+  display: none !important;
+}
+
+/* ───── TradingView 차트 관련 스타일 ───── */
+/* TradingView 워터마크 및 로고 완전 제거 */
+.tv-lightweight-charts table tr td div[style*="pointer-events"],
+.tv-lightweight-charts table tr td div[style*="position: absolute"],
+.tv-lightweight-charts div[style*="pointer-events: none"],
+.tv-lightweight-charts div[style*="position: absolute"][style*="left: 4px"],
+.tv-lightweight-charts div[style*="position: absolute"][style*="right: 4px"],
+.tv-lightweight-charts div[style*="position: absolute"][style*="bottom: 4px"],
+.tv-lightweight-charts div[style*="position: absolute"][style*="top: 4px"],
+.tv-lightweight-charts div[style*="position: absolute"][style*="z-index"],
+.tv-lightweight-charts div[style*="position: absolute"][style*="cursor: pointer"],
+.tv-lightweight-charts a[href*="tradingview"],
+.tv-lightweight-charts a[href*="TradingView"],
+.tv-lightweight-charts div[style*="font-family"][style*="position: absolute"],
+.tv-lightweight-charts div[style*="font-size: 11px"],
+.tv-lightweight-charts div[style*="font-size: 12px"][style*="position: absolute"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* TradingView 차트 컨테이너 스타일 개선 */
+.tv-lightweight-charts {
+  border-radius: 0.5rem;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 차트 영역 스타일 */
+.tv-lightweight-charts table {
+  border-radius: 0.5rem;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* 차트 캔버스 스타일 */
+.tv-lightweight-charts canvas {
+  border-radius: 0.5rem;
+}
+
+/* ───── 커스텀 컴포넌트 스타일 ───────── */
+@layer components {
+  /* 글래스모피즘 효과 */
+  .glass {
+    @apply bg-white/80 backdrop-blur-sm border border-white/20;
+  }
+
+  .glass-dark {
+    @apply bg-slate-900/80 backdrop-blur-sm border border-slate-700/20;
+  }
+
+  /* 그라디언트 배경 */
+  .gradient-bg {
+    background: linear-gradient(135deg, rgb(59 130 246) 0%, rgb(99 102 241) 100%);
+  }
+
+  .gradient-bg-subtle {
+    background: linear-gradient(135deg, rgb(248 250 252) 0%, rgb(241 245 249) 100%);
+  }
+
+  /* 애니메이션 */
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+
+  /* 호버 효과 */
+  .hover-lift {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .hover-lift:hover {
+    @apply transform -translate-y-1 shadow-lg;
+  }
+
+  /* 버튼 스타일 */
+  .btn-primary {
+    @apply bg-blue-500 hover:bg-blue-600 text-white font-medium px-4 py-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md;
+  }
+
+  .btn-secondary {
+    @apply bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-4 py-2 rounded-lg transition-all duration-200;
+  }
+
+  /* 입력 필드 */
+  .input-modern {
+    @apply bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200;
+  }
+
+  /* 카드 */
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-slate-200 p-6;
+  }
+
+  .card-hover {
+    @apply card hover-lift hover:shadow-md;
+  }
+}
+
+/* ───── 키프레임 애니메이션 ───────── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 53%, 80%, 100% {
+    transform: translate3d(0,0,0);
+  }
+  40%, 43% {
+    transform: translate3d(0, -30px, 0);
+  }
+  70% {
+    transform: translate3d(0, -15px, 0);
+  }
+  90% {
+    transform: translate3d(0, -4px, 0);
+  }
+}
+
+/* ───── 추가 유틸리티 클래스 ───────── */
+@layer utilities {
+  .text-gradient {
+    background: linear-gradient(135deg, rgb(59 130 246), rgb(99 102 241));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .backdrop-blur-xs {
+    backdrop-filter: blur(2px);
+  }
+
+  .shadow-glow {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+  }
+
+  .border-gradient {
+    border: 1px solid transparent;
+    background: linear-gradient(white, white) padding-box,
+                linear-gradient(135deg, rgb(59 130 246), rgb(99 102 241)) border-box;
+  }
+}

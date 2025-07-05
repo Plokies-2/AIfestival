@@ -1,0 +1,3 @@
+[submodule "hunspell-dict-ko"]
+	path = hunspell-dict-ko
+	url = https://github.com/spellcheck-ko/hunspell-dict-ko.git
