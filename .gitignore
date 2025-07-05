@@ -40,3 +40,19 @@ Thumbs.db
 .tmp/
 .pnp.*
 **/.turbo/
+
+
+# Next.js build/dev artifacts
+.next/
+out/
+dist/
+
+# 빌드 매니페스트
+*.manifest.json
+
+# 번들링 결과
+*.pack.gz
+*.pack.gz.old
+
+# trace 파일
+trace
