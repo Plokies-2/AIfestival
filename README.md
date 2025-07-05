@@ -5,3 +5,5 @@
 폴더에서 npm install을 실행하여 의존성을 설치해
 
 npm run dev를 실행해 로컬에서 테스트하세요.
+
+localhost:3000 에서 서비스됩니다.

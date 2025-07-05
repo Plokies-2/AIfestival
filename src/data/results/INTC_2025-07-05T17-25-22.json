@@ -1,0 +1,63 @@
+{
+  "symbol": "INTC",
+  "companyName": "Intel",
+  "timestamp": "2025-07-05T17:25:22.142Z",
+  "analysisDate": "2025-07-05",
+  "lstm": {
+    "accuracy": 0,
+    "pred_prob_up": 0.49,
+    "traffic_light": "yellow",
+    "predictions": [],
+    "summary_ko": "모두 예측 실패 결과 : red",
+    "showLowAccuracyWarning": false
+  },
+  "mfi": {
+    "symbol": "INTC",
+    "date": "2025-06-05",
+    "mfi_14": 29.48,
+    "traffic_light": "yellow"
+  },
+  "bollinger": {
+    "symbol": "INTC",
+    "date": "2025-06-05",
+    "percent_b": 0.24,
+    "traffic_light": "yellow"
+  },
+  "rsi": {
+    "symbol": "INTC",
+    "date": "2025-06-05",
+    "rsi_14": 44.47,
+    "traffic_light": "yellow"
+  },
+  "industry": {
+    "symbol": "INTC",
+    "industry": "Semiconductors & Foundries",
+    "date": "2025-06-05",
+    "beta": 0.826,
+    "r2": 0.382,
+    "tstat": 9.14,
+    "traffic_light": "green"
+  },
+  "capm": {
+    "symbol": "INTC",
+    "date": "2025-06-05",
+    "beta_market": 1.47,
+    "r2_market": 0.3,
+    "tstat_market": 6.03,
+    "traffic_light": "yellow"
+  },
+  "garch": {
+    "symbol": "INTC",
+    "date": "2025-06-05",
+    "sigma_pct": 3.55,
+    "var95_pct": 5.86,
+    "traffic_light": "red"
+  },
+  "traffic_lights": {
+    "technical": "yellow",
+    "industry": "green",
+    "market": "yellow",
+    "risk": "red",
+    "neural": "yellow"
+  }
+}
