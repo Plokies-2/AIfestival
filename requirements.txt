@@ -4,5 +4,3 @@ tensorflow
 scikit-learn
 statsmodels
 arch
-requests
-yfinance
