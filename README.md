@@ -9,7 +9,6 @@
 - **Python 분석 서비스**: `src/services` 하위에 LSTM 예측, MFI 지수 계산 등 여러 파이썬 스크립트가 존재하며, 주식 데이터를 분석하여 JSON 형태의 결과를 반환합니다.
 - **API 라우트**: `src/pages/api` 폴더의 라우트가 Node.js에서 파이썬 스크립트를 실행하며, Server‑Sent Events(SSE)를 사용해 실시간 진행 상황을 전달합니다.
 - **RAG 기반 투자 AI 챗봇**: `src/pages/api/ai_chat.ts`가 단계별 상태 머신으로 동작하며 사용자의 질문을 분류하고, 관련 기업과 차트 분석까지 안내합니다.
-- **Cloudflare Workers 배포**: `open-next.config.ts`와 `wrangler.toml` 설정을 사용해 Cloudflare 환경으로 빌드 및 배포할 수 있습니다.
 - **리포지토리 정비**: 파이프라인과 무관한 더미 파일을 제거해 필요한 코드만 보존했습니다.
  
 ## 설치
