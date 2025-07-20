@@ -1,0 +1,63 @@
+{
+  "symbol": "AMZN",
+  "companyName": "Amazon",
+  "timestamp": "2025-07-20T16:32:53.875Z",
+  "analysisDate": "2025-07-20",
+  "lstm": {
+    "accuracy": 0.8,
+    "pred_prob_up": 0.596,
+    "traffic_light": "green",
+    "predictions": [],
+    "summary_ko": "모두 예측 실패 결과 : red",
+    "showLowAccuracyWarning": false
+  },
+  "mfi": {
+    "symbol": "AMZN",
+    "date": "2025-06-05",
+    "mfi_14": 63.25,
+    "traffic_light": "yellow"
+  },
+  "bollinger": {
+    "symbol": "AMZN",
+    "date": "2025-06-05",
+    "percent_b": 0.68,
+    "traffic_light": "yellow"
+  },
+  "rsi": {
+    "symbol": "AMZN",
+    "date": "2025-06-05",
+    "rsi_14": 60.61,
+    "traffic_light": "yellow"
+  },
+  "industry": {
+    "symbol": "AMZN",
+    "industry": "Retail – Specialty – Lifestyle",
+    "date": "2025-06-05",
+    "beta": 1.155,
+    "r2": 0.539,
+    "tstat": 8.87,
+    "traffic_light": "green"
+  },
+  "capm": {
+    "symbol": "AMZN",
+    "date": "2025-06-05",
+    "beta_market": 1.34,
+    "r2_market": 0.74,
+    "tstat_market": 15.92,
+    "traffic_light": "yellow"
+  },
+  "garch": {
+    "symbol": "AMZN",
+    "date": "2025-06-05",
+    "sigma_pct": 2.19,
+    "var95_pct": 3.61,
+    "traffic_light": "red"
+  },
+  "traffic_lights": {
+    "technical": "yellow",
+    "industry": "green",
+    "market": "yellow",
+    "risk": "red",
+    "neural": "green"
+  }
+}
