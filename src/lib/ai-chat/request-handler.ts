@@ -75,7 +75,7 @@ export function setSessionCookie(res: NextApiResponse, sessionId: string): void 
 // ============================================================================
 
 /**
- * Handles special commands like session reset
+ * Handles special commands like session reset and show more companies
  */
 export function handleSpecialCommands(userInput: string, sessionId: string): ChatResponse | null {
   // Session reset command
@@ -84,8 +84,22 @@ export function handleSpecialCommands(userInput: string, sessionId: string): Cha
     return { reply: '새로운 검색을 시작하세요.' };
   }
 
-  // "더보기" command handling (moved to pipeline handlers)
-  // This is now handled in the pipeline stage handlers
+  // 더보기 버튼 클릭 명령 처리
+  if (userInput === '__SHOW_MORE_COMPANIES__') {
+    const state = getSession(sessionId);
+
+    // SHOW_INDUSTRY 단계에서만 더보기 기능 실행
+    if (state.stage === 'SHOW_INDUSTRY' && state.selectedIndustry && state.industryCompanies.length > 0) {
+      console.log(`✅ Processing show more companies for industry: ${state.selectedIndustry}`);
+
+      // 더보기 처리는 pipeline-handlers에서 수행하도록 null 반환
+      // 이렇게 하면 processPipeline에서 handleShowIndustryStage가 호출됨
+      return null;
+    } else {
+      console.log(`❌ Show more companies command received but not in valid state. Current stage: ${state.stage}, Industry: ${state.selectedIndustry}`);
+      return { reply: '더보기 기능을 사용할 수 없는 상태입니다.' };
+    }
+  }
 
   return null;
 }
@@ -168,21 +182,8 @@ export async function processPipeline(context: PipelineContext): Promise<ChatRes
     return handleNegativeResponse(state, sessionId);
   }
 
-  // Handle "더보기" command at the beginning (before stage processing)
-  if (/^더보기$/i.test(userInput.trim())) {
-    console.log(`🔍 Detected "더보기" command, checking for SHOW_INDUSTRY stage`);
-
-    // Check if user is in SHOW_INDUSTRY stage with available companies
-    if (state.stage === 'SHOW_INDUSTRY' && state.selectedIndustry && state.industryCompanies.length > 0) {
-      console.log(`✅ Processing "더보기" for industry: ${state.selectedIndustry}`);
-
-      // This will be handled by the SHOW_INDUSTRY stage handler
-      // Continue to stage processing
-    } else {
-      console.log(`❌ "더보기" command received but not in valid state. Current stage: ${state.stage}, Industry: ${state.selectedIndustry}`);
-      // If not in the right state, fall through to normal processing
-    }
-  }
+  // 더보기 기능은 UI 버튼 클릭 이벤트에서만 처리됨
+  // 텍스트 입력으로는 더보기 기능을 실행하지 않음
 
   // Process based on current stage
   let result;

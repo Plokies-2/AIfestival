@@ -401,25 +401,7 @@ const SpeedTraffic: React.FC<SpeedTrafficProps> = ({ symbol, onPhaseMessage, onA
       // Log the final results for debugging
       console.log('[SpeedTraffic] Final analysis results:', JSON.stringify(finalResults, null, 2));
 
-      // Save comprehensive results to file via API
-      try {
-        const saveResponse = await fetch('/api/save_analysis_results', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(finalResults),
-        });
-
-        if (saveResponse.ok) {
-          const saveResult = (await saveResponse.json()) as { filepath: string };
-          console.log(`[SpeedTraffic] Analysis results saved for ${symbol}:`, saveResult.filepath);
-        } else {
-          console.error(`[SpeedTraffic] Failed to save results for ${symbol}:`, await saveResponse.text());
-        }
-      } catch (error) {
-        console.error(`[SpeedTraffic] Error saving results for ${symbol}:`, error);
-      }
+      // JSON 저장 로직 제거됨 - 더 이상 분석 결과를 파일로 저장하지 않음
 
       setPhase2Loading(false);
       setLstmLoading(false);

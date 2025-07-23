@@ -1,11 +1,12 @@
 /**
  * Results storage utility for SpeedTraffic analysis data
- * Optimized for fine-tuning API consumption and ML model training workflows
+ * JSON 저장 기능이 제거되어 현재는 타입 정의만 제공
  */
 
-import fs from 'fs';
-import path from 'path';
-import { getCompanyName } from './companyLookup';
+// JSON 저장 관련 import 제거됨
+// import fs from 'fs';
+// import path from 'path';
+// import { getCompanyName } from './companyLookup';
 
 export interface AnalysisResults {
   // Metadata
@@ -99,161 +100,10 @@ export interface AnalysisResults {
   confidence_score?: number;
 }
 
-/**
- * Save comprehensive analysis results to JSON file
- * @param results - Complete analysis results object
- * @returns Promise<string> - Path to saved file
- */
-export async function saveAnalysisResults(results: AnalysisResults): Promise<string> {
-  try {
-    // Ensure results directory exists
-    const resultsDir = path.join(process.cwd(), 'src', 'data', 'results');
-    if (!fs.existsSync(resultsDir)) {
-      fs.mkdirSync(resultsDir, { recursive: true });
-    }
-    
-    // Generate filename: SYMBOL_YYYY-MM-DD_HH-mm-ss.json
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const filename = `${results.symbol}_${timestamp}.json`;
-    const filepath = path.join(resultsDir, filename);
-    
-    // Add metadata
-    const enrichedResults: AnalysisResults = {
-      ...results,
-      companyName: getCompanyName(results.symbol),
-      timestamp: new Date().toISOString(),
-      analysisDate: new Date().toISOString().split('T')[0],
-    };
-    
-    // Write to file (overwrite if exists)
-    fs.writeFileSync(filepath, JSON.stringify(enrichedResults, null, 2), 'utf8');
-    
-    console.log(`Analysis results saved to: ${filepath}`);
-    return filepath;
-    
-  } catch (error) {
-    console.error('Error saving analysis results:', error);
-    throw error;
-  }
-}
+// JSON 저장 기능 제거됨 - saveAnalysisResults 함수 삭제
 
-/**
- * Load analysis results from JSON file
- * @param symbol - Stock symbol
- * @param timestamp - Optional timestamp, if not provided loads most recent
- * @returns Promise<AnalysisResults | null>
- */
-export async function loadAnalysisResults(symbol: string, timestamp?: string): Promise<AnalysisResults | null> {
-  try {
-    const resultsDir = path.join(process.cwd(), 'src', 'data', 'results');
-    
-    if (!fs.existsSync(resultsDir)) {
-      return null;
-    }
-    
-    // Find matching files
-    const files = fs.readdirSync(resultsDir)
-      .filter(file => file.startsWith(`${symbol}_`) && file.endsWith('.json'))
-      .sort()
-      .reverse(); // Most recent first
-    
-    if (files.length === 0) {
-      return null;
-    }
-    
-    // Use specific timestamp or most recent
-    const targetFile = timestamp 
-      ? files.find(file => file.includes(timestamp))
-      : files[0];
-    
-    if (!targetFile) {
-      return null;
-    }
-    
-    const filepath = path.join(resultsDir, targetFile);
-    const data = fs.readFileSync(filepath, 'utf8');
-    return JSON.parse(data) as AnalysisResults;
-    
-  } catch (error) {
-    console.error('Error loading analysis results:', error);
-    return null;
-  }
-}
+// JSON 로드 기능 제거됨 - loadAnalysisResults 함수 삭제
 
-/**
- * Get all analysis results for a symbol
- * @param symbol - Stock symbol
- * @returns Promise<AnalysisResults[]>
- */
-export async function getAllAnalysisResults(symbol: string): Promise<AnalysisResults[]> {
-  try {
-    const resultsDir = path.join(process.cwd(), 'src', 'data', 'results');
-    
-    if (!fs.existsSync(resultsDir)) {
-      return [];
-    }
-    
-    const files = fs.readdirSync(resultsDir)
-      .filter(file => file.startsWith(`${symbol}_`) && file.endsWith('.json'))
-      .sort()
-      .reverse(); // Most recent first
-    
-    const results: AnalysisResults[] = [];
-    
-    for (const file of files) {
-      try {
-        const filepath = path.join(resultsDir, file);
-        const data = fs.readFileSync(filepath, 'utf8');
-        results.push(JSON.parse(data) as AnalysisResults);
-      } catch (error) {
-        console.error(`Error reading file ${file}:`, error);
-      }
-    }
-    
-    return results;
-    
-  } catch (error) {
-    console.error('Error getting all analysis results:', error);
-    return [];
-  }
-}
+// JSON 관련 기능 제거됨 - getAllAnalysisResults 함수 삭제
 
-/**
- * Delete old analysis results, keeping only the most recent N files per symbol
- * @param symbol - Stock symbol
- * @param keepCount - Number of recent files to keep (default: 5)
- * @returns Promise<number> - Number of files deleted
- */
-export async function cleanupOldResults(symbol: string, keepCount: number = 5): Promise<number> {
-  try {
-    const resultsDir = path.join(process.cwd(), 'src', 'data', 'results');
-    
-    if (!fs.existsSync(resultsDir)) {
-      return 0;
-    }
-    
-    const files = fs.readdirSync(resultsDir)
-      .filter(file => file.startsWith(`${symbol}_`) && file.endsWith('.json'))
-      .sort()
-      .reverse(); // Most recent first
-    
-    const filesToDelete = files.slice(keepCount);
-    let deletedCount = 0;
-    
-    for (const file of filesToDelete) {
-      try {
-        const filepath = path.join(resultsDir, file);
-        fs.unlinkSync(filepath);
-        deletedCount++;
-      } catch (error) {
-        console.error(`Error deleting file ${file}:`, error);
-      }
-    }
-    
-    return deletedCount;
-    
-  } catch (error) {
-    console.error('Error cleaning up old results:', error);
-    return 0;
-  }
-}
+// JSON 관련 기능 제거됨 - cleanupOldResults 함수 삭제

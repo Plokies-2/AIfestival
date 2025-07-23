@@ -16,6 +16,7 @@ interface AIChatProps {
 
 export interface AIChatRef {
   addBotMessage: (message: string, hasReportButton?: boolean) => void;
+  resetChat: () => void;
 }
 
 interface ChatMessage {
@@ -198,6 +199,21 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
           behavior: 'smooth'
         });
       }, 100);
+    },
+    resetChat: () => {
+      console.log('🔄 Resetting AI chat');
+      setHistory([]);
+      setShowMoreButton(false);
+      setIsLoadingMore(false);
+      setIsHidingSuggestions(false);
+
+      // 환영 메시지 다시 표시
+      setTimeout(() => {
+        setHistory([{
+          from: 'bot',
+          text: '안녕하세요! 금융 분석 어시스턴트입니다.\n어떤 주식이나 산업에 대해 알고 싶으신가요?'
+        }]);
+      }, 100);
     }
   }), []);
 
@@ -295,7 +311,8 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
     setShowMoreButton(false);
 
     try {
-      const res = await send({ message: '더보기', history });
+      // 더보기 버튼 클릭임을 명시적으로 표시하는 특별한 메시지 사용
+      const res = await send({ message: '__SHOW_MORE_COMPANIES__', history });
 
       // 마지막 봇 메시지를 새로운 전체 리스트로 대체
       setHistory(h => {

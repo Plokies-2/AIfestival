@@ -271,9 +271,9 @@ async function handleInvestmentQuery(
  */
 export async function handleShowIndustryStage(context: PipelineContext): Promise<StageHandlerResult> {
   const { userInput, sessionId, state } = context;
-  
-  // Check for "더보기" request
-  if (/더보기|전체보기|더|모든|전체|all/i.test(userInput)) {
+
+  // 더보기 버튼 클릭 명령 처리
+  if (userInput === '__SHOW_MORE_COMPANIES__') {
     return await handleShowMoreCompanies(context);
   }
 
@@ -384,10 +384,20 @@ async function handleTickerSelection(context: PipelineContext, selectedTicker: s
  */
 export async function handleAskChartStage(context: PipelineContext): Promise<StageHandlerResult> {
   const { userInput, sessionId, state } = context;
-  
+
+  // ASK_CHART 단계에서는 의도 분류 없이 직접 긍정/부정 응답만 확인
+  // '네', '예', '응' 등의 긍정 응답은 차트 확인으로 처리
   if (isPositive(userInput)) {
     return await handleChartConfirmation(context);
-  } else {
+  }
+  // '아니오', '아니요' 등의 부정 응답은 이전 단계로 롤백 (이미 request-handler에서 처리됨)
+  else if (isNegative(userInput)) {
+    // 부정 응답은 request-handler.ts의 handleNegativeResponse에서 처리됨
+    // 여기서는 명시적으로 부정 응답임을 표시하고 넘어감
+    return await handleChartClarification(context);
+  }
+  // 명확하지 않은 응답은 다시 질문
+  else {
     return await handleChartClarification(context);
   }
 }

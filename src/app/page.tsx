@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import FinancialChart from '@/components/FinancialChart';
 import AIChat, { AIChatRef } from '@/components/AIChat';
 import SpeedTraffic from '@/components/SpeedTraffic';
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [currentSymbol, setCurrentSymbol] = useState<string | undefined>(undefined);
   const [showingCompanyList, setShowingCompanyList] = useState(false);
   const [analysisData, setAnalysisData] = useState<any>(null);
@@ -23,18 +25,26 @@ export default function DashboardPage() {
     setAnalysisData(results);
   };
 
-  // 홈으로 돌아가기 (새로고침 효과)
+  // 홈으로 돌아가기 (상태 초기화)
   const handleHomeClick = () => {
     console.log('🏠 Home button clicked - resetting all states');
 
+    // 모든 상태 초기화
     setCurrentSymbol(undefined);
     setShowingCompanyList(false);
+    setAnalysisData(null);
+    setIsChartExpanded(false);
 
-    setIsChartExpanded(false); // 차트 확장 상태 초기화
+    // AI 채팅 초기화
+    if (aiChatRef.current) {
+      aiChatRef.current.resetChat();
+    }
 
-    console.log('🔄 Triggering page reload for complete reset');
-    // 페이지 새로고침으로 모든 상태 초기화 (채팅 포함)
-    window.location.reload();
+    console.log('✅ All states reset successfully');
+
+    // Next.js 라우터를 사용한 안전한 페이지 새로고침
+    // window.location.reload() 대신 라우터 새로고침 사용
+    router.refresh();
   };
 
 
