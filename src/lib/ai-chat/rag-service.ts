@@ -11,7 +11,7 @@
 import OpenAI from 'openai';
 import { getEmbeddings, cosine } from '@/lib/embeddings';
 import { QUICK_ENRICHED_FINAL as DATA } from '@/data/sp500_enriched_final';
-import { IndustryMatchResult, RAGServiceError, CompanyData } from './types';
+import { IndustryMatchResult, RAGServiceError, CompanyData, PersonaMatchResult, InvestmentIntentResult } from './types';
 import { RAG_THRESHOLDS, QUICK_TRANSLATIONS, KOREAN_COMPANY_MAPPING, OPENAI_CONFIG, PERFORMANCE_CONFIG, ENV_CONFIG } from './config';
 import { classifyIndustryWithGPT, translateKoreanToEnglish } from './ai-service';
 
@@ -39,6 +39,209 @@ const getAvailableIndustries = (() => {
     return cached;
   };
 })();
+
+// ============================================================================
+// Persona Matching Functions
+// ============================================================================
+
+/**
+ * Finds the best matching persona using RAG with threshold-based classification
+ * Returns 'about_ai', 'greeting', or null (for casual_chat)
+ */
+export async function findBestPersona(userInput: string): Promise<string | null> {
+  console.log(`🎭 Persona classification for: "${userInput}"`);
+
+  try {
+    // Generate embedding for user input
+    const queryEmbedding = (await openai.embeddings.create({
+      model: 'text-embedding-3-small',
+      input: userInput
+    })).data[0].embedding;
+
+    const normalizedQuery = queryEmbedding.map((v, _, arr) => v / Math.hypot(...arr));
+
+    // RAG: Calculate cosine similarity with persona embeddings
+    const embeddings = await getEmbeddings();
+    const { personas } = embeddings;
+
+    // Validate personas array
+    if (!personas || !Array.isArray(personas) || personas.length === 0) {
+      console.error('❌ Personas array is invalid or empty');
+      return null; // Fallback to casual_chat
+    }
+
+    let bestPersona: string | null = null;
+    let bestScore = -1;
+    const scores: { [key: string]: number } = {};
+
+    for (const persona of personas) {
+      if (!persona.vec || !Array.isArray(persona.vec)) {
+        console.warn(`⚠️ Invalid vector for persona ${persona.persona}`);
+        continue;
+      }
+
+      const score = cosine(persona.vec, normalizedQuery);
+      scores[persona.persona] = score;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestPersona = persona.persona;
+      }
+    }
+
+    // Log scores in a compact format
+    const scoreText = Object.entries(scores)
+      .map(([persona, score]) => `${persona}: ${score.toFixed(3)}`)
+      .join(', ');
+    console.log(`🎯 Scores: ${scoreText}`);
+
+    // Threshold check: If score is below threshold, classify as casual conversation
+    if (bestScore < RAG_THRESHOLDS.PERSONA_CASUAL_THRESHOLD) {
+      console.log(`🎭 Score below threshold (${RAG_THRESHOLDS.PERSONA_CASUAL_THRESHOLD}) → casual_chat`);
+      return null; // Will be classified as casual_chat
+    }
+
+    // Additional threshold for high confidence persona matching
+    if (bestScore < RAG_THRESHOLDS.PERSONA_MIN_SCORE) {
+      console.log(`🎭 Score below minimum threshold (${RAG_THRESHOLDS.PERSONA_MIN_SCORE}) → casual_chat`);
+      return null; // Will be classified as casual_chat
+    }
+
+    console.log(`🎭 Selected: ${bestPersona} (score: ${bestScore.toFixed(3)})`);
+    return bestPersona;
+
+  } catch (error) {
+    console.error('❌ Error in persona classification:', error);
+    return null; // Fallback to casual_chat
+  }
+}
+
+// ============================================================================
+// Investment Intent Classification Functions
+// ============================================================================
+
+/**
+ * Classifies investment intent using RAG with company and industry data
+ * Returns investment_recommendation, investment_query, company_direct, or null
+ */
+export async function classifyInvestmentIntent(userInput: string): Promise<InvestmentIntentResult> {
+  console.log(`💰 Investment intent classification for: "${userInput}"`);
+
+  try {
+    // Generate embedding for user input
+    console.log('🔤 Generating embedding for investment intent classification...');
+    const queryEmbedding = (await openai.embeddings.create({
+      model: 'text-embedding-3-small',
+      input: userInput
+    })).data[0].embedding;
+
+    const normalizedQuery = queryEmbedding.map((v, _, arr) => v / Math.hypot(...arr));
+    console.log('✅ User input embedding generated');
+
+    // Load embeddings
+    const embeddings = await getEmbeddings();
+    const { companies, industries } = embeddings;
+
+    if (!companies || !industries) {
+      console.error('❌ Companies or industries embeddings not available');
+      return { intent: null, score: 0, method: 'none' };
+    }
+
+    // 1. Check for direct company match (highest priority)
+    let bestCompanyScore = -1;
+    let bestCompanyMatch = null;
+
+    console.log(`🏢 Checking against ${companies.length} companies...`);
+    const topCompanies = companies.slice(0, PERFORMANCE_CONFIG.maxCompaniesForRAG);
+
+    for (const company of topCompanies) {
+      if (!company.vec || !Array.isArray(company.vec)) continue;
+
+      const score = cosine(company.vec, normalizedQuery);
+      if (score > bestCompanyScore) {
+        bestCompanyScore = score;
+        bestCompanyMatch = company;
+      }
+    }
+
+    console.log(`🎯 Best company match: ${bestCompanyMatch?.name} (${bestCompanyMatch?.ticker}) with score: ${bestCompanyScore.toFixed(3)}`);
+
+    // 2. Check for industry match
+    let bestIndustryScore = -1;
+    let bestIndustryMatch = null;
+
+    console.log(`🏭 Checking against ${industries.length} industries...`);
+
+    for (const industry of industries) {
+      if (!industry.vec || !Array.isArray(industry.vec)) continue;
+
+      const score = cosine(industry.vec, normalizedQuery);
+      if (score > bestIndustryScore) {
+        bestIndustryScore = score;
+        bestIndustryMatch = industry;
+      }
+    }
+
+    console.log(`🎯 Best industry match: ${bestIndustryMatch?.industry} with score: ${bestIndustryScore.toFixed(3)}`);
+
+    // 3. Determine intent based on scores and patterns
+
+    // Check for investment recommendation patterns
+    const recommendationPatterns = /(추천|어떤.*?기업|어떤.*?회사|좋은.*?기업|좋은.*?회사|아무거나|랜덤|무작위)/;
+    const hasRecommendationPattern = recommendationPatterns.test(userInput.toLowerCase());
+
+    if (hasRecommendationPattern && (bestCompanyScore > 0.2 || bestIndustryScore > 0.2)) {
+      console.log('💡 Classified as investment_recommendation (recommendation pattern + entity match)');
+      return {
+        intent: 'investment_recommendation',
+        score: Math.max(bestCompanyScore, bestIndustryScore),
+        matchedEntity: bestCompanyScore > bestIndustryScore ? bestCompanyMatch?.name : bestIndustryMatch?.industry,
+        method: bestCompanyScore > bestIndustryScore ? 'rag_company' : 'rag_industry'
+      };
+    }
+
+    // Check for direct company mention (high confidence)
+    if (bestCompanyScore >= RAG_THRESHOLDS.COMPANY_DIRECT_MIN_SCORE) {
+      console.log('🏢 Classified as company_direct (high company similarity)');
+      return {
+        intent: 'company_direct',
+        score: bestCompanyScore,
+        matchedEntity: bestCompanyMatch?.name,
+        method: 'rag_company'
+      };
+    }
+
+    // Check for investment query (medium confidence)
+    if (bestCompanyScore >= RAG_THRESHOLDS.INVESTMENT_INTENT_MIN_SCORE ||
+        bestIndustryScore >= RAG_THRESHOLDS.INVESTMENT_INTENT_MIN_SCORE) {
+      console.log('💼 Classified as investment_query (medium similarity)');
+      return {
+        intent: 'investment_query',
+        score: Math.max(bestCompanyScore, bestIndustryScore),
+        matchedEntity: bestCompanyScore > bestIndustryScore ? bestCompanyMatch?.name : bestIndustryMatch?.industry,
+        method: bestCompanyScore > bestIndustryScore ? 'rag_company' : 'rag_industry'
+      };
+    }
+
+    // Check for basic investment keywords (fallback)
+    const investmentKeywords = /(투자|주식|종목|매수|매도|분석|포트폴리오|수익|손실|시장|경제|금융)/;
+    if (investmentKeywords.test(userInput.toLowerCase())) {
+      console.log('📈 Classified as investment_query (investment keywords)');
+      return {
+        intent: 'investment_query',
+        score: 0.6, // Medium confidence for keyword matching
+        method: 'investment_keywords'
+      };
+    }
+
+    console.log('❌ No investment intent detected');
+    return { intent: null, score: 0, method: 'none' };
+
+  } catch (error) {
+    console.error('❌ Error in investment intent classification:', error);
+    return { intent: null, score: 0, method: 'none' };
+  }
+}
 
 // ============================================================================
 // Industry Matching Functions

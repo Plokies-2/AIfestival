@@ -90,6 +90,18 @@ export interface RAGThresholds {
   COMPANY_MIN_SCORE: number;
   GPT_FALLBACK_THRESHOLD: number;
   CASUAL_CONVERSATION_THRESHOLD: number;
+  PERSONA_MIN_SCORE: number;
+  PERSONA_CASUAL_THRESHOLD: number;
+  INVESTMENT_INTENT_MIN_SCORE: number;
+  COMPANY_DIRECT_MIN_SCORE: number;
+}
+
+/**
+ * Persona row structure for embeddings
+ */
+export interface PersonaRow {
+  persona: string;
+  vec: number[];
 }
 
 /**
@@ -99,6 +111,25 @@ export interface IndustryMatchResult {
   industry: string | null;
   score: number;
   method: 'rag_industry' | 'rag_company' | 'gpt_classification' | 'casual_conversation';
+}
+
+/**
+ * Persona matching result
+ */
+export interface PersonaMatchResult {
+  persona: string | null;
+  score: number;
+  method: 'rag_persona' | 'casual_conversation';
+}
+
+/**
+ * Investment intent matching result
+ */
+export interface InvestmentIntentResult {
+  intent: 'investment_recommendation' | 'investment_query' | 'company_direct' | null;
+  score: number;
+  matchedEntity?: string; // 매칭된 기업명이나 산업명
+  method: 'rag_company' | 'rag_industry' | 'investment_keywords' | 'none';
 }
 
 // ============================================================================

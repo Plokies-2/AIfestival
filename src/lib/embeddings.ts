@@ -7,7 +7,8 @@ import { QUICK_ENRICHED_FINAL as DATA } from '../data/sp500_enriched_final';
 type Vec = number[];
 export interface CompanyRow { ticker: string; name: string; industry: string; vec: Vec; }
 export interface IndustryRow { industry: string; vec: Vec; }
-interface CacheFile { companies: CompanyRow[]; industries: IndustryRow[]; }
+export interface PersonaRow { persona: string; vec: Vec; }
+interface CacheFile { companies: CompanyRow[]; industries: IndustryRow[]; personas: PersonaRow[]; }
 
 /* ──────────── 상수 ──────────── */
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
@@ -18,6 +19,98 @@ const BATCH = 100;
 export const dot = (a: Vec, b: Vec) => a.reduce((s, x, i) => s + x * b[i], 0);
 export const cosine = dot;  // 정규화 후 dot=cos
 const norm = (v: Vec) => { const n = Math.hypot(...v); return v.map(x => x / n); };
+
+/* ──────────── 페르소나 임베딩 생성 ──────────── */
+async function createPersonaEmbeddings(): Promise<PersonaRow[]> {
+  console.log('🎭 Creating persona embeddings...');
+
+  try {
+    const corpusPath = path.join(process.cwd(), 'src', 'data', 'corpus');
+    console.log(`📁 Corpus path: ${corpusPath}`);
+
+    // about_ai.md 파일 읽기
+    const aboutAiPath = path.join(corpusPath, 'about_ai.md');
+    console.log(`📄 Reading about_ai.md from: ${aboutAiPath}`);
+
+    if (!fs.existsSync(aboutAiPath)) {
+      throw new Error(`about_ai.md file not found at: ${aboutAiPath}`);
+    }
+
+    const aboutAiContent = fs.readFileSync(aboutAiPath, 'utf8');
+    const aboutAiExamples = extractExamples(aboutAiContent);
+
+    // greeting.md 파일 읽기
+    const greetingPath = path.join(corpusPath, 'greeting.md');
+    console.log(`📄 Reading greeting.md from: ${greetingPath}`);
+
+    if (!fs.existsSync(greetingPath)) {
+      throw new Error(`greeting.md file not found at: ${greetingPath}`);
+    }
+
+    const greetingContent = fs.readFileSync(greetingPath, 'utf8');
+    const greetingExamples = extractExamples(greetingContent);
+
+    // 예시가 비어있는지 확인
+    if (aboutAiExamples.length === 0) {
+      throw new Error('No examples found in about_ai.md');
+    }
+    if (greetingExamples.length === 0) {
+      throw new Error('No examples found in greeting.md');
+    }
+
+    // 각 페르소나의 예시들을 하나의 텍스트로 결합
+    const aboutAiText = aboutAiExamples.join('. ');
+    const greetingText = greetingExamples.join('. ');
+
+    // 임베딩 생성
+    console.log('🚀 Generating persona embeddings...');
+    const { data } = await openai.embeddings.create({
+      model: 'text-embedding-3-small',
+      input: [aboutAiText, greetingText],
+    });
+
+    const personas = [
+      { persona: 'about_ai', vec: norm(data[0].embedding) },
+      { persona: 'greeting', vec: norm(data[1].embedding) }
+    ];
+
+    console.log('🎭 Persona embeddings created successfully');
+    return personas;
+
+  } catch (error) {
+    console.error('❌ Error creating persona embeddings:', error);
+    throw error;
+  }
+}
+
+/* ──────────── 마크다운에서 예시 추출 ──────────── */
+function extractExamples(content: string): string[] {
+  const lines = content.split('\n');
+  const examples: string[] = [];
+  let inExamplesSection = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (trimmed === '## Examples') {
+      inExamplesSection = true;
+      continue;
+    }
+
+    if (inExamplesSection && trimmed.startsWith('- ')) {
+      const example = trimmed.substring(2); // '- ' 제거
+      examples.push(example);
+    }
+
+    if (inExamplesSection && trimmed.startsWith('#') && trimmed !== '## Examples') {
+      break; // 다른 섹션 시작하면 종료
+    }
+  }
+
+  console.log(`📝 Extracted ${examples.length} examples`);
+  return examples;
+}
 
 /* ──────────── 임베딩 생성 ──────────── */
 async function createEmbeddings(): Promise<CacheFile> {
@@ -45,15 +138,36 @@ async function createEmbeddings(): Promise<CacheFile> {
   });
   const industries = indEmb.map((d, i) => ({ industry: inds[i], vec: norm(d.embedding) }));
 
+  /* 페르소나 2개 (about_ai, greeting) */
+  const personas = await createPersonaEmbeddings();
+
   fs.mkdirSync(path.dirname(CACHE), { recursive: true });
-  fs.writeFileSync(CACHE, JSON.stringify({ companies, industries }));
-  return { companies, industries };
+  fs.writeFileSync(CACHE, JSON.stringify({ companies, industries, personas }));
+  return { companies, industries, personas };
 }
 
 /* ──────────── 캐시 로드 ──────────── */
 let mem: CacheFile | null = null;
 export async function getEmbeddings(): Promise<CacheFile> {
-  if (mem) return mem;
-  if (fs.existsSync(CACHE)) return (mem = JSON.parse(fs.readFileSync(CACHE, 'utf8')));
+  if (mem) {
+    console.log('📦 Using cached embeddings from memory');
+    return mem;
+  }
+
+  if (fs.existsSync(CACHE)) {
+    console.log('📦 Loading embeddings from cache file');
+    const cached = JSON.parse(fs.readFileSync(CACHE, 'utf8'));
+
+    // 캐시 파일에 personas 필드가 없으면 새로 생성
+    if (!cached.personas || !Array.isArray(cached.personas)) {
+      console.log('⚠️ Cache file missing personas field, regenerating...');
+      return (mem = await createEmbeddings());
+    }
+
+    console.log(`✅ Loaded cache with ${cached.companies?.length || 0} companies, ${cached.industries?.length || 0} industries, ${cached.personas?.length || 0} personas`);
+    return (mem = cached);
+  }
+
+  console.log('🔄 Creating new embeddings...');
   return (mem = await createEmbeddings());
 }

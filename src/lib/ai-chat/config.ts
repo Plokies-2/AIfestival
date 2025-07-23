@@ -20,7 +20,11 @@ export const RAG_THRESHOLDS: RAGThresholds = {
   INDUSTRY_MIN_SCORE: 0.25,       // Minimum score for industry-level matching (lowered for better recall)
   COMPANY_MIN_SCORE: 0.2,         // Minimum score for company-level matching (lowered for better recall)
   GPT_FALLBACK_THRESHOLD: 0.15,   // Threshold to trigger GPT classification (lowered)
-  CASUAL_CONVERSATION_THRESHOLD: 0.2  // Below this score = casual conversation (lowered for better industry matching)
+  CASUAL_CONVERSATION_THRESHOLD: 0.2,  // Below this score = casual conversation (lowered for better industry matching)
+  PERSONA_MIN_SCORE: 0.3,         // Minimum score for persona matching (greeting, about_ai)
+  PERSONA_CASUAL_THRESHOLD: 0.25, // Below this score = casual_chat for persona classification
+  INVESTMENT_INTENT_MIN_SCORE: 0.35, // Minimum score for investment intent classification
+  COMPANY_DIRECT_MIN_SCORE: 0.4   // Minimum score for direct company mention
 } as const;
 
 // ============================================================================

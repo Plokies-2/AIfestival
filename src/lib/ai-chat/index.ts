@@ -102,8 +102,7 @@ export {
   classifyIndustryWithGPT,
   translateKoreanToEnglish,
   translateDescription,
-  generatePersonaResponse,
-  generateFallbackPersonaResponse
+  generatePersonaResponse
 } from './ai-service';
 
 // ============================================================================

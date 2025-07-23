@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "regenerate-embeddings": "node src/data/corpus/regenerate-embeddings.js"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
