@@ -50,6 +50,17 @@ async function createPersonaEmbeddings(): Promise<PersonaRow[]> {
     const greetingContent = fs.readFileSync(greetingPath, 'utf8');
     const greetingExamples = extractExamples(greetingContent);
 
+    // investment.md 파일 읽기
+    const investmentPath = path.join(corpusPath, 'investment.md');
+    console.log(`📄 Reading investment.md from: ${investmentPath}`);
+
+    if (!fs.existsSync(investmentPath)) {
+      throw new Error(`investment.md file not found at: ${investmentPath}`);
+    }
+
+    const investmentContent = fs.readFileSync(investmentPath, 'utf8');
+    const investmentExamples = extractExamples(investmentContent);
+
     // 예시가 비어있는지 확인
     if (aboutAiExamples.length === 0) {
       throw new Error('No examples found in about_ai.md');
@@ -57,21 +68,26 @@ async function createPersonaEmbeddings(): Promise<PersonaRow[]> {
     if (greetingExamples.length === 0) {
       throw new Error('No examples found in greeting.md');
     }
+    if (investmentExamples.length === 0) {
+      throw new Error('No examples found in investment.md');
+    }
 
     // 각 페르소나의 예시들을 하나의 텍스트로 결합
     const aboutAiText = aboutAiExamples.join('. ');
     const greetingText = greetingExamples.join('. ');
+    const investmentText = investmentExamples.join('. ');
 
     // 임베딩 생성
     console.log('🚀 Generating persona embeddings...');
     const { data } = await openai.embeddings.create({
       model: 'text-embedding-3-small',
-      input: [aboutAiText, greetingText],
+      input: [aboutAiText, greetingText, investmentText],
     });
 
     const personas = [
       { persona: 'about_ai', vec: norm(data[0].embedding) },
-      { persona: 'greeting', vec: norm(data[1].embedding) }
+      { persona: 'greeting', vec: norm(data[1].embedding) },
+      { persona: 'investment', vec: norm(data[2].embedding) }
     ];
 
     console.log('🎭 Persona embeddings created successfully');
@@ -158,16 +174,21 @@ export async function getEmbeddings(): Promise<CacheFile> {
     console.log('📦 Loading embeddings from cache file');
     const cached = JSON.parse(fs.readFileSync(CACHE, 'utf8'));
 
-    // 캐시 파일에 personas 필드가 없으면 새로 생성
+    // 캐시 파일에 personas 필드가 없으면 에러 발생
     if (!cached.personas || !Array.isArray(cached.personas)) {
-      console.log('⚠️ Cache file missing personas field, regenerating...');
-      return (mem = await createEmbeddings());
+      throw new Error('❌ Cache file missing personas field. Please run regenerate-embeddings.js to create a valid cache file.');
+    }
+
+    // investment 페르소나가 없으면 에러 발생 (2단계 RAG 시스템 필요)
+    const hasInvestment = cached.personas.some(p => p.persona === 'investment');
+    if (!hasInvestment) {
+      throw new Error('❌ Cache file missing investment persona. Please run regenerate-embeddings.js to update the cache file.');
     }
 
     console.log(`✅ Loaded cache with ${cached.companies?.length || 0} companies, ${cached.industries?.length || 0} industries, ${cached.personas?.length || 0} personas`);
     return (mem = cached);
   }
 
-  console.log('🔄 Creating new embeddings...');
-  return (mem = await createEmbeddings());
+  // 캐시 파일이 없으면 에러 발생 - regenerate-embeddings.js만이 캐시를 생성할 수 있음
+  throw new Error('❌ Embeddings cache file not found. Please run regenerate-embeddings.js to create the cache file.');
 }

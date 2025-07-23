@@ -37,25 +37,11 @@ export async function classifyUserIntent(userInput: string): Promise<IntentClass
   console.log(`🔍 Classifying user intent for: "${userInput}"`);
 
   try {
-    // 1. RAG-based investment intent classification (highest priority)
-    console.log('💰 Checking for investment intent...');
-    const investmentResult = await classifyInvestmentIntent(userInput);
-
-    if (investmentResult.intent) {
-      console.log(`✅ Investment intent detected: ${investmentResult.intent} (score: ${investmentResult.score.toFixed(3)})`);
-      return {
-        intent: investmentResult.intent,
-        confidence: Math.min(0.95, investmentResult.score + 0.1), // Boost confidence slightly
-        reasoning: `RAG 기반 투자 의도 분류 (${investmentResult.method}): ${investmentResult.matchedEntity || '키워드 매칭'}`
-      };
-    }
-
-    // 2. RAG-based persona classification (greeting, about_ai, or casual_chat)
-    console.log('🎭 Checking for persona intent...');
+    // 2단계 RAG 시스템 구현
+    // 1단계: 기본 페르소나 분류 (MD 파일만 사용 - 빠른 처리)
     const bestPersona = await findBestPersona(userInput);
 
     if (bestPersona === 'greeting') {
-      console.log('✅ Greeting intent detected');
       return {
         intent: 'greeting',
         confidence: 0.9,
@@ -64,7 +50,6 @@ export async function classifyUserIntent(userInput: string): Promise<IntentClass
     }
 
     if (bestPersona === 'about_ai') {
-      console.log('✅ About AI intent detected');
       return {
         intent: 'about_ai',
         confidence: 0.9,
@@ -72,8 +57,20 @@ export async function classifyUserIntent(userInput: string): Promise<IntentClass
       };
     }
 
+    // 2단계: investment로 분류된 경우에만 기업/산업 데이터 RAG 수행
+    if (bestPersona === 'investment') {
+      const investmentResult = await classifyInvestmentIntent(userInput);
+
+      if (investmentResult.intent) {
+        return {
+          intent: investmentResult.intent,
+          confidence: Math.min(0.95, investmentResult.score + 0.1), // Boost confidence slightly
+          reasoning: `2단계 RAG 기반 투자 의도 분류 (${investmentResult.method}): ${investmentResult.matchedEntity || '키워드 매칭'}`
+        };
+      }
+    }
+
     // 3. Fallback: Korean company name check (legacy support)
-    console.log('🏢 Checking Korean company names (fallback)...');
     const lowerInput = userInput.toLowerCase().trim();
 
     for (const koreanName of Object.keys(KOREAN_COMPANY_MAPPING)) {
@@ -83,7 +80,6 @@ export async function classifyUserIntent(userInput: string): Promise<IntentClass
         const hasFinancialContext = /(기업|회사|산업|시장|경제|금융)/.test(lowerInput);
 
         if (hasInvestmentContext || hasFinancialContext || lowerInput.length <= 10) {
-          console.log(`✅ Korean company name fallback match: ${koreanName}`);
           return {
             intent: 'company_direct',
             confidence: 0.8, // Lower confidence for fallback
@@ -94,7 +90,6 @@ export async function classifyUserIntent(userInput: string): Promise<IntentClass
     }
 
     // 4. Default: classify as casual_chat
-    console.log('💬 No specific intent detected, classifying as casual_chat');
     return {
       intent: 'casual_chat',
       confidence: 0.7,
@@ -178,30 +173,7 @@ ${availableIndustries.map((industry: string, index: number) => `${index + 1}. ${
 // Translation Services
 // ============================================================================
 
-/**
- * Translates Korean text to English with domain-specific synonyms
- */
-export async function translateKoreanToEnglish(koreanText: string): Promise<string> {
-  try {
-    const { choices } = await openai.chat.completions.create({
-      model: OPENAI_CONFIG.model,
-      messages: [
-        {
-          role: 'system',
-          content: 'Translate Korean to English with domain synonyms. Examples: "그래픽카드"→"graphics card GPU semiconductor", "전기차"→"electric vehicle EV automotive"'
-        },
-        { role: 'user', content: koreanText }
-      ],
-      temperature: OPENAI_CONFIG.temperature.translation,
-      max_tokens: OPENAI_CONFIG.maxTokens.translation,
-    });
-    
-    return choices[0].message.content?.trim() || koreanText;
-  } catch (error) {
-    console.error('Translation failed:', error);
-    throw new AIServiceError(`Translation failed: ${error}`);
-  }
-}
+
 
 /**
  * Translates English company description to Korean
@@ -265,6 +237,23 @@ export async function generatePersonaResponse(userInput: string, intent: string,
     userMessage += `\n\n[대화 맥락: ${conversationContext}]`;
   }
 
+  // Intent별 차별화된 max_tokens 설정 (한국어 4줄 정도에 적합)
+  let maxTokens: number = OPENAI_CONFIG.maxTokens.persona; // 기본값: 120
+
+  switch (intent) {
+    case 'greeting':
+      maxTokens = 180; // 인사말은 조금 더 길게 (투자 관심사 질문 포함)
+      break;
+    case 'about_ai':
+      maxTokens = 200; // AI 정체성/능력 설명은 가장 길게
+      break;
+    case 'casual_chat':
+      maxTokens = 170; // 일상 대화는 중간 길이 (투자 연결 포함)
+      break;
+    default:
+      maxTokens = 150; // 기타 상황은 적당한 길이
+  }
+
   const response = await openai.chat.completions.create({
     model: OPENAI_CONFIG.model,
     messages: [
@@ -278,7 +267,7 @@ export async function generatePersonaResponse(userInput: string, intent: string,
       }
     ],
     temperature: OPENAI_CONFIG.temperature.persona,
-    max_tokens: OPENAI_CONFIG.maxTokens.persona,
+    max_tokens: maxTokens,
   });
 
   const aiResponse = response.choices[0].message.content?.trim();

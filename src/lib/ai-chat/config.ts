@@ -172,78 +172,9 @@ export const KOREAN_COMPANY_MAPPING: KoreanCompanyMapping = {
   '록히드마틴': ['lockheed martin']
 };
 
-// ============================================================================
-// Quick Translation Mapping
-// ============================================================================
 
-/**
- * Quick Korean to English translation mapping for performance optimization
- * This avoids API calls for common Korean terms
- */
-export const QUICK_TRANSLATIONS: Record<string, string> = {
-  '반도체': 'semiconductors foundries chip fabrication',
-  '그래픽카드': 'semiconductors foundries graphics card GPU nvidia amd',
-  '그래픽': 'semiconductors foundries graphics GPU nvidia',
-  '칩': 'semiconductors foundries chip',
-  '전기차': 'electric vehicle EV automotive',
-  '은행': 'bank financial',
-  '바이오': 'biotechnology pharmaceutical',
-  '클라우드': 'cloud computing IT services',
-  '인공지능': 'artificial intelligence AI semiconductors',
-  'ai': 'artificial intelligence semiconductors foundries',
-  '소프트웨어': 'application software technology',
-  '게임': 'gaming entertainment media',
-  '항공': 'aerospace aviation defense',
-  '미디어': 'media entertainment',
-  '엔터테인먼트': 'media entertainment',
-  '의료': 'healthcare medical devices',
-  '제약': 'pharmaceuticals biotechnology drug',
-  '자동차': 'automotive vehicle',
-  '에너지': 'energy power utilities',
-  '통신': 'telecommunications telecom',
-  '만드는': 'manufacturing production',
-  '회사': 'company companies corporation',
-  '기업': 'company companies corporation',
-  '산업': 'industry industrial',
-  '분야': 'industry sector',
-  '업계': 'industry sector',
-  '제조': 'manufacturing production',
-  '생산': 'manufacturing production',
-  '개발': 'development technology',
-  '설계': 'design technology',
-  '디자인': 'design technology'
-};
 
-// ============================================================================
-// Response Templates
-// ============================================================================
 
-/**
- * Fallback response templates for different scenarios
- */
-export const FALLBACK_RESPONSES = {
-  greeting: [
-    '안녕하세요! 저는 금융인공지능실무 과제를 위해 탄생한 맞춤 투자지원 AI예요! 📈✨\n\n어떤 분야에 투자 관심이 있으신지 들려주세요!',
-    '안녕하세요! 저는 금융인공지능실무 과제를 위해 탄생한 맞춤 투자지원 AI예요! 💡🚀\n\n관심 있는 산업이나 기업이 있으시면 편하게 말씀해 주세요!',
-    '안녕하세요! 저는 금융인공지능실무 과제를 위해 탄생한 맞춤 투자지원 AI예요! ✨💎\n\n함께 투자 기회를 찾아보아요!'
-  ],
-  ability: [
-    '저는 금융인공지능실무 과제를 위해 탄생한 맞춤 투자지원 AI예요! 💪✨\n\nS&P 500 기업 분석과 산업 분류에 자신감 넘치게 도와드릴게요!',
-    '저는 금융인공지능실무 과제를 위해 탄생한 맞춤 투자지원 AI예요! 🎯🚀\n\nS&P 500 기업 분석과 투자 기회 발굴이 제 특기예요!'
-  ],
-  age: [
-    '저는 9주차에 태어나서 14주차에 훈련을 마쳤어요! 🎂✨\n\n아직 어리지만 투자 분석은 자신 있답니다!',
-    '9주차에 태어나 14주차에 훈련을 완료한 신입 투자 AI예요! 💪🚀\n\n나이는 어리지만 열정만큼은 누구에게도 지지 않아요!'
-  ],
-  intro: [
-    '저는 금융인공지능실무 과제를 위해 탄생한 맞춤 투자지원 AI예요! 🎯✨\n\nS&P 500 기업 분석과 산업 분류에 자신감 넘치게 도와드릴게요!',
-    '저는 금융인공지능실무 과제를 위해 탄생한 맞춤 투자지원 AI예요! 💡🚀\n\n"반도체", "전기차" 같은 키워드만 말씀해 주셔도 관련 기업들을 찾아드려요!'
-  ],
-  followUp: [
-    '네, 확실해요! 💪🔥 투자 분석은 제가 가장 자신 있는 분야거든요!\n\n어떤 산업이나 기업에 관심이 있으신지 말씀해 주세요!',
-    '물론이죠! 🎯💡 데이터 기반으로 정확한 분석을 해드려요!\n\n투자하고 싶은 분야를 알려주시면 바로 도와드릴게요!'
-  ]
-} as const;
 
 // ============================================================================
 // Welcome Messages

@@ -58,8 +58,6 @@ export {
   SESSION_CONFIG,
   PERFORMANCE_CONFIG,
   KOREAN_COMPANY_MAPPING,
-  QUICK_TRANSLATIONS,
-  FALLBACK_RESPONSES,
   WELCOME_MESSAGES,
   ENV_CONFIG
 } from './config';
@@ -100,7 +98,6 @@ export {
 export {
   classifyUserIntent,
   classifyIndustryWithGPT,
-  translateKoreanToEnglish,
   translateDescription,
   generatePersonaResponse
 } from './ai-service';

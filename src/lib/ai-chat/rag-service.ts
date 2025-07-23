@@ -12,8 +12,8 @@ import OpenAI from 'openai';
 import { getEmbeddings, cosine } from '@/lib/embeddings';
 import { QUICK_ENRICHED_FINAL as DATA } from '@/data/sp500_enriched_final';
 import { IndustryMatchResult, RAGServiceError, CompanyData, PersonaMatchResult, InvestmentIntentResult } from './types';
-import { RAG_THRESHOLDS, QUICK_TRANSLATIONS, KOREAN_COMPANY_MAPPING, OPENAI_CONFIG, PERFORMANCE_CONFIG, ENV_CONFIG } from './config';
-import { classifyIndustryWithGPT, translateKoreanToEnglish } from './ai-service';
+import { RAG_THRESHOLDS, KOREAN_COMPANY_MAPPING, OPENAI_CONFIG, PERFORMANCE_CONFIG, ENV_CONFIG } from './config';
+import { classifyIndustryWithGPT } from './ai-service';
 
 // ============================================================================
 // OpenAI Client for Embeddings
@@ -45,12 +45,10 @@ const getAvailableIndustries = (() => {
 // ============================================================================
 
 /**
- * Finds the best matching persona using RAG with threshold-based classification
- * Returns 'about_ai', 'greeting', or null (for casual_chat)
+ * 2단계 RAG 시스템 - 1단계: 기본 페르소나 분류 (greeting, about_ai, investment, casual_chat)
+ * 투자 관련 여부를 먼저 판단하여 성능 최적화
  */
 export async function findBestPersona(userInput: string): Promise<string | null> {
-  console.log(`🎭 Persona classification for: "${userInput}"`);
-
   try {
     // Generate embedding for user input
     const queryEmbedding = (await openai.embeddings.create({
@@ -60,7 +58,7 @@ export async function findBestPersona(userInput: string): Promise<string | null>
 
     const normalizedQuery = queryEmbedding.map((v, _, arr) => v / Math.hypot(...arr));
 
-    // RAG: Calculate cosine similarity with persona embeddings
+    // RAG: Calculate cosine similarity with persona embeddings (MD files only)
     const embeddings = await getEmbeddings();
     const { personas } = embeddings;
 
@@ -76,7 +74,6 @@ export async function findBestPersona(userInput: string): Promise<string | null>
 
     for (const persona of personas) {
       if (!persona.vec || !Array.isArray(persona.vec)) {
-        console.warn(`⚠️ Invalid vector for persona ${persona.persona}`);
         continue;
       }
 
@@ -89,25 +86,18 @@ export async function findBestPersona(userInput: string): Promise<string | null>
       }
     }
 
-    // Log scores in a compact format
+    // Simplified logging: only scores and selected direction
     const scoreText = Object.entries(scores)
       .map(([persona, score]) => `${persona}: ${score.toFixed(3)}`)
       .join(', ');
-    console.log(`🎯 Scores: ${scoreText}`);
 
     // Threshold check: If score is below threshold, classify as casual conversation
-    if (bestScore < RAG_THRESHOLDS.PERSONA_CASUAL_THRESHOLD) {
-      console.log(`🎭 Score below threshold (${RAG_THRESHOLDS.PERSONA_CASUAL_THRESHOLD}) → casual_chat`);
+    if (bestScore < RAG_THRESHOLDS.PERSONA_CASUAL_THRESHOLD || bestScore < RAG_THRESHOLDS.PERSONA_MIN_SCORE) {
+      console.log(`🎯 Scores: ${scoreText} → Selected: casual_chat`);
       return null; // Will be classified as casual_chat
     }
 
-    // Additional threshold for high confidence persona matching
-    if (bestScore < RAG_THRESHOLDS.PERSONA_MIN_SCORE) {
-      console.log(`🎭 Score below minimum threshold (${RAG_THRESHOLDS.PERSONA_MIN_SCORE}) → casual_chat`);
-      return null; // Will be classified as casual_chat
-    }
-
-    console.log(`🎭 Selected: ${bestPersona} (score: ${bestScore.toFixed(3)})`);
+    console.log(`🎯 Scores: ${scoreText} → Selected: ${bestPersona}`);
     return bestPersona;
 
   } catch (error) {
@@ -125,25 +115,20 @@ export async function findBestPersona(userInput: string): Promise<string | null>
  * Returns investment_recommendation, investment_query, company_direct, or null
  */
 export async function classifyInvestmentIntent(userInput: string): Promise<InvestmentIntentResult> {
-  console.log(`💰 Investment intent classification for: "${userInput}"`);
-
   try {
     // Generate embedding for user input
-    console.log('🔤 Generating embedding for investment intent classification...');
     const queryEmbedding = (await openai.embeddings.create({
       model: 'text-embedding-3-small',
       input: userInput
     })).data[0].embedding;
 
     const normalizedQuery = queryEmbedding.map((v, _, arr) => v / Math.hypot(...arr));
-    console.log('✅ User input embedding generated');
 
     // Load embeddings
     const embeddings = await getEmbeddings();
     const { companies, industries } = embeddings;
 
     if (!companies || !industries) {
-      console.error('❌ Companies or industries embeddings not available');
       return { intent: null, score: 0, method: 'none' };
     }
 
@@ -151,7 +136,6 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
     let bestCompanyScore = -1;
     let bestCompanyMatch = null;
 
-    console.log(`🏢 Checking against ${companies.length} companies...`);
     const topCompanies = companies.slice(0, PERFORMANCE_CONFIG.maxCompaniesForRAG);
 
     for (const company of topCompanies) {
@@ -164,13 +148,9 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
       }
     }
 
-    console.log(`🎯 Best company match: ${bestCompanyMatch?.name} (${bestCompanyMatch?.ticker}) with score: ${bestCompanyScore.toFixed(3)}`);
-
     // 2. Check for industry match
     let bestIndustryScore = -1;
     let bestIndustryMatch = null;
-
-    console.log(`🏭 Checking against ${industries.length} industries...`);
 
     for (const industry of industries) {
       if (!industry.vec || !Array.isArray(industry.vec)) continue;
@@ -182,8 +162,6 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
       }
     }
 
-    console.log(`🎯 Best industry match: ${bestIndustryMatch?.industry} with score: ${bestIndustryScore.toFixed(3)}`);
-
     // 3. Determine intent based on scores and patterns
 
     // Check for investment recommendation patterns
@@ -191,18 +169,20 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
     const hasRecommendationPattern = recommendationPatterns.test(userInput.toLowerCase());
 
     if (hasRecommendationPattern && (bestCompanyScore > 0.2 || bestIndustryScore > 0.2)) {
-      console.log('💡 Classified as investment_recommendation (recommendation pattern + entity match)');
+      const selectedEntity = bestCompanyScore > bestIndustryScore ? bestCompanyMatch?.name : bestIndustryMatch?.industry;
+      const selectedScore = Math.max(bestCompanyScore, bestIndustryScore);
+      console.log(`💡 Selected: ${selectedEntity} (${selectedScore.toFixed(3)})`);
       return {
         intent: 'investment_recommendation',
-        score: Math.max(bestCompanyScore, bestIndustryScore),
-        matchedEntity: bestCompanyScore > bestIndustryScore ? bestCompanyMatch?.name : bestIndustryMatch?.industry,
+        score: selectedScore,
+        matchedEntity: selectedEntity,
         method: bestCompanyScore > bestIndustryScore ? 'rag_company' : 'rag_industry'
       };
     }
 
     // Check for direct company mention (high confidence)
     if (bestCompanyScore >= RAG_THRESHOLDS.COMPANY_DIRECT_MIN_SCORE) {
-      console.log('🏢 Classified as company_direct (high company similarity)');
+      console.log(`🏢 Selected: ${bestCompanyMatch?.name} (${bestCompanyScore.toFixed(3)})`);
       return {
         intent: 'company_direct',
         score: bestCompanyScore,
@@ -214,11 +194,14 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
     // Check for investment query (medium confidence)
     if (bestCompanyScore >= RAG_THRESHOLDS.INVESTMENT_INTENT_MIN_SCORE ||
         bestIndustryScore >= RAG_THRESHOLDS.INVESTMENT_INTENT_MIN_SCORE) {
-      console.log('💼 Classified as investment_query (medium similarity)');
+      const selectedEntity = bestCompanyScore > bestIndustryScore ? bestCompanyMatch?.name : bestIndustryMatch?.industry;
+      const selectedScore = Math.max(bestCompanyScore, bestIndustryScore);
+      const icon = bestCompanyScore > bestIndustryScore ? '🏢' : '🏭';
+      console.log(`${icon} Selected: ${selectedEntity} (${selectedScore.toFixed(3)})`);
       return {
         intent: 'investment_query',
-        score: Math.max(bestCompanyScore, bestIndustryScore),
-        matchedEntity: bestCompanyScore > bestIndustryScore ? bestCompanyMatch?.name : bestIndustryMatch?.industry,
+        score: selectedScore,
+        matchedEntity: selectedEntity,
         method: bestCompanyScore > bestIndustryScore ? 'rag_company' : 'rag_industry'
       };
     }
@@ -226,7 +209,7 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
     // Check for basic investment keywords (fallback)
     const investmentKeywords = /(투자|주식|종목|매수|매도|분석|포트폴리오|수익|손실|시장|경제|금융)/;
     if (investmentKeywords.test(userInput.toLowerCase())) {
-      console.log('📈 Classified as investment_query (investment keywords)');
+      console.log('📈 Selected: investment keywords (0.600)');
       return {
         intent: 'investment_query',
         score: 0.6, // Medium confidence for keyword matching
@@ -234,7 +217,6 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
       };
     }
 
-    console.log('❌ No investment intent detected');
     return { intent: null, score: 0, method: 'none' };
 
   } catch (error) {
@@ -251,44 +233,11 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
  * Finds the best matching industry using RAG with threshold-based classification
  */
 export async function findBestIndustry(userInput: string): Promise<string | null> {
-  // Performance optimization: Simple Korean keyword mapping to minimize translation API calls
-  let enhancedQuery = userInput;
-  
-  if (/[가-힣]/.test(userInput)) {
-    // Quick keyword mapping (without API calls)
-    let foundTranslation = false;
-    const translationParts: string[] = [];
-
-    for (const [korean, english] of Object.entries(QUICK_TRANSLATIONS)) {
-      if (userInput.includes(korean)) {
-        translationParts.push(english);
-        foundTranslation = true;
-      }
-    }
-
-    if (foundTranslation) {
-      // Combine all matched translations
-      enhancedQuery = `${userInput} ${translationParts.join(' ')}`;
-      console.log(`Enhanced query with Korean mappings: "${enhancedQuery}"`);
-    }
-
-    // Only call API if not mapped and input is long enough (performance optimization)
-    if (!foundTranslation && userInput.length > 10) {
-      try {
-        const translation = await translateKoreanToEnglish(userInput);
-        if (translation) {
-          enhancedQuery = `${userInput} ${translation}`;
-        }
-      } catch (error) {
-        console.error('Translation failed:', error);
-      }
-    }
-  }
-
-  // RAG: Generate user input embedding
+  // RAG: Generate user input embedding directly (no translation needed)
+  // 임베딩 공간에서는 언어가 달라도 의미적 유사성 매칭이 가능
   const queryEmbedding = (await openai.embeddings.create({
     model: OPENAI_CONFIG.embeddingModel,
-    input: enhancedQuery
+    input: userInput
   })).data[0].embedding;
 
   const normalizedQuery = queryEmbedding.map((v, _, arr) => v / Math.hypot(...arr));

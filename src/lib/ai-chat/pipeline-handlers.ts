@@ -50,7 +50,7 @@ export async function handleStartStage(context: PipelineContext): Promise<StageH
   
   // Perform intent classification
   const intentResult = await classifyUserIntent(userInput);
-  console.log(`User intent: ${intentResult.intent} (confidence: ${intentResult.confidence})`);
+  console.log(`User intent: ${intentResult.intent}`);
 
   // Handle different intents
   switch (intentResult.intent) {

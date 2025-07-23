@@ -76,24 +76,31 @@ function checkEnvironment() {
  */
 function checkMarkdownFiles() {
   log.step('마크다운 파일 확인 중...');
-  
+
   const aboutAiPath = path.join(CORPUS_DIR, 'about_ai.md');
   const greetingPath = path.join(CORPUS_DIR, 'greeting.md');
-  
+  const investmentPath = path.join(CORPUS_DIR, 'investment.md');
+
   if (!fs.existsSync(aboutAiPath)) {
     log.error(`about_ai.md 파일을 찾을 수 없습니다: ${aboutAiPath}`);
     return false;
   }
-  
+
   if (!fs.existsSync(greetingPath)) {
     log.error(`greeting.md 파일을 찾을 수 없습니다: ${greetingPath}`);
     return false;
   }
-  
+
+  if (!fs.existsSync(investmentPath)) {
+    log.error(`investment.md 파일을 찾을 수 없습니다: ${investmentPath}`);
+    return false;
+  }
+
   // 파일 내용 간단 검증
   const aboutAiContent = fs.readFileSync(aboutAiPath, 'utf8');
   const greetingContent = fs.readFileSync(greetingPath, 'utf8');
-  
+  const investmentContent = fs.readFileSync(investmentPath, 'utf8');
+
   if (!aboutAiContent.includes('## Examples')) {
     log.error('about_ai.md 파일에 "## Examples" 섹션이 없습니다.');
     return false;
@@ -103,14 +110,21 @@ function checkMarkdownFiles() {
     log.error('greeting.md 파일에 "## Examples" 섹션이 없습니다.');
     return false;
   }
-  
+
+  if (!investmentContent.includes('## Examples')) {
+    log.error('investment.md 파일에 "## Examples" 섹션이 없습니다.');
+    return false;
+  }
+
   // 예시 개수 확인
   const aboutAiExamples = aboutAiContent.split('\n').filter(line => line.trim().startsWith('- ')).length;
   const greetingExamples = greetingContent.split('\n').filter(line => line.trim().startsWith('- ')).length;
-  
+  const investmentExamples = investmentContent.split('\n').filter(line => line.trim().startsWith('- ')).length;
+
   log.success(`about_ai.md: ${aboutAiExamples}개 예시 발견`);
   log.success(`greeting.md: ${greetingExamples}개 예시 발견`);
-  
+  log.success(`investment.md: ${investmentExamples}개 예시 발견`);
+
   return true;
 }
 
@@ -181,15 +195,32 @@ async function generateEmbeddings() {
     // 데이터 로드 (TypeScript 파일을 직접 읽어서 파싱)
     const dataPath = path.join(process.cwd(), 'src', 'data', 'sp500_enriched_final.ts');
     console.log('📄 데이터 파일 경로:', dataPath);
-    const dataContent = fs.readFileSync(dataPath, 'utf8');
 
-    // TypeScript 파일에서 데이터 추출 (간단한 정규식 사용)
-    const dataMatch = dataContent.match(/export const QUICK_ENRICHED_FINAL = ({[\\s\\S]*?});\\s*$/m);
-    if (!dataMatch) {
-      throw new Error('sp500_enriched_final.ts에서 데이터를 찾을 수 없습니다.');
+    if (!fs.existsSync(dataPath)) {
+      throw new Error(\`데이터 파일을 찾을 수 없습니다: \${dataPath}\`);
     }
 
-    const DATA = eval('(' + dataMatch[1] + ')');
+    const dataContent = fs.readFileSync(dataPath, 'utf8');
+    console.log('📄 파일 읽기 완료, 크기:', dataContent.length, 'bytes');
+
+    // TypeScript 파일에서 데이터 추출 (개선된 정규식 사용)
+    const dataMatch = dataContent.match(/export const QUICK_ENRICHED_FINAL = ({[\\s\\S]*?})\\s*as const;/);
+    if (!dataMatch) {
+      console.error('정규식 매칭 실패. 파일 시작 부분:', dataContent.substring(0, 200));
+      throw new Error('sp500_enriched_final.ts에서 데이터를 찾을 수 없습니다. 파일 형식을 확인해주세요.');
+    }
+
+    console.log('📝 데이터 추출 성공, 파싱 중...');
+    console.log('추출된 데이터 크기:', dataMatch[1].length, 'bytes');
+
+    // 더 안전한 파싱 방법 사용
+    let DATA;
+    try {
+      DATA = eval('(' + dataMatch[1] + ')');
+    } catch (parseError) {
+      console.error('데이터 파싱 오류:', parseError.message);
+      throw new Error('데이터 파싱에 실패했습니다: ' + parseError.message);
+    }
 
     console.log('📊 기업 데이터 로드 완료:', Object.keys(DATA).length, '개');
 
@@ -250,12 +281,15 @@ async function generateEmbeddings() {
     // 마크다운 파일 읽기 (경로 안전하게 처리)
     const aboutAiPath = path.join(process.cwd(), 'src', 'data', 'corpus', 'about_ai.md');
     const greetingPath = path.join(process.cwd(), 'src', 'data', 'corpus', 'greeting.md');
+    const investmentPath = path.join(process.cwd(), 'src', 'data', 'corpus', 'investment.md');
 
     console.log('📄 about_ai.md 경로:', aboutAiPath);
     console.log('📄 greeting.md 경로:', greetingPath);
+    console.log('📄 investment.md 경로:', investmentPath);
 
     const aboutAiContent = fs.readFileSync(aboutAiPath, 'utf8');
     const greetingContent = fs.readFileSync(greetingPath, 'utf8');
+    const investmentContent = fs.readFileSync(investmentPath, 'utf8');
 
     // 예시 추출
     const extractExamples = (content) => {
@@ -281,21 +315,25 @@ async function generateEmbeddings() {
 
     const aboutAiExamples = extractExamples(aboutAiContent);
     const greetingExamples = extractExamples(greetingContent);
+    const investmentExamples = extractExamples(investmentContent);
 
     console.log(\`  about_ai 예시: \${aboutAiExamples.length}개\`);
     console.log(\`  greeting 예시: \${greetingExamples.length}개\`);
+    console.log(\`  investment 예시: \${investmentExamples.length}개\`);
 
     const aboutAiText = aboutAiExamples.join('. ');
     const greetingText = greetingExamples.join('. ');
+    const investmentText = investmentExamples.join('. ');
 
     const { data: personaData } = await openai.embeddings.create({
       model: 'text-embedding-3-small',
-      input: [aboutAiText, greetingText],
+      input: [aboutAiText, greetingText, investmentText],
     });
 
     const personas = [
       { persona: 'about_ai', vec: norm(personaData[0].embedding) },
-      { persona: 'greeting', vec: norm(personaData[1].embedding) }
+      { persona: 'greeting', vec: norm(personaData[1].embedding) },
+      { persona: 'investment', vec: norm(personaData[2].embedding) }
     ];
 
     // 캐시 파일 저장
@@ -311,6 +349,12 @@ async function generateEmbeddings() {
 
     console.log('✅ 임베딩 생성 완료!');
     console.log(\`📊 생성된 임베딩: 기업 \${companies.length}개, 산업 \${industryEmbeddings.length}개, 페르소나 \${personas.length}개\`);
+
+    // 캐시 파일 검증
+    console.log('✅ 캐시 파일 검증 완료:');
+    console.log(\`ℹ   - 기업: \${companies.length}개\`);
+    console.log(\`ℹ   - 산업: \${industryEmbeddings.length}개\`);
+    console.log(\`ℹ   - 페르소나: \${personas.length}개 (\${personas.map(p => p.persona).join(', ')})\`);
 
     return true;
   } catch (error) {
