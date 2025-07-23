@@ -436,6 +436,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       };
 
+      // 📊 Phase 1 상세 분석 결과 로그 출력
+      console.log(`\n🎯 ===== ${ticker} Phase 1 분석 결과 상세 로그 =====`);
+
+      // 1. Technical Analysis (RSI, Bollinger Bands, MFI)
+      console.log(`📈 1. Technical Analysis (기술적 분석):`);
+      console.log(`   - RSI: ${finalRSIResult ? JSON.stringify(finalRSIResult, null, 2) : 'N/A'}`);
+      console.log(`   - Bollinger Bands: ${finalBollingerResult ? JSON.stringify(finalBollingerResult, null, 2) : 'N/A'}`);
+      console.log(`   - MFI: ${finalMFIResult ? JSON.stringify(finalMFIResult, null, 2) : 'N/A'}`);
+      console.log(`   - 종합 신호등: ${technicalColor}`);
+
+      // 2. Industry Analysis
+      console.log(`🏭 2. Industry Analysis (업종 비교 분석):`);
+      console.log(`   - 결과: ${finalIndustryResult ? JSON.stringify(finalIndustryResult, null, 2) : 'N/A'}`);
+      console.log(`   - 신호등: ${finalIndustryResult ? getServiceTrafficLight(finalIndustryResult) : 'inactive'}`);
+
+      // 3. Market Analysis (CAPM)
+      console.log(`📊 3. Market Analysis (시장 민감도 분석):`);
+      console.log(`   - CAPM 결과: ${finalCAPMResult ? JSON.stringify(finalCAPMResult, null, 2) : 'N/A'}`);
+      console.log(`   - 신호등: ${finalCAPMResult ? getServiceTrafficLight(finalCAPMResult) : 'inactive'}`);
+
+      // 4. Risk Analysis (GARCH)
+      console.log(`⚠️ 4. Risk Analysis (변동성 리스크 분석):`);
+      console.log(`   - GARCH 결과: ${finalGARCHResult ? JSON.stringify(finalGARCHResult, null, 2) : 'N/A'}`);
+      console.log(`   - 신호등: ${finalGARCHResult ? getServiceTrafficLight(finalGARCHResult) : 'inactive'}`);
+
+      console.log(`🎯 ===== ${ticker} Phase 1 분석 완료 =====\n`);
+
       console.log(`[LSTM_SIMPLE_API] Phase 1 completed successfully for ${ticker}`);
       return res.status(200).json(phase1Result);
 
@@ -463,6 +490,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           neural: lstmResult ? getTrafficLightColor(lstmResult, 'LSTM') : 'red' // Light 5: Neural Network Prediction
         }
       };
+
+      // 🤖 Phase 2 상세 분석 결과 로그 출력
+      console.log(`\n🎯 ===== ${ticker} Phase 2 분석 결과 상세 로그 =====`);
+
+      // 5. Neural Analysis (LSTM 예측)
+      console.log(`🤖 5. Neural Analysis (딥러닝 기반 가격 변동 예측):`);
+      if (lstmResult) {
+        console.log(`   - 정확도: ${lstmResult.accuracy ? (lstmResult.accuracy * 100).toFixed(2) + '%' : 'N/A'}`);
+        console.log(`   - 상승 확률: ${lstmResult.pred_prob_up ? (lstmResult.pred_prob_up * 100).toFixed(2) + '%' : 'N/A'}`);
+        console.log(`   - 신호등: ${getTrafficLightColor(lstmResult, 'LSTM')}`);
+        console.log(`   - 전체 결과: ${JSON.stringify(lstmResult, null, 2)}`);
+
+        if (lstmResult.summary_ko) {
+          console.log(`   - 한국어 요약: ${lstmResult.summary_ko}`);
+        }
+      } else {
+        console.log(`   - 결과: N/A (LSTM 분석 실패)`);
+      }
+
+      console.log(`🎯 ===== ${ticker} Phase 2 분석 완료 =====\n`);
 
       console.log(`[LSTM_SIMPLE_API] Phase 2 completed successfully for ${ticker}`);
       return res.status(200).json(phase2Result);
@@ -542,7 +589,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     };
 
+    // 📊 전체 분석 결과 상세 로그 출력 (레거시 모드)
+    console.log(`\n🎯 ===== ${ticker} 전체 분석 결과 상세 로그 (레거시 모드) =====`);
 
+    // 1. Technical Analysis
+    console.log(`📈 1. Technical Analysis (기술적 분석):`);
+    console.log(`   - RSI: ${finalRSIResult ? JSON.stringify(finalRSIResult, null, 2) : 'N/A'}`);
+    console.log(`   - Bollinger Bands: ${finalBollingerResult ? JSON.stringify(finalBollingerResult, null, 2) : 'N/A'}`);
+    console.log(`   - MFI: ${finalMFIResult ? JSON.stringify(finalMFIResult, null, 2) : 'N/A'}`);
+    console.log(`   - 종합 신호등: ${technicalColor}`);
+
+    // 2. Industry Analysis
+    console.log(`🏭 2. Industry Analysis (업종 비교 분석):`);
+    console.log(`   - 결과: ${finalIndustryResult ? JSON.stringify(finalIndustryResult, null, 2) : 'N/A'}`);
+    console.log(`   - 신호등: ${finalIndustryResult ? getServiceTrafficLight(finalIndustryResult) : 'inactive'}`);
+
+    // 3. Market Analysis
+    console.log(`📊 3. Market Analysis (시장 민감도 분석):`);
+    console.log(`   - CAPM 결과: ${finalCAPMResult ? JSON.stringify(finalCAPMResult, null, 2) : 'N/A'}`);
+    console.log(`   - 신호등: ${finalCAPMResult ? getServiceTrafficLight(finalCAPMResult) : 'inactive'}`);
+
+    // 4. Risk Analysis
+    console.log(`⚠️ 4. Risk Analysis (변동성 리스크 분석):`);
+    console.log(`   - GARCH 결과: ${finalGARCHResult ? JSON.stringify(finalGARCHResult, null, 2) : 'N/A'}`);
+    console.log(`   - 신호등: ${finalGARCHResult ? getServiceTrafficLight(finalGARCHResult) : 'inactive'}`);
+
+    // 5. Neural Analysis
+    console.log(`🤖 5. Neural Analysis (딥러닝 기반 가격 변동 예측):`);
+    if (finalLSTMResult) {
+      console.log(`   - 정확도: ${finalLSTMResult.accuracy ? (finalLSTMResult.accuracy * 100).toFixed(2) + '%' : 'N/A'}`);
+      console.log(`   - 상승 확률: ${finalLSTMResult.pred_prob_up ? (finalLSTMResult.pred_prob_up * 100).toFixed(2) + '%' : 'N/A'}`);
+      console.log(`   - 신호등: ${getTrafficLightColor(finalLSTMResult, 'LSTM')}`);
+      console.log(`   - 전체 결과: ${JSON.stringify(finalLSTMResult, null, 2)}`);
+
+      if (finalLSTMResult.summary_ko) {
+        console.log(`   - 한국어 요약: ${finalLSTMResult.summary_ko}`);
+      }
+    } else {
+      console.log(`   - 결과: N/A (LSTM 분석 실패)`);
+    }
+
+    // 종합 신호등 상태
+    console.log(`🚦 종합 신호등 상태:`);
+    Object.entries(mergedResult.traffic_lights).forEach(([key, value]) => {
+      console.log(`   - ${key}: ${value}`);
+    });
+
+    console.log(`🎯 ===== ${ticker} 전체 분석 완료 =====\n`);
 
     console.log(`[LSTM_SIMPLE_API] Prediction completed successfully for ${ticker} with ${Object.keys(mergedResult.traffic_lights).length} traffic lights`);
 

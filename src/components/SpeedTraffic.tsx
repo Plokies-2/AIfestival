@@ -269,6 +269,15 @@ const SpeedTraffic: React.FC<SpeedTrafficProps> = ({ symbol, onPhaseMessage, onA
       const phase1Result = await phase1Response.json() as Phase1Result;
       console.log(`[SpeedTraffic] Phase 1 result:`, phase1Result);
 
+      // 📊 SpeedTraffic 프론트엔드에서 Phase 1 분석 결과 상세 로그
+      console.log(`\n🎯 [SpeedTraffic] ${symbol} Phase 1 분석 결과 수신 상세 로그`);
+      console.log(`📈 Technical Analysis: RSI=${phase1Result.rsi?.rsi_value}, Bollinger=${phase1Result.bollinger?.percent_b}, MFI=${phase1Result.mfi?.mfi_value}`);
+      console.log(`🏭 Industry Analysis: ${JSON.stringify(phase1Result.industry)}`);
+      console.log(`📊 Market Analysis (CAPM): ${JSON.stringify(phase1Result.capm)}`);
+      console.log(`⚠️ Risk Analysis (GARCH): ${JSON.stringify(phase1Result.garch)}`);
+      console.log(`🚦 Traffic Lights: ${JSON.stringify(phase1Result.traffic_lights)}`);
+      console.log(`🎯 [SpeedTraffic] Phase 1 로그 완료\n`);
+
       // Update lights 1-4 immediately after Phase 1 completes
       if (phase1Result.traffic_lights) {
         if (phase1Result.traffic_lights.technical) {
@@ -346,6 +355,17 @@ const SpeedTraffic: React.FC<SpeedTrafficProps> = ({ symbol, onPhaseMessage, onA
       const phase2Result = await phase2Response.json() as Phase2Result;
       console.log(`[SpeedTraffic] Phase 2 result:`, phase2Result);
 
+      // 🤖 SpeedTraffic 프론트엔드에서 Phase 2 분석 결과 상세 로그
+      console.log(`\n🎯 [SpeedTraffic] ${symbol} Phase 2 분석 결과 수신 상세 로그`);
+      if (phase2Result.lstm) {
+        console.log(`🤖 Neural Analysis (LSTM):`);
+        console.log(`   - 정확도: ${phase2Result.lstm.accuracy ? (phase2Result.lstm.accuracy * 100).toFixed(2) + '%' : 'N/A'}`);
+        console.log(`   - 상승 확률: ${phase2Result.lstm.pred_prob_up ? (phase2Result.lstm.pred_prob_up * 100).toFixed(2) + '%' : 'N/A'}`);
+        console.log(`   - 전체 결과: ${JSON.stringify(phase2Result.lstm)}`);
+      }
+      console.log(`🚦 Neural Traffic Light: ${phase2Result.traffic_lights?.neural}`);
+      console.log(`🎯 [SpeedTraffic] Phase 2 로그 완료\n`);
+
       // Check LSTM accuracy and set appropriate states
       // Accuracy is a float between 0 and 1, where 1 means perfect accuracy
       const lstmAccuracy = phase2Result.lstm?.accuracy;
@@ -400,6 +420,15 @@ const SpeedTraffic: React.FC<SpeedTrafficProps> = ({ symbol, onPhaseMessage, onA
 
       // Log the final results for debugging
       console.log('[SpeedTraffic] Final analysis results:', JSON.stringify(finalResults, null, 2));
+
+      // 📊 SpeedTraffic 최종 분석 결과 종합 로그
+      console.log(`\n🎯 [SpeedTraffic] ${symbol} 최종 분석 결과 종합 로그`);
+      console.log(`📈 Technical: ${finalResults.traffic_lights?.technical || 'N/A'}`);
+      console.log(`🏭 Industry: ${finalResults.traffic_lights?.industry || 'N/A'}`);
+      console.log(`📊 Market: ${finalResults.traffic_lights?.market || 'N/A'}`);
+      console.log(`⚠️ Risk: ${finalResults.traffic_lights?.risk || 'N/A'}`);
+      console.log(`🤖 Neural: ${finalResults.traffic_lights?.neural || 'N/A'}`);
+      console.log(`🎯 [SpeedTraffic] 최종 로그 완료\n`);
 
       // JSON 저장 로직 제거됨 - 더 이상 분석 결과를 파일로 저장하지 않음
 

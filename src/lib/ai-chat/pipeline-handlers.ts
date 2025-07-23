@@ -278,7 +278,13 @@ export async function handleShowIndustryStage(context: PipelineContext): Promise
   }
 
   // Check for ticker selection (priority over intent classification)
-  const selectedTicker = findTickerInText(userInput, state.industryCompanies);
+  // 현재 산업의 전체 기업 목록을 동적으로 가져와서 매칭에 사용
+  // 이렇게 하면 [더보기] 후에도 전체 목록에서 매칭이 가능함
+  const allIndustryCompanies = Object.entries(DATA)
+    .filter(([_, company]: [string, any]) => company.industry === state.selectedIndustry!)
+    .map(([ticker, _]: [string, any]) => ticker);
+
+  const selectedTicker = findTickerInText(userInput, allIndustryCompanies);
   if (selectedTicker) {
     return await handleTickerSelection(context, selectedTicker);
   }
@@ -322,11 +328,21 @@ export async function handleShowIndustryStage(context: PipelineContext): Promise
  */
 async function handleShowMoreCompanies(context: PipelineContext): Promise<StageHandlerResult> {
   const { state } = context;
-  
+
+  // 개발 환경에서만 디버깅 로그 출력
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`🔍 [더보기] 처리 시작 - 산업: ${state.selectedIndustry}`);
+    console.log(`🔍 현재 industryCompanies 배열:`, state.industryCompanies);
+  }
+
   // Show all companies in the industry
   const allCompanies = Object.entries(DATA)
     .filter(([_, company]: [string, any]) => company.industry === state.selectedIndustry!)
     .map(([ticker, _]: [string, any]) => ticker);
+
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`🔍 ${state.selectedIndustry} 산업의 전체 기업 목록 (${allCompanies.length}개):`, allCompanies);
+  }
 
   const allCompanyList = formatCompanyList(allCompanies);
 
@@ -337,6 +353,10 @@ async function handleShowMoreCompanies(context: PipelineContext): Promise<StageH
     ...state,
     industryCompanies: allCompanies
   };
+
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`✅ 새로운 상태의 industryCompanies 배열:`, newState.industryCompanies);
+  }
 
   return {
     reply,

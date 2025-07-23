@@ -235,16 +235,16 @@ export function findCompanyInAllData(userInput: string): string | null {
 export function findTickerInText(text: string, availableTickers: string[]): string | null {
   const normalizedInput = text.trim().toLowerCase();
   const upperInput = text.trim().toUpperCase();
-  
+
   // 1. Direct ticker matching (case insensitive exact match)
-  const directTicker = availableTickers.find(ticker => 
-    ticker.toLowerCase() === normalizedInput || 
+  const directTicker = availableTickers.find(ticker =>
+    ticker.toLowerCase() === normalizedInput ||
     ticker === upperInput ||
     normalizedInput.includes(ticker.toLowerCase()) ||
     upperInput.includes(ticker)
   );
   if (directTicker) {
-    console.log(`Direct ticker match: "${text}" -> ${directTicker}`);
+    console.log(`✅ 티커 매칭 성공: "${text}" -> ${directTicker} (${getCompanyName(directTicker)})`);
     return directTicker;
   }
 
@@ -296,7 +296,7 @@ export function findTickerInText(text: string, availableTickers: string[]): stri
                            tickerLower.includes(normalizedInput);
 
     if (isCompanyInInput || isInputInCompany) {
-      console.log(`Company name/ticker match: "${text}" -> ${ticker} (${company.name})`);
+      console.log(`✅ 티커 매칭 성공: "${text}" -> ${ticker} (${company.name})`);
       return ticker;
     }
 
@@ -304,12 +304,14 @@ export function findTickerInText(text: string, availableTickers: string[]): stri
     const companyWords = companyName.split(' ').filter((word: string) => word.length > 2);
     for (const word of companyWords) {
       if (normalizedInput.includes(word) && word.length > 3) { // Only match longer words
-        console.log(`Word match: "${word}" -> ${ticker} (${company.name})`);
+        console.log(`✅ 티커 매칭 성공: "${text}" -> ${ticker} (${company.name})`);
         return ticker;
       }
     }
   }
 
+  // 매칭 실패 로그
+  console.log(`❌ 티커 매칭 실패: "${text}"`);
   return null;
 }
 

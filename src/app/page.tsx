@@ -25,26 +25,38 @@ export default function DashboardPage() {
     setAnalysisData(results);
   };
 
-  // 홈으로 돌아가기 (상태 초기화)
+  // 홈으로 돌아가기 (완전한 페이지 새로고침)
   const handleHomeClick = () => {
-    console.log('🏠 Home button clicked - resetting all states');
+    console.log('🏠 Home button clicked - performing complete page reload');
 
-    // 모든 상태 초기화
-    setCurrentSymbol(undefined);
-    setShowingCompanyList(false);
-    setAnalysisData(null);
-    setIsChartExpanded(false);
+    try {
+      // 완전한 페이지 새로고침을 위해 window.location을 사용
+      // 이는 "처음부터 다시 접속"한 것과 동일한 효과를 제공
+      // 모든 세션 데이터, 캐시, 상태가 완전히 초기화됨
 
-    // AI 채팅 초기화
-    if (aiChatRef.current) {
-      aiChatRef.current.resetChat();
+      // 안전한 새로고침을 위해 setTimeout으로 비동기 실행
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          // 현재 URL로 완전 새로고침 (캐시 무시)
+          window.location.href = window.location.href;
+        }
+      }, 100);
+
+    } catch (error) {
+      console.error('❌ Page reload failed, falling back to router refresh:', error);
+
+      // 오류 발생 시 fallback으로 기존 방식 사용
+      setCurrentSymbol(undefined);
+      setShowingCompanyList(false);
+      setAnalysisData(null);
+      setIsChartExpanded(false);
+
+      if (aiChatRef.current) {
+        aiChatRef.current.resetChat();
+      }
+
+      router.refresh();
     }
-
-    console.log('✅ All states reset successfully');
-
-    // Next.js 라우터를 사용한 안전한 페이지 새로고침
-    // window.location.reload() 대신 라우터 새로고침 사용
-    router.refresh();
   };
 
 
