@@ -13,7 +13,7 @@ import { getEmbeddings, cosine } from '@/lib/embeddings';
 import { QUICK_ENRICHED_FINAL as DATA } from '@/data/sp500_enriched_final';
 import { IndustryMatchResult, RAGServiceError, CompanyData, PersonaMatchResult, InvestmentIntentResult } from './types';
 import { RAG_THRESHOLDS, KOREAN_COMPANY_MAPPING, OPENAI_CONFIG, PERFORMANCE_CONFIG, ENV_CONFIG } from './config';
-import { classifyIndustryWithGPT } from './ai-service';
+// 제거된 기능: classifyIndustryWithGPT import - GPT 기반 산업 분류 백업 로직 제거됨
 
 // ============================================================================
 // OpenAI Client for Embeddings
@@ -45,8 +45,9 @@ const getAvailableIndustries = (() => {
 // ============================================================================
 
 /**
- * 2단계 RAG 시스템 - 1단계: 기본 페르소나 분류 (greeting, about_ai, investment, casual_chat)
+ * 2단계 RAG 시스템 - 1단계: 기본 페르소나 분류 (greeting, about_ai, investment)
  * 투자 관련 여부를 먼저 판단하여 성능 최적화
+ * 수정된 로직: RAG 점수가 낮을 때 casual_chat 대신 greeting으로 분류
  */
 export async function findBestPersona(userInput: string): Promise<string | null> {
   try {
@@ -65,7 +66,7 @@ export async function findBestPersona(userInput: string): Promise<string | null>
     // Validate personas array
     if (!personas || !Array.isArray(personas) || personas.length === 0) {
       console.error('❌ Personas array is invalid or empty');
-      return null; // Fallback to casual_chat
+      return null; // Fallback to greeting
     }
 
     let bestPersona: string | null = null;
@@ -91,10 +92,10 @@ export async function findBestPersona(userInput: string): Promise<string | null>
       .map(([persona, score]) => `${persona}: ${score.toFixed(3)}`)
       .join(', ');
 
-    // Threshold check: If score is below threshold, classify as casual conversation
+    // Threshold check: If score is below threshold, classify as greeting
     if (bestScore < RAG_THRESHOLDS.PERSONA_CASUAL_THRESHOLD || bestScore < RAG_THRESHOLDS.PERSONA_MIN_SCORE) {
-      console.log(`🎯 Scores: ${scoreText} → Selected: casual_chat`);
-      return null; // Will be classified as casual_chat
+      console.log(`🎯 Scores: ${scoreText} → Selected: greeting`);
+      return null; // Will be classified as greeting
     }
 
     console.log(`🎯 Scores: ${scoreText} → Selected: ${bestPersona}`);
@@ -102,7 +103,7 @@ export async function findBestPersona(userInput: string): Promise<string | null>
 
   } catch (error) {
     console.error('❌ Error in persona classification:', error);
-    return null; // Fallback to casual_chat
+    return null; // Fallback to greeting
   }
 }
 
@@ -288,23 +289,10 @@ export async function findBestIndustry(userInput: string): Promise<string | null
   if (bestScore < RAG_THRESHOLDS.CASUAL_CONVERSATION_THRESHOLD) {
     console.log(`⚠️ RAG score too low (${bestScore.toFixed(3)} < ${RAG_THRESHOLDS.CASUAL_CONVERSATION_THRESHOLD}), classifying as casual conversation`);
 
-    // Try GPT classification, but if it fails, treat as casual conversation
-    if (bestScore < RAG_THRESHOLDS.GPT_FALLBACK_THRESHOLD) {
-      console.log('RAG scores too low, trying GPT classification...');
-      const availableIndustries = getAvailableIndustries();
-      const gptIndustry = await classifyIndustryWithGPT(userInput, availableIndustries);
-      if (gptIndustry) {
-        console.log(`GPT classification successful: ${gptIndustry}`);
-        bestIndustry = gptIndustry;
-        bestScore = 0.8; // Give high score when GPT classification succeeds
-      } else {
-        console.log('GPT classification also failed, treating as casual conversation');
-        return null; // Classify as casual conversation
-      }
-    } else {
-      console.log('Score above GPT threshold but below casual threshold, treating as casual conversation');
-      return null; // Classify as casual conversation
-    }
+    // 제거된 기능: GPT 기반 산업 분류 백업 로직
+    // RAG 점수가 낮으면 인사말로 분류 (수정된 로직)
+    console.log('RAG scores too low, treating as greeting');
+    return null; // Classify as greeting
   }
 
   // Validate that the selected industry actually exists in DATA (use cached industry list)

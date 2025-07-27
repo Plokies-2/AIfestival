@@ -14,11 +14,10 @@ import {
   AIChatError 
 } from './types';
 import { WELCOME_MESSAGES } from './config';
-import { 
-  getSession, 
-  updateSession, 
-  resetSession,
-  addConversationEntry 
+import {
+  getSession,
+  updateSession,
+  resetSession
 } from './session-manager';
 import { 
   handleStartStage, 

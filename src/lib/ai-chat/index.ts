@@ -99,9 +99,7 @@ export {
 
 export {
   classifyUserIntent,
-  classifyIndustryWithGPT,
-  translateDescription,
-  generatePersonaResponse
+  generateDynamicResponse
 } from './ai-service';
 
 // ============================================================================
@@ -155,7 +153,7 @@ export {
   generateMultipleRecommendations,
   formatCompanyDisplay,
   formatCompanyList,
-  translateAndFormatRecommendations,
+
   formatCompanyDescriptions,
   getIndustryStats,
   getTopIndustries,

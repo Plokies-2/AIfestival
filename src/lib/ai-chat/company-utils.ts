@@ -11,7 +11,6 @@
 import { QUICK_ENRICHED_FINAL as DATA } from '@/data/sp500_enriched_final';
 import { RandomRecommendation, CompanyRecommendation, CompanyData } from './types';
 import { PATTERNS } from './config';
-import { translateDescription } from './ai-service';
 import { getAllAvailableIndustries } from './rag-service';
 
 // ============================================================================
@@ -194,36 +193,15 @@ export function formatCompanyList(
 }
 
 /**
- * Translates and formats company recommendations
- */
-export async function translateAndFormatRecommendations(
-  recommendations: CompanyRecommendation[]
-): Promise<Array<CompanyRecommendation & { translatedDescription: string }>> {
-  const translatedCompanies = await Promise.all(
-    recommendations.map(async (company) => ({
-      ...company,
-      translatedDescription: await translateDescription(company.description)
-    }))
-  );
-  
-  return translatedCompanies;
-}
-
-/**
- * Formats company descriptions for display (avoiding name duplication)
+ * 단순화된 기업 설명 포맷팅 (번역 제거)
  */
 export function formatCompanyDescriptions(
-  companies: Array<CompanyRecommendation & { translatedDescription: string }>
+  companies: CompanyRecommendation[]
 ): string {
   return companies
     .map(company => {
-      // Check if company name is included in description
-      const companyNameInDescription = company.translatedDescription.includes(company.name.split(' ')[0]);
-      if (companyNameInDescription) {
-        return `${company.name}(${company.ticker}) : ${company.translatedDescription}`;
-      } else {
-        return `${company.name}(${company.ticker})는 ${company.translatedDescription}`;
-      }
+      // 영어 설명을 그대로 사용 (번역 제거)
+      return `${company.name} (${company.ticker}): ${company.description}`;
     })
     .join('\n\n');
 }

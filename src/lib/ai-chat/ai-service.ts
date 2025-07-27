@@ -1,28 +1,27 @@
 /**
- * AI Service Integration Module
- * 
- * This module handles all OpenAI API interactions including:
+ * AI Service Integration Module (단순화됨)
+ *
+ * This module handles:
  * - OpenAI client initialization and configuration
- * - Intent classification using pattern matching and GPT
- * - Persona-based response generation
- * - Translation services
+ * - 100% RAG-based intent classification
  * - GPT-based industry classification
+ * - 단순화된 응답 생성
  */
 
 import OpenAI from 'openai';
-import { IntentClassificationResult, AIServiceError } from './types';
-import { OPENAI_CONFIG, KOREAN_COMPANY_MAPPING, ENV_CONFIG } from './config';
+import { IntentClassificationResult } from './types';
+import { KOREAN_COMPANY_MAPPING, OPENAI_CONFIG, ENV_CONFIG } from './config';
 import { findBestPersona, classifyInvestmentIntent } from './rag-service';
 
 // ============================================================================
-// OpenAI Client Initialization
+// OpenAI Client 초기화 (복구됨)
 // ============================================================================
 
 /**
- * OpenAI client instance
+ * OpenAI client instance for dynamic response generation
  */
-const openai = new OpenAI({ 
-  apiKey: ENV_CONFIG.openaiApiKey 
+const openai = new OpenAI({
+  apiKey: ENV_CONFIG.openaiApiKey
 });
 
 // ============================================================================
@@ -75,143 +74,51 @@ export async function classifyUserIntent(userInput: string): Promise<IntentClass
 
     for (const koreanName of Object.keys(KOREAN_COMPANY_MAPPING)) {
       if (lowerInput.includes(koreanName)) {
-        // Check for investment/financial context
-        const hasInvestmentContext = /(투자|주식|분석|차트|매수|매도|추천|전망|수익|손실|포트폴리오)/.test(lowerInput);
-        const hasFinancialContext = /(기업|회사|산업|시장|경제|금융)/.test(lowerInput);
-
-        if (hasInvestmentContext || hasFinancialContext || lowerInput.length <= 10) {
-          return {
-            intent: 'company_direct',
-            confidence: 0.8, // Lower confidence for fallback
-            reasoning: `한국 기업명 매칭 (fallback): ${koreanName}`
-          };
-        }
+        // 제거된 기능: 한국 기업명 컨텍스트 기반 필터링 - 사용되지 않던 레거시 코드
+        return {
+          intent: 'company_direct',
+          confidence: 0.8, // Lower confidence for fallback
+          reasoning: `한국 기업명 매칭 (fallback): ${koreanName}`
+        };
       }
     }
 
-    // 4. Default: classify as casual_chat
+    // 4. Default: classify as greeting (수정된 로직)
     return {
-      intent: 'casual_chat',
+      intent: 'greeting',
       confidence: 0.7,
-      reasoning: 'RAG 기반 일반 대화 분류'
+      reasoning: 'RAG 기반 인사말 분류'
     };
 
   } catch (error) {
     console.error('❌ Intent classification failed:', error);
-    // Fallback to casual_chat if everything fails
+    // Fallback to greeting if everything fails (수정된 로직)
     return {
-      intent: 'casual_chat',
+      intent: 'greeting',
       confidence: 0.4,
-      reasoning: '분류 실패로 인한 일반 대화 분류'
+      reasoning: '분류 실패로 인한 인사말 분류'
     };
   }
 }
 
 // ============================================================================
-// GPT-based Industry Classification
+// 제거된 기능: GPT 기반 산업 분류 백업 로직
+// ============================================================================
+// 제거된 기능: classifyIndustryWithGPT - RAG 정확도가 낮을 때 사용되던 백업 로직
+
+
+
+// ============================================================================
+// GPT 기반 동적 응답 생성 (복구됨)
 // ============================================================================
 
 /**
- * Uses GPT to classify industry when RAG performance is low
+ * GPT 기반 동적 응답 생성 - 의도별 차별화된 응답
+ * 복구된 기능: 분기별 max_tokens 설정 (greeting: 180, about_ai: 200)
+ * 복구된 기능: GPT-4.1-nano 모델 기반 동적 응답 생성
+ * 제거된 기능: casual_chat 의도 처리 (더 이상 사용되지 않음)
  */
-export async function classifyIndustryWithGPT(userInput: string, availableIndustries: string[]): Promise<string | null> {
-  try {
-    const prompt = `다음 사용자 입력을 분석하여 가장 적합한 산업군을 선택해주세요.
-
-사용자 입력: "${userInput}"
-
-사용 가능한 산업군 목록:
-${availableIndustries.map((industry: string, index: number) => `${index + 1}. ${industry}`).join('\n')}
-
-매핑 가이드:
-- "그래픽카드", "GPU", "칩", "반도체" → "Semiconductors & Foundries"
-- "미디어", "엔터테인먼트" → "Media & Entertainment"
-- "바이오", "제약" → "Biotechnology" 또는 "Pharmaceuticals"
-- "클라우드", "IT" → "Cloud & IT Services"
-- "소프트웨어" → "Application Software"
-
-규칙:
-1. 위 목록에서만 선택해야 합니다
-2. 가장 관련성이 높은 산업군 1개만 반환하세요
-3. 산업군 이름을 정확히 반환하세요 (번호나 다른 텍스트 없이)
-4. 확신이 없으면 가장 가까운 산업군을 선택하세요
-
-예시:
-- "반도체" → "Semiconductors & Foundries"
-- "그래픽카드" → "Semiconductors & Foundries"
-- "은행" → "Banks"
-- "전기차" → "Automobiles & Components"
-- "클라우드" → "Cloud & IT Services"`;
-
-    const response = await openai.chat.completions.create({
-      model: OPENAI_CONFIG.model,
-      messages: [
-        { role: 'system', content: '당신은 산업 분류 전문가입니다. 주어진 목록에서만 정확한 산업군을 선택해주세요.' },
-        { role: 'user', content: prompt }
-      ],
-      temperature: OPENAI_CONFIG.temperature.classification,
-      max_tokens: OPENAI_CONFIG.maxTokens.classification,
-    });
-
-    const selectedIndustry = response.choices[0].message.content?.trim();
-
-    // Validate that the selected industry is in the available list
-    if (selectedIndustry && availableIndustries.includes(selectedIndustry)) {
-      console.log(`GPT classification: "${userInput}" → "${selectedIndustry}"`);
-      return selectedIndustry;
-    } else {
-      console.log(`GPT returned invalid industry: "${selectedIndustry}"`);
-      return null;
-    }
-  } catch (error) {
-    console.error('GPT classification failed:', error);
-    throw new AIServiceError(`GPT classification failed: ${error}`);
-  }
-}
-
-// ============================================================================
-// Translation Services
-// ============================================================================
-
-
-
-/**
- * Translates English company description to Korean
- */
-export async function translateDescription(description: string): Promise<string> {
-  try {
-    const response = await openai.chat.completions.create({
-      model: OPENAI_CONFIG.model,
-      messages: [
-        {
-          role: 'system',
-          content: '영어 기업 설명을 자연스러운 한국어로 번역해주세요. 간결하고 이해하기 쉽게 번역하세요.'
-        },
-        {
-          role: 'user',
-          content: description
-        }
-      ],
-      temperature: OPENAI_CONFIG.temperature.description,
-      max_tokens: OPENAI_CONFIG.maxTokens.description,
-    });
-
-    return response.choices[0].message.content?.trim() || description;
-  } catch (error) {
-    console.error('Description translation failed:', error);
-    return description; // Return original on failure
-  }
-}
-
-// ============================================================================
-// Persona Response Generation
-// ============================================================================
-
-/**
- * Enhanced persona-based response generation system
- */
-export async function generatePersonaResponse(userInput: string, intent: string, conversationContext?: string): Promise<string> {
-
+export async function generateDynamicResponse(userInput: string, intent: string): Promise<string> {
   // Intent별 차별화된 시스템 메시지 선택
   let systemMessage = '';
 
@@ -224,22 +131,14 @@ export async function generatePersonaResponse(userInput: string, intent: string,
       systemMessage = `당신은 '사용자 맞춤형 투자지원 AI'입니다. 당신은 2025년 7월에 탄생했으며, 사용자가 S&P500 투자를 성공하도록 돕는 역할을 부여받았습니다. 인사, 안부, 첫 만남 상황에서는 따뜻하고 친근한 톤으로 응답하며, 자연스럽게 투자 관심사를 물어보세요. 답변할 때엔 존댓말을 유지하며 최대한 친절하게 답합니다. 이모티콘을 최대 3개까지 사용할 수 있으며, 최소 1개는 사용해야 합니다.`;
       break;
 
-    case 'casual_chat':
-      systemMessage = `당신은 '사용자 맞춤형 투자지원 AI'입니다. 당신은 2025년 7월에 탄생했으며, 사용자가 S&P500 투자를 성공하도록 돕는 역할을 부여받았습니다. 일상 대화에서는 공감하고 친근하게 응답하면서, 자연스럽게 투자 주제로 연결하여 투자 기회를 제안하세요. 사용자의 질문이 투자와 동떨어진 경우 창의적인 답변을 제공하세요. 답변할 때엔 존댓말을 유지하며 최대한 친절하게 답합니다. 이모티콘을 최대 3개까지 사용할 수 있으며, 최소 1개는 사용해야 합니다.`;
-      break;
+    // 제거된 기능: casual_chat 의도 처리 - 더 이상 사용되지 않음
 
     default:
       systemMessage = `당신은 '사용자 맞춤형 투자지원 AI'입니다. 당신은 2025년 7월에 탄생했으며, 사용자가 S&P500 투자를 성공하도록 돕는 역할을 부여받았습니다. 답변할 때엔 존댓말을 유지하며 최대한 친절하게 답합니다. 이모티콘을 최대 3개까지 사용할 수 있으며, 최소 1개는 사용해야 합니다.`;
   }
 
-  let userMessage = userInput;
-  if (conversationContext) {
-    userMessage += `\n\n[대화 맥락: ${conversationContext}]`;
-  }
-
-  // Intent별 차별화된 max_tokens 설정 (한국어 4줄 정도에 적합)
-  let maxTokens: number = OPENAI_CONFIG.maxTokens.persona; // 기본값: 120
-
+  // Intent별 차별화된 max_tokens 설정
+  let maxTokens: number;
   switch (intent) {
     case 'greeting':
       maxTokens = 180; // 인사말은 조금 더 길게 (투자 관심사 질문 포함)
@@ -247,37 +146,60 @@ export async function generatePersonaResponse(userInput: string, intent: string,
     case 'about_ai':
       maxTokens = 200; // AI 정체성/능력 설명은 가장 길게
       break;
-    case 'casual_chat':
-      maxTokens = 170; // 일상 대화는 중간 길이 (투자 연결 포함)
-      break;
+    // 제거된 기능: casual_chat max_tokens 설정 - 더 이상 사용되지 않음
     default:
       maxTokens = 150; // 기타 상황은 적당한 길이
   }
 
-  const response = await openai.chat.completions.create({
-    model: OPENAI_CONFIG.model,
-    messages: [
-      {
-        role: 'system',
-        content: systemMessage
-      },
-      {
-        role: 'user',
-        content: userMessage
-      }
-    ],
-    temperature: OPENAI_CONFIG.temperature.persona,
-    max_tokens: maxTokens,
-  });
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4.1-nano', // GPT-4.1-nano 모델 사용
+      messages: [
+        {
+          role: 'system',
+          content: systemMessage
+        },
+        {
+          role: 'user',
+          content: userInput
+        }
+      ],
+      temperature: OPENAI_CONFIG.temperature.persona,
+      max_tokens: maxTokens,
+    });
 
-  const aiResponse = response.choices[0].message.content?.trim();
+    const aiResponse = response.choices[0].message.content?.trim();
 
-  if (!aiResponse) {
-    throw new Error('챗봇 로드 오류: 응답을 생성할 수 없습니다.');
+    if (!aiResponse) {
+      throw new Error('GPT 응답 생성 실패');
+    }
+
+    console.log(`🎭 Dynamic response generated for intent: ${intent}`);
+    return aiResponse;
+
+  } catch (error) {
+    console.error('❌ GPT response generation failed:', error);
+    // Fallback to simple responses if GPT fails
+    return getSimpleFallbackResponse(intent);
   }
+}
 
-  console.log(`🎭 Persona response generated for intent: ${intent}`);
-  return aiResponse;
+/**
+ * GPT 실패 시
+ */
+function getSimpleFallbackResponse(intent: string): string {
+  switch (intent) {
+    case 'greeting':
+      return 'GPT 호출 오류!';
+
+    case 'about_ai':
+      return 'GPT 호출 오류!';
+
+    // 제거된 기능: casual_chat fallback 응답 - 더 이상 사용되지 않음
+
+    default:
+      return 'GPT 호출 오류!';
+  }
 }
 
 

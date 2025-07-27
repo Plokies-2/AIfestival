@@ -9,10 +9,9 @@
 
 import { PipelineContext, StageHandlerResult, SessionState, IntentClassificationResult } from './types';
 import { QUICK_ENRICHED_FINAL as DATA } from '@/data/sp500_enriched_final';
-import { 
-  classifyUserIntent, 
-  generatePersonaResponse, 
-  translateDescription 
+import {
+  classifyUserIntent,
+  generateDynamicResponse
 } from './ai-service';
 import { 
   findBestIndustry, 
@@ -25,17 +24,14 @@ import {
   enhanceResponseWithLSTMData, 
   getDetailedLSTMAnalysis 
 } from './lstm-service';
-import { 
-  isPositive, 
-  isNegative, 
-  generateRandomRecommendation, 
-  translateAndFormatRecommendations, 
+import {
+  isPositive,
+  isNegative,
+  generateRandomRecommendation,
   formatCompanyDescriptions,
-  formatCompanyList 
+  formatCompanyList
 } from './company-utils';
 import {
-  addConversationEntry,
-  getRecentConversationContext,
   getCurrentIndustryCache,
   setCurrentIndustryCache
 } from './session-manager';
@@ -75,7 +71,7 @@ export async function handleStartStage(context: PipelineContext): Promise<StageH
 
     case 'investment_query':
     default:
-      return await handleInvestmentQuery(context, intentResult);
+      return await handleInvestmentQuery(context);
   }
 }
 
@@ -83,63 +79,32 @@ export async function handleStartStage(context: PipelineContext): Promise<StageH
  * Handles conversational intents (greeting, about_ai, casual_chat)
  */
 async function handleConversationalIntent(
-  context: PipelineContext, 
+  context: PipelineContext,
   intentResult: IntentClassificationResult
 ): Promise<StageHandlerResult> {
-  const { userInput, sessionId, state } = context;
-  
-  // Generate conversation context from recent history
-  const conversationContext = getRecentConversationContext(sessionId);
-  
-  const reply = await generatePersonaResponse(userInput, intentResult.intent, conversationContext);
-  
-  // Add to conversation history
-  addConversationEntry(sessionId, userInput, reply, intentResult.intent);
-  
+  const { userInput, state } = context;
+
+  // GPT 기반 동적 응답 생성 (복구됨)
+  const reply = await generateDynamicResponse(userInput, intentResult.intent);
+
   return {
     reply,
-    newState: state // No state change for conversational intents
+    newState: state // 단발성 응답 후 START 상태 유지
   };
 }
 
 /**
- * Handles investment recommendation requests
+ * Handles investment recommendation requests (단순화됨)
  */
 async function handleInvestmentRecommendation(context: PipelineContext): Promise<StageHandlerResult> {
-  const { userInput, sessionId, state } = context;
-  
+  const { state } = context;
+
   const recommendation = generateRandomRecommendation();
 
-  // Translate company descriptions to Korean
-  const translatedCompanies = await translateAndFormatRecommendations(recommendation.companies);
+  // 단순화된 응답 생성 (번역 제거)
+  const companyDescriptions = formatCompanyDescriptions(recommendation.companies);
 
-  // Translate industry name to Korean
-  const industryTranslation = await translateDescription(recommendation.industry);
-
-  // Generate response (lively + emojis + avoid company name duplication)
-  const companyDescriptions = formatCompanyDescriptions(translatedCompanies);
-
-  const excitingIntros = [
-    `제가 🎯 ${industryTranslation} 분야를 골라봤습니다!`,
-    `✨ ${industryTranslation} 산업을 추천해드려요!`,
-    `🚀 ${industryTranslation} 분야가 어떠신가요?`,
-    `💡 ${industryTranslation} 산업은 어떠실까요?`
-  ];
-
-  const industryDescriptions = [
-    `이 산업엔 S&P 500에 소속된 멋진 기업들이 있어요! 🏢💼`,
-    `이 분야에는 정말 흥미로운 기업들이 많답니다! ⭐💎`,
-    `이 산업의 대표 기업들을 소개해드릴게요! 🌟📈`,
-    `이 분야의 주목할 만한 기업들이에요! 🎯✨`
-  ];
-
-  const randomIntro = excitingIntros[Math.floor(Math.random() * excitingIntros.length)];
-  const randomDescription = industryDescriptions[Math.floor(Math.random() * industryDescriptions.length)];
-
-  const reply = `${randomIntro}\n\n${randomDescription}\n\n${companyDescriptions}\n\n어떤 기업이 가장 흥미로우신가요? 😊`;
-
-  // Add to conversation history
-  addConversationEntry(sessionId, userInput, reply, 'investment_recommendation');
+  const reply = `🎯 ${recommendation.industry} 분야를 추천해드려요!\n\n이 산업의 주목할 만한 기업들이에요! 🌟📈\n\n${companyDescriptions}\n\n어떤 기업이 가장 흥미로우신가요? 😊`;
 
   return {
     reply,
@@ -151,7 +116,7 @@ async function handleInvestmentRecommendation(context: PipelineContext): Promise
  * Handles direct company queries
  */
 async function handleDirectCompanyQuery(context: PipelineContext): Promise<StageHandlerResult> {
-  const { userInput, sessionId, state } = context;
+  const { userInput, state } = context;
   
   const directCompany = findCompanyInAllData(userInput);
   if (directCompany) {
@@ -179,8 +144,7 @@ async function handleDirectCompanyQuery(context: PipelineContext): Promise<Stage
     
     const reply = `${directChartQuestions[Math.floor(Math.random() * directChartQuestions.length)]}${analysisInfo}`;
     
-    // Add to conversation history
-    addConversationEntry(sessionId, userInput, reply, 'company_direct');
+    // 대화 기록 저장 제거
     
     return {
       reply,
@@ -190,27 +154,23 @@ async function handleDirectCompanyQuery(context: PipelineContext): Promise<Stage
   }
   
   // If company not found, fall back to investment query handling
-  return await handleInvestmentQuery(context, { intent: 'investment_query', confidence: 0.5, reasoning: 'Fallback from company_direct' });
+  return await handleInvestmentQuery(context);
 }
 
 /**
  * Handles investment queries (industry matching)
  */
 async function handleInvestmentQuery(
-  context: PipelineContext, 
-  intentResult: IntentClassificationResult
+  context: PipelineContext
 ): Promise<StageHandlerResult> {
   const { userInput, sessionId, state } = context;
   
   const industry = await findBestIndustry(userInput);
 
-  // RAG score too low, classified as casual conversation
+  // RAG score too low, classified as greeting (수정된 로직)
   if (industry === null) {
-    console.log(`🗣️ Input classified as casual conversation due to low RAG scores: "${userInput}"`);
-    const reply = await generatePersonaResponse(userInput, 'casual_chat');
-
-    // Add to conversation history
-    addConversationEntry(sessionId, userInput, reply, 'casual_chat');
+    console.log(`🗣️ Input classified as greeting due to low RAG scores: "${userInput}"`);
+    const reply = await generateDynamicResponse(userInput, 'greeting');
 
     return {
       reply,
@@ -288,7 +248,7 @@ async function handleInvestmentQuery(
  * Handles the SHOW_INDUSTRY stage of the pipeline
  */
 export async function handleShowIndustryStage(context: PipelineContext): Promise<StageHandlerResult> {
-  const { userInput, sessionId, state } = context;
+  const { userInput, state } = context;
 
   // 더보기 버튼 클릭 명령 처리 (단순화된 버전)
   if (userInput === '__SHOW_MORE_COMPANIES__') {
@@ -312,19 +272,9 @@ export async function handleShowIndustryStage(context: PipelineContext): Promise
   const intentResult = await classifyUserIntent(userInput);
   console.log(`User intent in SHOW_INDUSTRY: ${intentResult.intent} (confidence: ${intentResult.confidence})`);
 
-  if (intentResult.intent === 'casual_chat') {
-    // Classified as casual conversation, generate persona response
-    console.log(`🗣️ Generating casual conversation response in SHOW_INDUSTRY stage`);
-    const reply = await generatePersonaResponse(userInput, 'casual_chat');
+  // 제거된 기능: casual_chat 의도 처리 - 더 이상 사용되지 않음
 
-    // Add to conversation history
-    addConversationEntry(sessionId, userInput, reply, 'casual_chat');
-
-    return {
-      reply,
-      newState: state // Stay in SHOW_INDUSTRY stage
-    };
-  } else {
+  // Not in list input → ask again
     // Not in list input → ask again
     const companyList = formatCompanyList(state.industryCompanies);
 
@@ -339,7 +289,6 @@ export async function handleShowIndustryStage(context: PipelineContext): Promise
       reply,
       newState: state // Stay in SHOW_INDUSTRY stage
     };
-  }
 }
 
 /**
@@ -400,7 +349,7 @@ async function handleShowMoreCompanies(context: PipelineContext): Promise<StageH
  * Handles ticker selection in SHOW_INDUSTRY stage
  */
 async function handleTickerSelection(context: PipelineContext, selectedTicker: string): Promise<StageHandlerResult> {
-  const { sessionId, state } = context;
+  const { state } = context;
   
   console.log(`✅ Ticker found in industry list: ${selectedTicker}`);
   
@@ -431,7 +380,7 @@ async function handleTickerSelection(context: PipelineContext, selectedTicker: s
  * Handles the ASK_CHART stage of the pipeline
  */
 export async function handleAskChartStage(context: PipelineContext): Promise<StageHandlerResult> {
-  const { userInput, sessionId, state } = context;
+  const { userInput, state } = context;
 
   // ASK_CHART 단계에서는 의도 분류 없이 직접 긍정/부정 응답만 확인
   // '네', '예', '응' 등의 긍정 응답은 차트 확인으로 처리
@@ -454,7 +403,7 @@ export async function handleAskChartStage(context: PipelineContext): Promise<Sta
  * Handles positive chart confirmation
  */
 async function handleChartConfirmation(context: PipelineContext): Promise<StageHandlerResult> {
-  const { sessionId, state } = context;
+  const { state } = context;
   
   const ticker = state.selectedTicker!;
   const chartResponses = [
