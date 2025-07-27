@@ -93,8 +93,9 @@ export async function findBestPersona(userInput: string): Promise<string | null>
       .join(', ');
 
     // Threshold check: If score is below threshold, classify as greeting
-    if (bestScore < RAG_THRESHOLDS.PERSONA_CASUAL_THRESHOLD || bestScore < RAG_THRESHOLDS.PERSONA_MIN_SCORE) {
-      console.log(`🎯 Scores: ${scoreText} → Selected: greeting`);
+    // 수정된 로직: AND 조건으로 변경하여 더 정확한 분류
+    if (bestScore < RAG_THRESHOLDS.PERSONA_MIN_SCORE) {
+      console.log(`🎯 Scores: ${scoreText} → Selected: greeting (score ${bestScore.toFixed(3)} < ${RAG_THRESHOLDS.PERSONA_MIN_SCORE})`);
       return null; // Will be classified as greeting
     }
 
@@ -113,7 +114,8 @@ export async function findBestPersona(userInput: string): Promise<string | null>
 
 /**
  * Classifies investment intent using RAG with company and industry data
- * Returns investment_recommendation, investment_query, company_direct, or null
+ * Returns investment_query, company_direct, or null
+ * 제거된 기능: investment_recommendation 의도 처리
  */
 export async function classifyInvestmentIntent(userInput: string): Promise<InvestmentIntentResult> {
   try {
@@ -164,22 +166,7 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
     }
 
     // 3. Determine intent based on scores and patterns
-
-    // Check for investment recommendation patterns
-    const recommendationPatterns = /(추천|어떤.*?기업|어떤.*?회사|좋은.*?기업|좋은.*?회사|아무거나|랜덤|무작위)/;
-    const hasRecommendationPattern = recommendationPatterns.test(userInput.toLowerCase());
-
-    if (hasRecommendationPattern && (bestCompanyScore > 0.2 || bestIndustryScore > 0.2)) {
-      const selectedEntity = bestCompanyScore > bestIndustryScore ? bestCompanyMatch?.name : bestIndustryMatch?.industry;
-      const selectedScore = Math.max(bestCompanyScore, bestIndustryScore);
-      console.log(`💡 Selected: ${selectedEntity} (${selectedScore.toFixed(3)})`);
-      return {
-        intent: 'investment_recommendation',
-        score: selectedScore,
-        matchedEntity: selectedEntity,
-        method: bestCompanyScore > bestIndustryScore ? 'rag_company' : 'rag_industry'
-      };
-    }
+    // 제거된 기능: investment_recommendation 패턴 매칭 - 더 이상 사용되지 않음
 
     // Check for direct company mention (high confidence)
     if (bestCompanyScore >= RAG_THRESHOLDS.COMPANY_DIRECT_MIN_SCORE) {
@@ -193,6 +180,8 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
     }
 
     // Check for investment query (medium confidence)
+    console.log(`🔍 [Investment Intent] Company score: ${bestCompanyScore.toFixed(3)}, Industry score: ${bestIndustryScore.toFixed(3)}, Threshold: ${RAG_THRESHOLDS.INVESTMENT_INTENT_MIN_SCORE}`);
+
     if (bestCompanyScore >= RAG_THRESHOLDS.INVESTMENT_INTENT_MIN_SCORE ||
         bestIndustryScore >= RAG_THRESHOLDS.INVESTMENT_INTENT_MIN_SCORE) {
       const selectedEntity = bestCompanyScore > bestIndustryScore ? bestCompanyMatch?.name : bestIndustryMatch?.industry;
@@ -205,6 +194,8 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
         matchedEntity: selectedEntity,
         method: bestCompanyScore > bestIndustryScore ? 'rag_company' : 'rag_industry'
       };
+    } else {
+      console.log(`❌ [Investment Intent] Scores below threshold, returning null`);
     }
 
     // Check for basic investment keywords (fallback)

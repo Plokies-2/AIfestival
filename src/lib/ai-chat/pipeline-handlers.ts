@@ -27,8 +27,6 @@ import {
 import {
   isPositive,
   isNegative,
-  generateRandomRecommendation,
-  formatCompanyDescriptions,
   formatCompanyList
 } from './company-utils';
 import {
@@ -63,9 +61,6 @@ export async function handleStartStage(context: PipelineContext): Promise<StageH
     case 'casual_chat':
       return await handleConversationalIntent(context, intentResult);
 
-    case 'investment_recommendation':
-      return await handleInvestmentRecommendation(context);
-
     case 'company_direct':
       return await handleDirectCompanyQuery(context);
 
@@ -93,24 +88,7 @@ async function handleConversationalIntent(
   };
 }
 
-/**
- * Handles investment recommendation requests (단순화됨)
- */
-async function handleInvestmentRecommendation(context: PipelineContext): Promise<StageHandlerResult> {
-  const { state } = context;
-
-  const recommendation = generateRandomRecommendation();
-
-  // 단순화된 응답 생성 (번역 제거)
-  const companyDescriptions = formatCompanyDescriptions(recommendation.companies);
-
-  const reply = `🎯 ${recommendation.industry} 분야를 추천해드려요!\n\n이 산업의 주목할 만한 기업들이에요! 🌟📈\n\n${companyDescriptions}\n\n어떤 기업이 가장 흥미로우신가요? 😊`;
-
-  return {
-    reply,
-    newState: state // Stay in START stage for recommendation
-  };
-}
+// 제거된 기능: handleInvestmentRecommendation - investment_recommendation 의도 처리 제거됨
 
 /**
  * Handles direct company queries

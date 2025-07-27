@@ -64,7 +64,7 @@ export interface SessionState {
  * User intent classification result
  */
 export interface IntentClassificationResult {
-  intent: 'greeting' | 'about_ai' | 'investment_query' | 'company_direct' | 'casual_chat' | 'investment_recommendation';
+  intent: 'greeting' | 'about_ai' | 'investment_query' | 'company_direct' | 'casual_chat';
   confidence: number;
   reasoning: string;
 }
@@ -83,12 +83,12 @@ export interface PersonaContext {
 // ============================================================================
 
 /**
- * RAG threshold configuration
+ * RAG threshold configuration (정리됨)
+ * 제거된 기능: GPT_FALLBACK_THRESHOLD - GPT 기반 백업 분류 제거됨
  */
 export interface RAGThresholds {
   INDUSTRY_MIN_SCORE: number;
   COMPANY_MIN_SCORE: number;
-  GPT_FALLBACK_THRESHOLD: number;
   CASUAL_CONVERSATION_THRESHOLD: number;
   PERSONA_MIN_SCORE: number;
   PERSONA_CASUAL_THRESHOLD: number;
@@ -126,7 +126,7 @@ export interface PersonaMatchResult {
  * Investment intent matching result
  */
 export interface InvestmentIntentResult {
-  intent: 'investment_recommendation' | 'investment_query' | 'company_direct' | null;
+  intent: 'investment_query' | 'company_direct' | null;
   score: number;
   matchedEntity?: string; // 매칭된 기업명이나 산업명
   method: 'rag_company' | 'rag_industry' | 'investment_keywords' | 'none';

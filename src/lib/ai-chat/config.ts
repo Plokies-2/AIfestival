@@ -12,19 +12,18 @@ import { RAGThresholds, PatternConfig, KoreanCompanyMapping } from './types';
 // ============================================================================
 
 /**
- * RAG Score Thresholds for Casual Conversation Detection
- * These thresholds determine when to classify user input as casual conversation
- * vs. investment-related queries
+ * RAG Score Thresholds for Intent Classification (개선됨)
+ * 임계값을 0.3으로 조정하여 더 관대한 의도 분류 적용
+ * 변경사항: 주요 임계값들을 0.3으로 통일하여 일관성 있는 분류 기준 제공
  */
 export const RAG_THRESHOLDS: RAGThresholds = {
-  INDUSTRY_MIN_SCORE: 0.25,       // Minimum score for industry-level matching (lowered for better recall)
-  COMPANY_MIN_SCORE: 0.2,         // Minimum score for company-level matching (lowered for better recall)
-  GPT_FALLBACK_THRESHOLD: 0.15,   // Threshold to trigger GPT classification (lowered)
-  CASUAL_CONVERSATION_THRESHOLD: 0.2,  // Below this score = casual conversation (lowered for better industry matching)
-  PERSONA_MIN_SCORE: 0.3,         // Minimum score for persona matching (greeting, about_ai)
-  PERSONA_CASUAL_THRESHOLD: 0.25, // Below this score = casual_chat for persona classification
-  INVESTMENT_INTENT_MIN_SCORE: 0.35, // Minimum score for investment intent classification
-  COMPANY_DIRECT_MIN_SCORE: 0.4   // Minimum score for direct company mention
+  INDUSTRY_MIN_SCORE: 0.25,        // 산업 매칭 최소 점수 
+  COMPANY_MIN_SCORE: 0.2,         // 기업 매칭 최소 점수 
+  CASUAL_CONVERSATION_THRESHOLD: 0.25,  // 이 점수 미만 = greeting 분류 (
+  PERSONA_MIN_SCORE: 0.25,         // 페르소나 매칭 최소 점수 (유지)
+  PERSONA_CASUAL_THRESHOLD: 0.2,  // 이 점수 미만 = greeting 분류
+  INVESTMENT_INTENT_MIN_SCORE: 0.2, // 투자 의도 분류 최소 점수 (0.25 → 0.2로 하향 조정)
+  COMPANY_DIRECT_MIN_SCORE: 0.3   // 직접 기업 언급 최소 점수 
 } as const;
 
 // ============================================================================

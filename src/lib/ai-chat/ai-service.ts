@@ -56,16 +56,24 @@ export async function classifyUserIntent(userInput: string): Promise<IntentClass
       };
     }
 
-    // 2단계: investment로 분류된 경우에만 기업/산업 데이터 RAG 수행
-    if (bestPersona === 'investment') {
+    // 2단계: investment로 분류되거나 임계값 미달인 경우 기업/산업 데이터 RAG 수행
+    // 수정된 로직: bestPersona가 null인 경우도 투자 의도 검사 수행
+    console.log(`🔍 [2단계 RAG] bestPersona: ${bestPersona}, 투자 의도 검사 수행 여부: ${bestPersona === 'investment' || bestPersona === null}`);
+
+    if (bestPersona === 'investment' || bestPersona === null) {
+      console.log(`🔍 [2단계 RAG] classifyInvestmentIntent 호출 시작`);
       const investmentResult = await classifyInvestmentIntent(userInput);
+      console.log(`🔍 [2단계 RAG] classifyInvestmentIntent 결과:`, investmentResult);
 
       if (investmentResult.intent) {
+        console.log(`✅ [2단계 RAG] 투자 의도 확정: ${investmentResult.intent}`);
         return {
           intent: investmentResult.intent,
           confidence: Math.min(0.95, investmentResult.score + 0.1), // Boost confidence slightly
           reasoning: `2단계 RAG 기반 투자 의도 분류 (${investmentResult.method}): ${investmentResult.matchedEntity || '키워드 매칭'}`
         };
+      } else {
+        console.log(`❌ [2단계 RAG] 투자 의도 없음, 기본값으로 진행`);
       }
     }
 

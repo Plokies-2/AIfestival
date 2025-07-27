@@ -3,12 +3,14 @@
 /**
  * 캐시 재생성 스크립트
  * 
- * about_ai.md와 greeting.md 파일 변경 시 임베딩 캐시를 자동으로 재생성합니다.
+ * about_ai.md와 greeting.md, investment.md 파일 변경 시 임베딩 캐시를 자동으로 재생성합니다.
  * 
  * 사용법:
  *   node src/data/corpus/regenerate-embeddings.js
  *   또는
  *   npm run regenerate-embeddings
+ *   
+ *   RAG 임계값을 조정하려면 config.ts 파일을 수정하세요.
  */
 
 const fs = require('fs');
