@@ -8,17 +8,82 @@ JSON :
 """
 
 import sys, json, math, warnings
-from pathlib import Path
 import pandas as pd
 import statsmodels.api as sm
+from datetime import datetime, timedelta
 
-# ── 경로 상수 ──────────────────────────────────────────────────────────
-BASE_DIR   = Path(__file__).resolve().parent             # …/src/services
-DATA_DIR   = BASE_DIR.parent / "data"                    # …/src/data
-PRICE_FILE = DATA_DIR / "sp500_adj_close_3y.csv"
-INDEX_FILE = DATA_DIR / "sp500_index_3y.csv"
+# 데이터 캐시 서비스 가져오기
+try:
+    from data_cache_service import get_cached_data, convert_to_dataframe
+    CACHE_SERVICE_AVAILABLE = True
+except ImportError:
+    CACHE_SERVICE_AVAILABLE = False
+    print("Warning: data_cache_service not available, falling back to direct yfinance", file=sys.stderr)
+
+# yfinance 가져오기 시도 (폴백용)
+try:
+    import yfinance as yf
+    YFINANCE_AVAILABLE = True
+except ImportError:
+    YFINANCE_AVAILABLE = False
+    print("Warning: yfinance not available", file=sys.stderr)
 
 WIN = 126   # 6 개월(영업일)
+
+def load_cached_data(symbol):
+    """
+    캐시된 데이터를 사용하여 DataFrame 반환
+    """
+    if CACHE_SERVICE_AVAILABLE:
+        try:
+            print(f"📦 Loading cached data for {symbol}...", file=sys.stderr)
+            cached_data = get_cached_data(symbol)
+            if cached_data:
+                df = convert_to_dataframe(cached_data, 'ticker')
+                if df is not None and not df.empty:
+                    print(f"✅ Loaded {len(df)} days of cached data for {symbol}", file=sys.stderr)
+                    return df
+        except Exception as e:
+            print(f"❌ Error loading cached data: {e}", file=sys.stderr)
+
+    # 캐시 서비스 실패 시 직접 yfinance 사용
+    return load_realtime_data_direct(symbol)
+
+def load_realtime_data_direct(symbol):
+    """
+    직접 yfinance를 사용하여 데이터 로드 (폴백용)
+    """
+    if not YFINANCE_AVAILABLE:
+        return None
+
+    try:
+        print(f"🔄 Loading realtime data for {symbol} using yfinance directly...", file=sys.stderr)
+
+        # 3년간의 데이터 가져오기
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=3*365)
+
+        ticker_obj = yf.Ticker(symbol)
+        hist = ticker_obj.history(start=start_date, end=end_date)
+
+        if hist.empty:
+            print(f"❌ No realtime data found for {symbol}", file=sys.stderr)
+            return None
+
+        # 컬럼명 표준화 및 Close 컬럼 생성
+        hist.columns = [col.replace(' ', '').title() for col in hist.columns]
+        hist.rename(columns={'Adjclose': 'AdjClose'}, inplace=True)
+
+        # Close 컬럼이 없으면 AdjClose 사용
+        if 'Close' not in hist.columns and 'AdjClose' in hist.columns:
+            hist['Close'] = hist['AdjClose']
+
+        print(f"✅ Loaded {len(hist)} days of realtime data for {symbol}", file=sys.stderr)
+        return hist
+
+    except Exception as e:
+        print(f"❌ Error loading realtime data for {symbol}: {e}", file=sys.stderr)
+        return None
 
 # ── Newey-West maxlags(Andrews 1991) ──────────────────────────────────
 def nw_maxlags(n):
@@ -26,20 +91,34 @@ def nw_maxlags(n):
 
 # ── CAPM 회귀 함수 ────────────────────────────────────────────────────
 def capm_beta(ticker: str):
-    # ─ 데이터 로드
-    df_stk  = pd.read_csv(PRICE_FILE, parse_dates=["Date"], index_col="Date")
-    df_mkt  = pd.read_csv(INDEX_FILE, parse_dates=["Date"], index_col="Date")
-    if ticker not in df_stk.columns:
-        raise KeyError(f"{ticker} 열이 종목 CSV에 없습니다.")
-    if "^GSPC" not in df_mkt.columns:
-        raise KeyError("^GSPC 열이 지수 CSV에 없습니다.")
+    # ─ 캐시된 데이터 로드 시도
+    df_stk = load_cached_data(ticker)
+    df_mkt = load_cached_data("^GSPC")  # S&P 500 지수
 
-    # ─ 수익률(%) 계산
-    stk_ret = df_stk[ticker].pct_change().dropna() * 100
-    mkt_ret = df_mkt["^GSPC"].pct_change().dropna() * 100
-    common  = stk_ret.index.intersection(mkt_ret.index)
-    if len(common) < WIN:
-        raise ValueError("공통 기간이 126 영업일 미만입니다.")
+    if df_stk is not None and df_mkt is not None:
+        print(f"📊 Using data for CAPM analysis", file=sys.stderr)
+        # 수익률(%) 계산
+        try:
+            stk_ret = df_stk['Close'].pct_change().dropna() * 100
+            mkt_ret = df_mkt['Close'].pct_change().dropna() * 100
+            common = stk_ret.index.intersection(mkt_ret.index)
+
+            if len(common) < WIN:
+                raise ValueError(f"Insufficient common data: {len(common)} days")
+
+        except Exception as e:
+            print(f"❌ Error processing data: {e}", file=sys.stderr)
+            df_stk = None
+            df_mkt = None
+
+    if df_stk is None or df_mkt is None:
+        print(f"❌ No data available for CAPM analysis", file=sys.stderr)
+        sys.exit(1)
+
+    # 수익률(%) 계산
+    stk_ret = df_stk['Close'].pct_change().dropna() * 100
+    mkt_ret = df_mkt['Close'].pct_change().dropna() * 100
+    common = stk_ret.index.intersection(mkt_ret.index)
 
     y = stk_ret[common]
     x = mkt_ret[common]

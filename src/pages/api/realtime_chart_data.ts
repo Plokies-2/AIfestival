@@ -214,9 +214,46 @@ export default async function handler(
 
     // 캐시에 데이터가 없거나 강제 새로고침인 경우 실시간 데이터 가져오기
     if (!chartData) {
+      // SpeedTraffic용 데이터 캐싱 먼저 수행
+      console.log(`🔄 Pre-caching comprehensive data for SpeedTraffic analysis...`);
+      try {
+        const { spawn } = require('child_process');
+        const cachingProcess = spawn('python', ['src/services/data_cache_service.py', symbolUpper], {
+          cwd: process.cwd()
+        });
+
+        // 캐싱 프로세스 완료 대기 (최대 30초)
+        await new Promise((resolve) => {
+          const timeout = setTimeout(() => {
+            cachingProcess.kill();
+            console.warn(`⚠️ Caching timeout for ${symbolUpper}, continuing...`);
+            resolve(null);
+          }, 30000);
+
+          cachingProcess.on('close', (code: number | null) => {
+            clearTimeout(timeout);
+            if (code === 0) {
+              console.log(`✅ SpeedTraffic data cached successfully for ${symbolUpper}`);
+            } else {
+              console.warn(`⚠️ SpeedTraffic caching failed for ${symbolUpper} (code: ${code}), continuing...`);
+            }
+            resolve(null);
+          });
+
+          cachingProcess.on('error', (error: Error) => {
+            clearTimeout(timeout);
+            console.warn(`⚠️ SpeedTraffic caching error for ${symbolUpper}:`, error.message);
+            resolve(null);
+          });
+        });
+      } catch (cachingError) {
+        console.warn(`⚠️ SpeedTraffic caching service error:`, cachingError);
+        // 캐싱 실패해도 계속 진행
+      }
+
       chartData = await fetchRealtimeData(symbolUpper);
       source = 'yfinance';
-      
+
       // 데이터를 성공적으로 가져온 경우 캐시에 저장
       if (chartData) {
         setCachedData(symbolUpper, chartData);

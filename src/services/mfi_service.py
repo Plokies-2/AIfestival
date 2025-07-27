@@ -1,64 +1,108 @@
 import pandas as pd
 import sys
 import json
-from pathlib import Path
+from datetime import datetime, timedelta
+
+# 데이터 캐시 서비스 가져오기
+try:
+    from data_cache_service import get_cached_data, convert_to_dataframe
+    CACHE_SERVICE_AVAILABLE = True
+except ImportError:
+    CACHE_SERVICE_AVAILABLE = False
+    print("Warning: data_cache_service not available, falling back to direct yfinance", file=sys.stderr)
+
+# yfinance 가져오기 시도 (폴백용)
+try:
+    import yfinance as yf
+    YFINANCE_AVAILABLE = True
+except ImportError:
+    YFINANCE_AVAILABLE = False
+    print("Warning: yfinance not available", file=sys.stderr)
+
+def load_cached_data(symbol):
+    """
+    캐시된 데이터를 사용하여 DataFrame 반환
+    """
+    if CACHE_SERVICE_AVAILABLE:
+        try:
+            print(f"📦 Loading cached data for {symbol}...", file=sys.stderr)
+            cached_data = get_cached_data(symbol)
+            if cached_data:
+                df = convert_to_dataframe(cached_data, 'ticker')
+                if df is not None and not df.empty:
+                    print(f"✅ Loaded {len(df)} days of cached data for {symbol}", file=sys.stderr)
+                    return df
+        except Exception as e:
+            print(f"❌ Error loading cached data: {e}", file=sys.stderr)
+
+    # 캐시 서비스 실패 시 직접 yfinance 사용
+    return load_realtime_data_direct(symbol)
+
+def load_realtime_data_direct(symbol):
+    """
+    직접 yfinance를 사용하여 데이터 로드 (폴백용)
+    """
+    if not YFINANCE_AVAILABLE:
+        return None
+
+    try:
+        print(f"🔄 Loading realtime data for {symbol} using yfinance directly...", file=sys.stderr)
+
+        # 3년간의 데이터 가져오기
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=3*365)
+
+        ticker_obj = yf.Ticker(symbol)
+        hist = ticker_obj.history(start=start_date, end=end_date)
+
+        if hist.empty:
+            print(f"❌ No realtime data found for {symbol}", file=sys.stderr)
+            return None
+
+        # 컬럼명 표준화
+        hist.columns = [col.replace(' ', '').title() for col in hist.columns]
+        hist.rename(columns={'Adjclose': 'AdjClose'}, inplace=True)
+
+        print(f"✅ Loaded {len(hist)} days of realtime data for {symbol}", file=sys.stderr)
+        return hist
+
+    except Exception as e:
+        print(f"❌ Error loading realtime data for {symbol}: {e}", file=sys.stderr)
+        return None
 
 def calculate_mfi(symbol):
     """Calculate MFI-14 for given symbol"""
-    # 프로젝트 루트 기준 CSV 경로 (…/financial_dashboard/data/)
-    DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 
-    try:
-        high_file = DATA_DIR / "sp500_high_3y.csv"
-        low_file = DATA_DIR / "sp500_low_3y.csv"
-        close_file = DATA_DIR / "sp500_adj_close_3y.csv"
-        volume_file = DATA_DIR / "sp500_volume_3y.csv"
+    # 먼저 캐시된 데이터 시도
+    df = load_cached_data(symbol)
 
-        # Read CSV files with proper data types (first read to get column names, then read with proper dtypes)
-        high = pd.read_csv(high_file)
-        low = pd.read_csv(low_file)
-        close = pd.read_csv(close_file)
-        volume = pd.read_csv(volume_file)
+    if df is not None:
+        print(f"📊 Using data for {symbol}", file=sys.stderr)
+        # 데이터 사용
+        try:
+            # 필요한 컬럼들이 있는지 확인
+            required_cols = ['High', 'Low', 'Close', 'Volume']
+            if not all(col in df.columns for col in required_cols):
+                raise ValueError(f"Missing required columns in data: {required_cols}")
 
-        # Convert Date columns to datetime (first, convert to string, then to datetime)
-        high['Date'] = pd.to_datetime(high['Date'])
-        low['Date'] = pd.to_datetime(low['Date'])
-        close['Date'] = pd.to_datetime(close['Date'])
-        volume['Date'] = pd.to_datetime(volume['Date'])
+            # 데이터 정리
+            df = df.dropna()
+            if len(df) < 14:
+                raise ValueError(f"Insufficient data for MFI calculation: {len(df)} days")
 
-        # Convert numeric columns to float64
-        for col in high.columns:
-            if col != 'Date':
-                high[col] = pd.to_numeric(high[col], errors='coerce')
-                low[col] = pd.to_numeric(low[col], errors='coerce')
-                close[col] = pd.to_numeric(close[col], errors='coerce')
-                volume[col] = pd.to_numeric(volume[col], errors='coerce')
+        except Exception as e:
+            print(f"❌ Error processing data: {e}", file=sys.stderr)
+            df = None
 
-    except FileNotFoundError as e:
-        print(f"Error: CSV file not found - {e}", file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"Error reading CSV files: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    if symbol not in high.columns:
-        print(f"Error: Symbol {symbol} not found in data", file=sys.stderr)
+    if df is None:
+        print(f"❌ No data available for {symbol}", file=sys.stderr)
         sys.exit(1)
 
     period = 14
 
-    # 날짜 컬럼을 인덱스로 변환하고 정렬(가장 최신 = 맨 아래)
-    df = pd.DataFrame({
-        "Date": high["Date"],
-        "High":   high[symbol],
-        "Low":    low[symbol],
-        "Close":  close[symbol],
-        "Volume": volume[symbol]
-    }).astype({"High": "float64", "Low": "float64",
-           "Close": "float64", "Volume": "float64"})
-    
-    df["Date"] = pd.to_datetime(df["Date"])
-    df = df.set_index("Date").sort_index()
+    # 데이터 처리
+    df = df.sort_index()
+    # 컬럼명이 이미 표준화되어 있음 (High, Low, Close, Volume)
 
     # Typical Price와 Money Flow (data is already numeric, no need for conversion)
     tp = (df["High"] + df["Low"] + df["Close"]) / 3

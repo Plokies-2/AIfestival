@@ -5,7 +5,7 @@ const nextConfig = {
 
   // Vercel 배포 최적화
   experimental: {
-    serverComponentsExternalPackages: ['tensorflow'],
+    // serverComponentsExternalPackages는 더 이상 사용되지 않음 (serverExternalPackages로 이동됨)
   },
 
   webpack: (config, { isServer }) => {
