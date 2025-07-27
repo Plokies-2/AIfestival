@@ -20,10 +20,10 @@ import { findBestPersona, classifyInvestmentIntent } from './rag-service';
 /**
  * Clova Studio client instance for dynamic response generation (OpenAI 호환)
  */
-const openai = new OpenAI({
+const openai = ENV_CONFIG.openaiApiKey ? new OpenAI({
   apiKey: ENV_CONFIG.openaiApiKey,
   baseURL: OPENAI_CONFIG.baseUrl
-});
+}) : null;
 
 // ============================================================================
 // Intent Classification
@@ -176,6 +176,10 @@ export async function generateDynamicResponse(userInput: string, intent: string)
   }
 
   try {
+    if (!openai) {
+      throw new Error('OpenAI client not initialized - CLOVA_STUDIO_API_KEY is required');
+    }
+
     const response = await openai.chat.completions.create({
       model: OPENAI_CONFIG.model, // Clova Studio hcx-dash-002 모델 사용
       messages: [

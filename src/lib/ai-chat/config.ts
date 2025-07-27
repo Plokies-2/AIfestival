@@ -203,5 +203,5 @@ export const WELCOME_MESSAGES = [
  */
 export const ENV_CONFIG = {
   baseUrl: process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
-  openaiApiKey: process.env.CLOVA_STUDIO_API_KEY!
+  openaiApiKey: process.env.CLOVA_STUDIO_API_KEY || ''
 } as const;

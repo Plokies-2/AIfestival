@@ -1,10 +1,10 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
+const openai = process.env.CLOVA_STUDIO_API_KEY ? new OpenAI({
   apiKey: process.env.CLOVA_STUDIO_API_KEY,  // Clova Studio API 키 사용
   baseURL: 'https://clovastudio.stream.ntruss.com/v1/openai'  // Clova Studio OpenAI 호환 엔드포인트
-});
+}) : null;
 
 interface ReportData {
   symbol: string;
@@ -55,6 +55,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ].join(' ');
 
     console.log(`[REPORT_API] Generating report for ${reportData.symbol} with message: ${userMessage}`);
+
+    if (!openai) {
+      return res.status(500).json({ error: 'OpenAI client not initialized - CLOVA_STUDIO_API_KEY is required' });
+    }
 
     // Call the Clova Studio model (fine-tuned 모델 대신 기본 모델 사용)
     const response = await openai.chat.completions.create({

@@ -10,10 +10,10 @@ import { ENV_CONFIG } from './ai-chat/config';
 /**
  * Clova Studio OpenAI 호환 클라이언트
  */
-const openai = new OpenAI({
+const openai = ENV_CONFIG.openaiApiKey ? new OpenAI({
   apiKey: ENV_CONFIG.openaiApiKey,
   baseURL: 'https://clovastudio.stream.ntruss.com/v1/openai'
-});
+}) : null;
 
 /**
  * OpenAI 호환 인터페이스로 Clova Studio 임베딩 API 사용
@@ -23,6 +23,10 @@ const openai = new OpenAI({
  */
 export async function createEmbeddingCompatible(input: string): Promise<{ data: Array<{ embedding: number[] }> }> {
   try {
+    if (!openai) {
+      throw new Error('OpenAI client not initialized - CLOVA_STUDIO_API_KEY is required');
+    }
+
     const response = await openai.embeddings.create({
       model: 'bge-m3',
       input: input,
