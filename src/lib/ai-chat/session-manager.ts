@@ -27,11 +27,7 @@ let GLOBAL_SESSION_STATE: SessionState = {
   lastActivity: Date.now()
 };
 
-/**
- * 더보기 기능을 위한 단순한 산업군 캐시
- * investment 처리 시 선택된 산업군을 저장하여 더보기 기능에서 사용
- */
-let CURRENT_INDUSTRY_CACHE: string | null = null;
+// 더보기 기능 제거됨 - 산업군 캐시 불필요
 
 console.log('🚀 Simplified session manager initialized with global state');
 
@@ -66,7 +62,7 @@ export function generateSessionId(): string {
 /**
  * Retrieves the global session state
  */
-export function getSession(sessionId?: string): SessionState {
+export function getSession(_sessionId?: string): SessionState {
   // Update last activity
   GLOBAL_SESSION_STATE.lastActivity = Date.now();
 
@@ -82,7 +78,7 @@ export function getSession(sessionId?: string): SessionState {
 /**
  * Updates the global session state
  */
-export function updateSession(sessionId: string, newState: Partial<SessionState>): SessionState {
+export function updateSession(_sessionId: string, newState: Partial<SessionState>): SessionState {
   const previousState = { ...GLOBAL_SESSION_STATE };
 
   GLOBAL_SESSION_STATE = {
@@ -103,14 +99,14 @@ export function updateSession(sessionId: string, newState: Partial<SessionState>
 /**
  * Compatibility function - no-op for single session
  */
-export function deleteSession(sessionId: string): boolean {
+export function deleteSession(_sessionId: string): boolean {
   return true;
 }
 
 /**
  * Resets the global session state
  */
-export function resetSession(sessionId: string, preserveHistory: boolean = true): SessionState {
+export function resetSession(_sessionId: string, preserveHistory: boolean = true): SessionState {
   const conversationHistory = preserveHistory ? GLOBAL_SESSION_STATE.conversationHistory : [];
 
   GLOBAL_SESSION_STATE = {
@@ -122,8 +118,7 @@ export function resetSession(sessionId: string, preserveHistory: boolean = true)
     lastActivity: Date.now()
   };
 
-  // 세션 리셋 시 산업군 캐시도 초기화
-  CURRENT_INDUSTRY_CACHE = null;
+  // 더보기 기능 제거됨 - 산업군 캐시 초기화 불필요
   console.log(`🔄 Reset global session state (preserve history: ${preserveHistory})`);
   return GLOBAL_SESSION_STATE;
 }
@@ -131,7 +126,7 @@ export function resetSession(sessionId: string, preserveHistory: boolean = true)
 /**
  * Compatibility function - always true for single session
  */
-export function sessionExists(sessionId: string): boolean {
+export function sessionExists(_sessionId: string): boolean {
   return true;
 }
 
@@ -264,9 +259,7 @@ export function updateSelectedIndustry(sessionId: string, industry: string | nul
   GLOBAL_SESSION_STATE.selectedIndustry = industry;
   GLOBAL_SESSION_STATE.lastActivity = Date.now();
 
-  // 더보기 기능을 위해 산업군 캐시 업데이트
-  CURRENT_INDUSTRY_CACHE = industry;
-  console.log(`🏭 [산업군 캐시] 업데이트: ${industry}`);
+  // 더보기 기능 제거됨 - 산업군 캐시 업데이트 불필요
 }
 
 /**
@@ -335,33 +328,11 @@ export function shutdownSessionManager(): void {
  */
 export function resetSessionToStart(sessionId: string): SessionState {
   console.log(`🔄 Resetting global session to START state`);
-  // 세션 리셋 시 산업군 캐시도 초기화
-  CURRENT_INDUSTRY_CACHE = null;
+  // 더보기 기능 제거됨 - 산업군 캐시 초기화 불필요
   return resetSession(sessionId, true); // Preserve conversation history
 }
 
-/**
- * 더보기 기능을 위한 현재 산업군 캐시 조회
- */
-export function getCurrentIndustryCache(): string | null {
-  return CURRENT_INDUSTRY_CACHE;
-}
-
-/**
- * 더보기 기능을 위한 산업군 캐시 설정
- */
-export function setCurrentIndustryCache(industry: string | null): void {
-  CURRENT_INDUSTRY_CACHE = industry;
-  console.log(`🏭 [산업군 캐시] 설정: ${industry}`);
-}
-
-/**
- * 더보기 기능을 위한 산업군 캐시 초기화
- */
-export function clearCurrentIndustryCache(): void {
-  CURRENT_INDUSTRY_CACHE = null;
-  console.log(`🧹 [산업군 캐시] 초기화`);
-}
+// 더보기 기능 완전 제거됨 - 산업군 캐시 관련 모든 함수 제거
 
 // Auto-initialize when module is imported
 initializeSessionManager();

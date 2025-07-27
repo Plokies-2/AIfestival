@@ -73,7 +73,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 // Re-export commonly used functions for backward compatibility
 export {
   resetSessionAfterChart,
-  testRAGThresholds,
+  // testRAGThresholds 제거됨 - 디버깅용 함수로 프로덕션에서 사용되지 않음
   getSessionStatistics,
   performHealthCheck
 } from '@/lib/ai-chat';

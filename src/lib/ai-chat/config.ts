@@ -12,18 +12,23 @@ import { RAGThresholds, PatternConfig, KoreanCompanyMapping } from './types';
 // ============================================================================
 
 /**
- * RAG Score Thresholds for Intent Classification (개선됨)
- * 임계값을 0.3으로 조정하여 더 관대한 의도 분류 적용
- * 변경사항: 주요 임계값들을 0.3으로 통일하여 일관성 있는 분류 기준 제공
+ * RAG Score Thresholds for Intent Classification (정리됨)
+ * 사용되지 않는 임계값들을 제거하여 코드 경량화
+ * 현재 활성화된 RAG 로직에서 실제로 사용되는 임계값들만 유지
  */
 export const RAG_THRESHOLDS: RAGThresholds = {
-  INDUSTRY_MIN_SCORE: 0.25,        // 산업 매칭 최소 점수 
-  COMPANY_MIN_SCORE: 0.2,         // 기업 매칭 최소 점수 
-  CASUAL_CONVERSATION_THRESHOLD: 0.25,  // 이 점수 미만 = greeting 분류 (
-  PERSONA_MIN_SCORE: 0.25,         // 페르소나 매칭 최소 점수 (유지)
-  PERSONA_CASUAL_THRESHOLD: 0.2,  // 이 점수 미만 = greeting 분류
-  INVESTMENT_INTENT_MIN_SCORE: 0.2, // 투자 의도 분류 최소 점수 (0.25 → 0.2로 하향 조정)
-  COMPANY_DIRECT_MIN_SCORE: 0.3   // 직접 기업 언급 최소 점수 
+  // 1차 의도 분류 (findBestIndustries에서 사용)
+  CASUAL_CONVERSATION_THRESHOLD: 0.22,  // 이 점수 미만 = greeting 분류 (1차 의도 분류 임계값)
+
+  // 페르소나 분류 (findBestPersona에서 사용)
+  PERSONA_MIN_SCORE: 0.3,         // 페르소나 매칭 최소 점수
+
+  // 투자 의도 분류 (classifyInvestmentIntent에서 사용)
+  INVESTMENT_INTENT_MIN_SCORE: 0.3, // 투자 의도 분류 최소 점수
+
+  // 조건부 산업 표시 (handleInvestmentQuery에서 사용)
+  PRIMARY_INDUSTRY_ONLY_THRESHOLD: 0.55, // 1순위 산업 점수가 이 값 초과시 1순위만 표시
+  SECONDARY_INDUSTRY_MIN_THRESHOLD: 0.3   // 2순위 산업 점수가 이 값 이하시 표시 안함
 } as const;
 
 // ============================================================================

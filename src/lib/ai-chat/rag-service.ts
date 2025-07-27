@@ -11,7 +11,7 @@
 import OpenAI from 'openai';
 import { getEmbeddings, cosine } from '@/lib/embeddings';
 import { QUICK_ENRICHED_FINAL as DATA } from '@/data/sp500_enriched_final';
-import { IndustryMatchResult, RAGServiceError, CompanyData, PersonaMatchResult, InvestmentIntentResult } from './types';
+import { CompanyData, InvestmentIntentResult } from './types';
 import { RAG_THRESHOLDS, /* KOREAN_COMPANY_MAPPING, */ OPENAI_CONFIG, PERFORMANCE_CONFIG, ENV_CONFIG } from './config';
 // 제거된 기능: classifyIndustryWithGPT import - GPT 기반 산업 분류 백업 로직 제거됨
 
@@ -189,7 +189,7 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
 
     // 산업 매칭만 고려 (company direct match 제거)
     if (bestIndustryScore >= RAG_THRESHOLDS.INVESTMENT_INTENT_MIN_SCORE) {
-      const selectedEntity = bestIndustryMatch?.industry;
+      const selectedEntity = bestIndustryMatch?.industry_ko || bestIndustryMatch?.sp500_industry;
       const selectedScore = bestIndustryScore;
       // 로그 최적화: 최종 결과만 출력
       console.log(`🏭 [RAG] Selected: ${selectedEntity}`);
@@ -229,11 +229,10 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
 // ============================================================================
 
 /**
- * Finds the best matching industry using RAG with threshold-based classification
+ * 새로운 RAG 로직: industry_vectors.ts 기반으로 top 2 산업을 직접 매칭
  */
-export async function findBestIndustry(userInput: string): Promise<string | null> {
-  // RAG: Generate user input embedding directly (no translation needed)
-  // 임베딩 공간에서는 언어가 달라도 의미적 유사성 매칭이 가능
+export async function findBestIndustries(userInput: string): Promise<Array<{industry_ko: string, sp500_industry: string, score: number}> | null> {
+  // 사용자 입력 임베딩 생성
   const queryEmbedding = (await openai.embeddings.create({
     model: OPENAI_CONFIG.embeddingModel,
     input: userInput
@@ -241,70 +240,41 @@ export async function findBestIndustry(userInput: string): Promise<string | null
 
   const normalizedQuery = queryEmbedding.map((v, _, arr) => v / Math.hypot(...arr));
 
-  // RAG: Calculate cosine similarity with pre-computed industry embeddings
+  // industry_vectors.ts 기반 산업 임베딩과 유사도 계산
   const { industries } = await getEmbeddings();
 
-  let bestIndustry: string | null = null;
-  let bestScore = -1;
+  const industryScores = industries.map(industry => ({
+    industry_ko: industry.industry_ko,
+    sp500_industry: industry.sp500_industry,
+    score: cosine(industry.vec, normalizedQuery)
+  }));
 
-  for (const industry of industries) {
-    const score = cosine(industry.vec, normalizedQuery);
-    if (score > bestScore) {
-      bestScore = score;
-      bestIndustry = industry.industry;
-    }
+  // 점수 기준으로 정렬하여 top 2 선택
+  industryScores.sort((a, b) => b.score - a.score);
+  const topIndustries = industryScores.slice(0, 2);
+
+  console.log(`🏭 [RAG] Top 2 산업: ${topIndustries[0].industry_ko} (${topIndustries[0].score.toFixed(3)}), ${topIndustries[1].industry_ko} (${topIndustries[1].score.toFixed(3)})`);
+
+  // 최고 점수가 임계값(0.22)보다 낮으면 null 반환 (1차 의도 분류)
+  if (topIndustries[0].score < RAG_THRESHOLDS.CASUAL_CONVERSATION_THRESHOLD) {
+    console.log(`⚠️ [1차 의도 분류] RAG score too low (${topIndustries[0].score.toFixed(3)} < ${RAG_THRESHOLDS.CASUAL_CONVERSATION_THRESHOLD}), classifying as casual conversation`);
+    return null;
   }
 
-  // 로그 최적화: 상세 점수 로그 제거
-  // console.log(`RAG Best match: ${bestIndustry} with score: ${bestScore.toFixed(3)}`);
+  return topIndustries;
+}
 
-  // RAG threshold check: If industry level score is too low, try company level search
-  if (bestScore < RAG_THRESHOLDS.COMPANY_MIN_SCORE) {
-    // 로그 최적화: 중간 과정 로그 제거
-    // console.log('Industry score too low, trying company-level RAG...');
-
-    const { companies } = await getEmbeddings();
-    let bestCompanyIndustry: string | null = null;
-    let bestCompanyScore = -1;
-
-    // Performance optimization: Search only top n companies - maximum 500
-    const topCompanies = companies.slice(0, PERFORMANCE_CONFIG.maxCompaniesForRAG);
-    for (const company of topCompanies) {
-      const score = cosine(company.vec, normalizedQuery);
-      if (score > bestCompanyScore) {
-        bestCompanyScore = score;
-        bestCompanyIndustry = company.industry;
-      }
-    }
-
-    // 로그 최적화: 상세 점수 로그 제거
-    // console.log(`Company-level RAG: ${bestCompanyIndustry} with score: ${bestCompanyScore.toFixed(3)}`);
-
-    if (bestCompanyScore > bestScore) {
-      bestIndustry = bestCompanyIndustry;
-      bestScore = bestCompanyScore;
-    }
+/**
+ * 기존 호환성을 위한 래퍼 함수 (단일 산업 반환)
+ */
+export async function findBestIndustry(userInput: string): Promise<string | null> {
+  const topIndustries = await findBestIndustries(userInput);
+  if (!topIndustries || topIndustries.length === 0) {
+    return null;
   }
 
-  // RAG threshold check: If score is below threshold, classify as casual conversation
-  if (bestScore < RAG_THRESHOLDS.CASUAL_CONVERSATION_THRESHOLD) {
-    console.log(`⚠️ RAG score too low (${bestScore.toFixed(3)} < ${RAG_THRESHOLDS.CASUAL_CONVERSATION_THRESHOLD}), classifying as casual conversation`);
-
-    // 제거된 기능: GPT 기반 산업 분류 백업 로직
-    // RAG 점수가 낮으면 인사말로 분류 (수정된 로직)
-    console.log('RAG scores too low, treating as greeting');
-    return null; // Classify as greeting
-  }
-
-  // Validate that the selected industry actually exists in DATA (use cached industry list)
-  const validIndustries = getAvailableIndustries();
-  if (bestIndustry && !validIndustries.includes(bestIndustry)) {
-    console.log(`Selected industry "${bestIndustry}" not found in DATA.`);
-    bestIndustry = validIndustries[0]; // Use first industry
-  }
-
-  // Return valid industry
-  return bestIndustry;
+  // 첫 번째 산업의 sp500_industry 반환 (기존 로직과의 호환성)
+  return topIndustries[0].sp500_industry;
 }
 
 // ============================================================================
@@ -463,7 +433,7 @@ export function findTickerInText(text: string, availableTickers: string[]): stri
 // ============================================================================
 
 /**
- * Gets companies in a specific industry (exactly 5 companies)
+ * 해당 산업의 모든 기업을 반환 (제한 없음)
  */
 export function getIndustryCompanies(industry: string): string[] {
   // 로그 최적화: 상세 검색 로그 제거
@@ -481,11 +451,11 @@ export function getIndustryCompanies(industry: string): string[] {
       // }
       return matches;
     })
-    .slice(0, PERFORMANCE_CONFIG.maxCompaniesForDisplay) // Exactly 5 companies
+    // 더보기 기능 제거됨 - 모든 기업을 처음부터 표시
     .map(([ticker, _]: [string, any]) => ticker);
 
   // 로그 최적화: 최종 결과만 출력
-  console.log(`[RAG] Found ${matchingCompanies.length} companies for "${industry}"`);
+  console.log(`[RAG] Found ${matchingCompanies.length} companies for "${industry}" (전체 표시)`);
   return matchingCompanies;
 }
 
@@ -520,28 +490,4 @@ export function getAllAvailableIndustries(): string[] {
 // RAG Testing and Debugging
 // ============================================================================
 
-/**
- * RAG Threshold Testing Function (for debugging)
- */
-export async function testRAGThresholds(userInput: string): Promise<{
-  industry: string | null;
-  isCasualConversation: boolean;
-  reasoning: string;
-}> {
-  console.log(`🧪 Testing RAG thresholds for input: "${userInput}"`);
-
-  const industry = await findBestIndustry(userInput);
-  const isCasualConversation = industry === null;
-
-  const reasoning = isCasualConversation
-    ? `Input classified as casual conversation (RAG score below ${RAG_THRESHOLDS.CASUAL_CONVERSATION_THRESHOLD})`
-    : `Input matched to industry: ${industry}`;
-
-  console.log(`🧪 Test result: ${reasoning}`);
-
-  return {
-    industry,
-    isCasualConversation,
-    reasoning
-  };
-}
+// 디버깅용 testRAGThresholds 함수 제거됨 - 프로덕션에서 사용되지 않음

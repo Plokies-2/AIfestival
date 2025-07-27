@@ -83,17 +83,23 @@ export interface PersonaContext {
 // ============================================================================
 
 /**
- * RAG threshold configuration (정리됨)
- * 제거된 기능: GPT_FALLBACK_THRESHOLD - GPT 기반 백업 분류 제거됨
+ * RAG threshold configuration (최적화됨)
+ * 사용되지 않는 임계값들을 제거하여 타입 안전성 향상
+ * 현재 활성화된 RAG 로직에서 실제로 사용되는 임계값들만 정의
  */
 export interface RAGThresholds {
-  INDUSTRY_MIN_SCORE: number;
-  COMPANY_MIN_SCORE: number;
-  CASUAL_CONVERSATION_THRESHOLD: number;
-  PERSONA_MIN_SCORE: number;
-  PERSONA_CASUAL_THRESHOLD: number;
-  INVESTMENT_INTENT_MIN_SCORE: number;
-  COMPANY_DIRECT_MIN_SCORE: number;
+  // 1차 의도 분류
+  CASUAL_CONVERSATION_THRESHOLD: number; // findBestIndustries에서 사용
+
+  // 페르소나 분류
+  PERSONA_MIN_SCORE: number; // findBestPersona에서 사용
+
+  // 투자 의도 분류
+  INVESTMENT_INTENT_MIN_SCORE: number; // classifyInvestmentIntent에서 사용
+
+  // 조건부 산업 표시
+  PRIMARY_INDUSTRY_ONLY_THRESHOLD: number; // 1순위 산업 점수가 이 값 초과시 1순위만 표시
+  SECONDARY_INDUSTRY_MIN_THRESHOLD: number; // 2순위 산업 점수가 이 값 이하시 표시 안함
 }
 
 /**
@@ -104,23 +110,7 @@ export interface PersonaRow {
   vec: number[];
 }
 
-/**
- * Industry matching result
- */
-export interface IndustryMatchResult {
-  industry: string | null;
-  score: number;
-  method: 'rag_industry' | 'rag_company' | 'gpt_classification' | 'casual_conversation';
-}
-
-/**
- * Persona matching result
- */
-export interface PersonaMatchResult {
-  persona: string | null;
-  score: number;
-  method: 'rag_persona' | 'casual_conversation';
-}
+// IndustryMatchResult, PersonaMatchResult 제거됨 - 사용되지 않는 타입들
 
 /**
  * Investment intent matching result
@@ -294,11 +284,4 @@ export class AIServiceError extends AIChatError {
   }
 }
 
-/**
- * RAG service error types
- */
-export class RAGServiceError extends AIChatError {
-  constructor(message: string) {
-    super(message, 'RAG_SERVICE_ERROR', 500);
-  }
-}
+// RAGServiceError 제거됨 - 사용되지 않는 에러 타입

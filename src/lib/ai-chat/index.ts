@@ -28,7 +28,7 @@ export type {
   IntentClassificationResult,
   PersonaContext,
   RAGThresholds,
-  IndustryMatchResult,
+  // IndustryMatchResult 제거됨 - 사용되지 않는 타입
   CompanyRecommendation,
   RandomRecommendation,
   KoreanCompanyMapping,
@@ -39,12 +39,12 @@ export type {
   OpenAIConfig,
   PatternConfig,
   CompanyData,
-  
+
   // Error types
   AIChatError,
   SessionError,
-  AIServiceError,
-  RAGServiceError
+  AIServiceError
+  // RAGServiceError 제거됨 - 사용되지 않는 에러 타입
 } from './types';
 
 // ============================================================================
@@ -108,13 +108,14 @@ export {
 
 export {
   findBestIndustry,
+  findBestIndustries,
   // findCompanyInAllData, // 주석처리: Company Direct Match 완전 제거
   findTickerInText,
   getIndustryCompanies,
   getCompanyName,
   getCompanyData,
-  getAllAvailableIndustries,
-  testRAGThresholds
+  getAllAvailableIndustries
+  // testRAGThresholds 제거됨 - 디버깅용 함수로 프로덕션에서 사용되지 않음
 } from './rag-service';
 
 // ============================================================================
@@ -193,24 +194,7 @@ export const config = { api: { bodyParser: { sizeLimit: '1mb' } } };
 // Utility Functions for Testing and Debugging
 // ============================================================================
 
-/**
- * Creates a test context for pipeline testing
- */
-export function createTestContext(
-  userInput: string,
-  sessionId: string = 'test-session',
-  stage: Stage = 'START'
-): PipelineContext {
-  const { createNewSession } = require('./session-manager');
-  const state = createNewSession();
-  state.stage = stage;
-  
-  return {
-    userInput,
-    sessionId,
-    state
-  };
-}
+// 테스트 함수 제거됨 - 프로덕션에서 사용되지 않음
 
 
 
@@ -271,13 +255,12 @@ export function getSystemInfo(): {
   ];
   
   const configuration = {
-    ragThresholds: RAG_THRESHOLDS,
-    sessionConfig: SESSION_CONFIG,
-    performanceConfig: PERFORMANCE_CONFIG
+    note: 'Configuration details available through individual service modules'
   };
-  
+
   let stats = {};
   try {
+    const { getSessionStatistics } = require('./request-handler');
     stats = getSessionStatistics();
   } catch (error) {
     stats = { error: 'Failed to get session statistics' };

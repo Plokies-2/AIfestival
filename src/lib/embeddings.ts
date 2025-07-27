@@ -2,11 +2,16 @@ import fs from 'fs';
 import path from 'path';
 import OpenAI from 'openai';
 import { QUICK_ENRICHED_FINAL as DATA } from '../data/sp500_enriched_final';
+import { INDUSTRY_VECTORS } from '../data/industry_vectors';
 
 /* ──────────── 타입 ──────────── */
 type Vec = number[];
 export interface CompanyRow { ticker: string; name: string; industry: string; vec: Vec; }
-export interface IndustryRow { industry: string; vec: Vec; }
+export interface IndustryRow {
+  industry_ko: string;
+  sp500_industry: string;
+  vec: Vec;
+}
 export interface PersonaRow { persona: string; vec: Vec; }
 interface CacheFile { companies: CompanyRow[]; industries: IndustryRow[]; personas: PersonaRow[]; }
 
@@ -131,7 +136,7 @@ function extractExamples(content: string): string[] {
 /* ──────────── 임베딩 생성 ──────────── */
 async function createEmbeddings(): Promise<CacheFile> {
   const tickers = Object.keys(DATA);
-  const txt = tickers.map(t => `${DATA[t].name}. ${DATA[t].industry}. ${DATA[t].description}`);
+  const txt = tickers.map(t => `${(DATA as any)[t].name}. ${(DATA as any)[t].industry}. ${(DATA as any)[t].description}`);
 
   /* 기업 496개 */
   const companies: CompanyRow[] = [];
@@ -141,18 +146,27 @@ async function createEmbeddings(): Promise<CacheFile> {
       input: txt.slice(i, i + BATCH),
     });
     data.forEach((d, j) => {
-      const t = tickers[i + j], b = DATA[t];
+      const t = tickers[i + j], b = (DATA as any)[t];
       companies.push({ ticker: t, name: b.name, industry: b.industry, vec: norm(d.embedding) });
     });
   }
 
-  /* 산업 40개 */
-  const inds = [...new Set(companies.map(c => c.industry))];
+  /* 산업 임베딩 - industry_vectors.ts 기반 */
+  console.log('🏭 산업 임베딩 생성 중 (industry_vectors.ts 기반)...');
+  const industryTexts = INDUSTRY_VECTORS.map(iv =>
+    `${iv.industry_ko}. ${iv.keywords.join('. ')}`
+  );
+
   const { data: indEmb } = await openai.embeddings.create({
     model: 'text-embedding-3-small',
-    input: inds.map(s => `${s}: companies in ${s.toLowerCase()}`),
+    input: industryTexts,
   });
-  const industries = indEmb.map((d, i) => ({ industry: inds[i], vec: norm(d.embedding) }));
+
+  const industries = indEmb.map((d, i) => ({
+    industry_ko: INDUSTRY_VECTORS[i].industry_ko,
+    sp500_industry: INDUSTRY_VECTORS[i].sp500_industry,
+    vec: norm(d.embedding)
+  }));
 
   /* 페르소나 2개 (about_ai, greeting) */
   const personas = await createPersonaEmbeddings();
@@ -180,7 +194,7 @@ export async function getEmbeddings(): Promise<CacheFile> {
     }
 
     // investment 페르소나가 없으면 에러 발생 (2단계 RAG 시스템 필요)
-    const hasInvestment = cached.personas.some(p => p.persona === 'investment');
+    const hasInvestment = cached.personas.some((p: any) => p.persona === 'investment');
     if (!hasInvestment) {
       throw new Error('❌ Cache file missing investment persona. Please run regenerate-embeddings.js to update the cache file.');
     }

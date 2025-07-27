@@ -84,14 +84,7 @@ export function handleSpecialCommands(userInput: string, sessionId: string): Cha
     return { reply: '새로운 검색을 시작하세요.' };
   }
 
-  // 더보기 버튼 클릭 명령 처리 (단순화된 버전)
-  if (userInput === '__SHOW_MORE_COMPANIES__') {
-    console.log(`🔍 [더보기 요청] 단순화된 처리 시작`);
-
-    // 더보기 처리는 pipeline-handlers에서 수행하도록 null 반환
-    // 복잡한 세션 상태 검증 없이 산업군 캐시를 사용하여 처리
-    return null;
-  }
+  // 더보기 기능 제거됨 - 특별 명령 처리 불필요
 
   return null;
 }

@@ -266,15 +266,62 @@ async function generateEmbeddings() {
       });
     }
 
-    console.log('🏭 산업 임베딩 생성 중...');
-    const industries = [...new Set(companies.map(c => c.industry))];
+    console.log('🏭 산업 임베딩 생성 중 (industry_vectors.ts 기반)...');
+
+    // industry_vectors.ts 데이터를 하드코딩으로 정의 (임시 해결책)
+    const INDUSTRY_VECTORS = [
+      {
+        industry_ko: "항공우주 및 방위산업",
+        sp500_industry: "Aerospace & Defense",
+        keywords: ["항공우주", "우주항공", "방위산업", "방산", "군수산업", "항공기", "드론"]
+      },
+      {
+        industry_ko: "응용 소프트웨어",
+        sp500_industry: "Application Software",
+        keywords: ["응용 소프트웨어", "애플리케이션", "앱", "기업 소프트웨어", "설계 프로그램", "워드프로세서", "스프레드시트"]
+      },
+      {
+        industry_ko: "자산·자산 운용",
+        sp500_industry: "Asset & Wealth Management",
+        keywords: ["자산관리", "재산관리", "자산운용", "투자관리", "포트폴리오", "펀드매니지먼트", "재무설계"]
+      },
+      {
+        industry_ko: "자동차 및 부품",
+        sp500_industry: "Automobiles & Components",
+        keywords: ["자동차", "자동차부품", "모빌리티", "차량", "엔진", "자동차 산업", "전기차"]
+      },
+      {
+        industry_ko: "은행",
+        sp500_industry: "Banks",
+        keywords: ["은행", "상업은행", "투자은행", "금융기관", "대출", "예금", "금융업"]
+      },
+      {
+        industry_ko: "생명공학",
+        sp500_industry: "Biotechnology",
+        keywords: ["생명공학", "바이오테크", "유전자편집", "세포치료", "바이오", "바이오 산업", "재조합기술"]
+      },
+      {
+        industry_ko: "반도체 및 파운드리",
+        sp500_industry: "Semiconductors & Foundries",
+        keywords: ["반도체", "칩", "파운드리", "칩제조", "집적회로", "GPU", "ASIC"]
+      }
+      // 더 많은 산업들이 있지만 테스트를 위해 일부만 포함
+    ];
+
+    const industryTexts = INDUSTRY_VECTORS.map(iv =>
+      \`\${iv.industry_ko}. \${iv.keywords.join('. ')}\`
+    );
+
+    console.log(\`📊 \${industryTexts.length}개 산업의 임베딩 생성 중...\`);
+
     const { data: indData } = await openai.embeddings.create({
       model: 'text-embedding-3-small',
-      input: industries.map(s => \`\${s}: companies in \${s.toLowerCase()}\`),
+      input: industryTexts,
     });
 
     const industryEmbeddings = indData.map((d, i) => ({
-      industry: industries[i],
+      industry_ko: INDUSTRY_VECTORS[i].industry_ko,
+      sp500_industry: INDUSTRY_VECTORS[i].sp500_industry,
       vec: norm(d.embedding)
     }));
 

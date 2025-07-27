@@ -9,12 +9,13 @@
 
 import { PipelineContext, StageHandlerResult, SessionState, IntentClassificationResult } from './types';
 import { QUICK_ENRICHED_FINAL as DATA } from '@/data/sp500_enriched_final';
+import { RAG_THRESHOLDS } from './config';
 import {
   classifyUserIntent,
   generateDynamicResponse
 } from './ai-service';
 import {
-  findBestIndustry,
+  findBestIndustries,
   findTickerInText,
   getIndustryCompanies,
   getCompanyName
@@ -27,10 +28,7 @@ import {
   isNegative,
   formatCompanyList
 } from './company-utils';
-import {
-  getCurrentIndustryCache,
-  setCurrentIndustryCache
-} from './session-manager';
+// 더보기 기능 제거됨 - session-manager import 불필요
 
 // ============================================================================
 // START Stage Handler
@@ -42,11 +40,7 @@ import {
 export async function handleStartStage(context: PipelineContext): Promise<StageHandlerResult> {
   const { userInput } = context;
 
-  // 더보기 버튼 클릭 명령 처리 (START 단계에서도 처리 가능)
-  if (userInput === '__SHOW_MORE_COMPANIES__') {
-    console.log(`🔍 [START] 더보기 요청 처리`);
-    return await handleShowMoreCompanies(context);
-  }
+  // 더보기 기능 제거됨 - 모든 기업을 처음부터 표시
 
   // Perform intent classification
   const intentResult = await classifyUserIntent(userInput);
@@ -135,82 +129,131 @@ async function handleConversationalIntent(
 // }
 
 /**
- * Handles investment queries (industry matching)
+ * 투자 질의 처리 (산업 매칭) - 새로운 로직: top 2 산업 처리
+ * industry_vectors.ts 기반으로 직접 산업 매칭하여 상위 2개 산업 반환
  */
 async function handleInvestmentQuery(
   context: PipelineContext
 ): Promise<StageHandlerResult> {
   const { userInput, sessionId, state } = context;
-  
-  const industry = await findBestIndustry(userInput);
 
-  // RAG score too low, classified as greeting (수정된 로직)
-  if (industry === null) {
+  // 새로운 RAG 로직: industry_vectors.ts 기반 top 2 산업 매칭
+  const topIndustries = await findBestIndustries(userInput);
+
+  // RAG 점수가 임계값보다 낮으면 인사말로 분류
+  if (!topIndustries || topIndustries.length === 0) {
     // 로그 최적화: 상세 분류 로그 제거
     // console.log(`🗣️ Input classified as greeting due to low RAG scores: "${userInput}"`);
     const reply = await generateDynamicResponse(userInput, 'greeting');
 
     return {
       reply,
-      newState: state // Stay in START stage
+      newState: state // START 단계 유지
     };
   }
 
-  // Valid industry matched
-  const companies = getIndustryCompanies(industry);
+  // Top 2 산업에 대한 기업 정보 수집
+  const industryResults = [];
 
-  // Proceed if at least one company exists (even if less than 5)
-  if (companies.length > 0) {
+  // 각 산업별로 기업 정보 수집 및 포맷팅
+  for (const industryInfo of topIndustries) {
+    const companies = getIndustryCompanies(industryInfo.sp500_industry);
+    if (companies.length > 0) {
+      const companyList = formatCompanyList(companies);
+      const totalCompaniesInIndustry = Object.entries(DATA)
+        .filter(([_, company]: [string, any]) => company.industry === industryInfo.sp500_industry).length;
+
+      industryResults.push({
+        industry_ko: industryInfo.industry_ko,
+        sp500_industry: industryInfo.sp500_industry,
+        companies,
+        companyList,
+        totalCompanies: totalCompaniesInIndustry,
+        score: industryInfo.score
+      });
+    }
+  }
+
+  if (industryResults.length > 0) {
+    // 첫 번째 산업을 주 산업으로 설정 (기존 로직과의 호환성)
+    const primaryIndustry = industryResults[0];
+
     const newState: SessionState = {
       ...state,
       stage: 'SHOW_INDUSTRY',
-      selectedIndustry: industry,
-      industryCompanies: companies
+      selectedIndustry: primaryIndustry.sp500_industry,
+      industryCompanies: primaryIndustry.companies
     };
 
     // 세션 상태 변경 디버깅 로그
     console.log(`🔄 [세션 상태 변경] START → SHOW_INDUSTRY:`);
     console.log(`   - Session ID: ${sessionId}`);
-    console.log(`   - Selected Industry: ${industry}`);
-    console.log(`   - Companies Count: ${companies.length}`);
-    console.log(`   - Companies: [${companies.slice(0, 3).join(', ')}${companies.length > 3 ? '...' : ''}]`);
+    console.log(`   - Primary Industry: ${primaryIndustry.industry_ko} (${primaryIndustry.sp500_industry}) - Score: ${primaryIndustry.score.toFixed(3)}`);
+    console.log(`   - Secondary Industry: ${industryResults[1]?.industry_ko || 'N/A'} - Score: ${industryResults[1]?.score.toFixed(3) || 'N/A'}`);
 
-    // 더보기 기능을 위해 산업군 캐시 설정
-    setCurrentIndustryCache(industry);
+    // 더보기 기능 제거됨 - 산업군 캐시 설정 불필요
 
-    const companyList = formatCompanyList(companies);
+    // 조건부 산업 표시 로직 구현
+    let displayIndustries = [];
 
-    const totalCompaniesInIndustry = Object.entries(DATA)
-      .filter(([_, company]: [string, any]) => company.industry === industry).length;
+    // 1순위 산업은 항상 포함
+    displayIndustries.push(industryResults[0]);
 
-    const moreText = totalCompaniesInIndustry > 5 
-      ? `\n\n총 기업의 수는 ${totalCompaniesInIndustry}개입니다! 모든 기업을 보고 싶다면 '더보기' 버튼을 눌러주세요! 🔍✨` 
-      : '';
+    // 조건부 2순위 산업 포함 로직
+    if (industryResults.length > 1) {
+      const secondaryIndustry = industryResults[1];
 
-    const industryResponses = [
-      `🏢 ${industry} 산업의 주요 기업들입니다!\n\n${companyList}${moreText}\n\n관심 있는 기업이 있나요? 😊`,
-      `⭐ ${industry} 분야의 대표 기업들입니다!\n\n${companyList}${moreText}\n\n어떤 회사가 궁금하신가요? 🤔`,
-      `💼 ${industry} 산업에는 다음과 같은 멋진 기업들이 있습니다!\n\n${companyList}${moreText}\n\n이 중에서 관심 있는 기업이 있으신가요? 💡`
-    ];
-    let baseReply = industryResponses[Math.floor(Math.random() * industryResponses.length)];
+      // 1순위 점수가 0.55 초과이면 1순위만 표시
+      if (primaryIndustry.score > RAG_THRESHOLDS.PRIMARY_INDUSTRY_ONLY_THRESHOLD) {
+        console.log(`🥇 [조건부 표시] 1순위 점수 ${primaryIndustry.score.toFixed(3)} > ${RAG_THRESHOLDS.PRIMARY_INDUSTRY_ONLY_THRESHOLD} → 1순위만 표시`);
+      }
+      // 2순위 점수가 0.3 이하이면 표시 안함
+      else if (secondaryIndustry.score <= RAG_THRESHOLDS.SECONDARY_INDUSTRY_MIN_THRESHOLD) {
+        console.log(`🥈 [조건부 표시] 2순위 점수 ${secondaryIndustry.score.toFixed(3)} <= ${RAG_THRESHOLDS.SECONDARY_INDUSTRY_MIN_THRESHOLD} → 2순위 표시 안함`);
+      }
+      // 조건을 만족하면 2순위도 표시
+      else {
+        displayIndustries.push(secondaryIndustry);
+        console.log(`🥈 [조건부 표시] 2순위 점수 ${secondaryIndustry.score.toFixed(3)} > ${RAG_THRESHOLDS.SECONDARY_INDUSTRY_MIN_THRESHOLD} → 2순위도 표시`);
+      }
+    }
 
-    // Enhance with LSTM data if available
-    const reply = await enhanceResponseWithLSTMData(companies, baseReply);
+    // 표시할 산업들에 대한 응답 생성
+    let replyParts = [];
+
+    for (let i = 0; i < displayIndustries.length; i++) {
+      const result = displayIndustries[i];
+
+      const industryEmoji = i === 0 ? '🥇' : '🥈';
+      replyParts.push(
+        `${industryEmoji} **${result.industry_ko}** 산업의 모든 기업들 (총 ${result.totalCompanies}개):\n\n${result.companyList}`
+      );
+    }
+
+    // 응답 메시지 조건부 생성
+    let baseReply;
+    if (displayIndustries.length === 1) {
+      baseReply = `🎯 투자 관심 분야를 분석한 결과, **${displayIndustries[0].industry_ko}** 산업이 가장 적합합니다!\n\n${replyParts.join('\n\n')}\n\n어떤 기업이 더 궁금하신가요? 😊`;
+    } else {
+      baseReply = `🎯 투자 관심 분야를 분석한 결과, 다음 2개 산업이 가장 적합합니다!\n\n${replyParts.join('\n\n')}\n\n어떤 산업이나 기업이 더 궁금하신가요? 😊`;
+    }
+
+    // Enhance with LSTM data if available (첫 번째 산업 기준)
+    const reply = await enhanceResponseWithLSTMData(primaryIndustry.companies, baseReply);
 
     return {
       reply,
       newState,
       additionalData: {
         status: 'showing_companies',
-        hasMore: totalCompaniesInIndustry > 5 && companies.length === 5
+        hasMore: false // 더보기 기능 제거됨 - 모든 기업을 처음부터 표시
       }
     };
   } else {
-    // No companies found for industry - debugging info added
-    console.log(`No companies found for industry: "${industry}"`);
-    console.log('Available industries in DATA:', [...new Set(Object.values(DATA).map((c: any) => c.industry))].slice(0, 10));
-    const reply = `😅 죄송합니다! "${industry}" 산업의 기업 정보를 찾을 수 없네요. 다른 관심 분야를 말씀해 주시면 더 좋은 추천을 드릴게요! 💡✨`;
-    
+    // No companies found for any industry
+    console.log('No companies found for any of the top industries');
+    const reply = `😅 죄송합니다! 관련 산업의 기업 정보를 찾을 수 없네요. 다른 관심 분야를 말씀해 주시면 더 좋은 추천을 드릴게요! 💡✨`;
+
     return {
       reply,
       newState: state // Stay in START stage
@@ -228,11 +271,7 @@ async function handleInvestmentQuery(
 export async function handleShowIndustryStage(context: PipelineContext): Promise<StageHandlerResult> {
   const { userInput, state } = context;
 
-  // 더보기 버튼 클릭 명령 처리 (단순화된 버전)
-  if (userInput === '__SHOW_MORE_COMPANIES__') {
-    console.log(`🔍 [SHOW_INDUSTRY] 더보기 요청 처리`);
-    return await handleShowMoreCompanies(context);
-  }
+  // 더보기 기능 제거됨 - 모든 기업을 처음부터 표시
 
   // Check for ticker selection (priority over intent classification)
   // 현재 산업의 전체 기업 목록을 동적으로 가져와서 매칭에 사용
@@ -269,59 +308,7 @@ export async function handleShowIndustryStage(context: PipelineContext): Promise
     };
 }
 
-/**
- * Handles "더보기" requests to show all companies in industry (단순화된 버전)
- */
-async function handleShowMoreCompanies(context: PipelineContext): Promise<StageHandlerResult> {
-  const { state } = context;
-
-  // 산업군 캐시에서 현재 산업 정보 가져오기
-  const cachedIndustry = getCurrentIndustryCache();
-
-  console.log(`🔍 [더보기] 단순화된 처리 시작`);
-  console.log(`   - 캐시된 산업: ${cachedIndustry}`);
-  console.log(`   - 세션 산업: ${state.selectedIndustry}`);
-
-  // 캐시된 산업 정보가 있으면 사용, 없으면 세션에서 가져오기
-  const targetIndustry = cachedIndustry || state.selectedIndustry;
-
-  if (!targetIndustry) {
-    console.log(`❌ [더보기] 산업 정보 없음`);
-    return {
-      reply: '더보기 기능을 사용할 수 없습니다. 먼저 산업을 선택해주세요.',
-      newState: state
-    };
-  }
-
-  // 해당 산업의 모든 기업 조회
-  const allCompanies = Object.entries(DATA)
-    .filter(([_, company]: [string, any]) => company.industry === targetIndustry)
-    .map(([ticker, _]: [string, any]) => ticker);
-
-  console.log(`🔍 ${targetIndustry} 산업의 전체 기업 목록 (${allCompanies.length}개)`);
-
-  const allCompanyList = formatCompanyList(allCompanies);
-  const reply = `🎉 ${targetIndustry} 산업의 전체 기업 목록입니다! (총 ${allCompanies.length}개) 📊\n\n${allCompanyList}\n\n어떤 기업이 가장 흥미로우신가요? ✨`;
-
-  // 세션 상태 업데이트 (SHOW_INDUSTRY 단계로 설정하고 모든 기업 포함)
-  const newState: SessionState = {
-    ...state,
-    stage: 'SHOW_INDUSTRY',
-    selectedIndustry: targetIndustry,
-    industryCompanies: allCompanies
-  };
-
-  console.log(`✅ [더보기] 처리 완료 - ${allCompanies.length}개 기업 표시`);
-
-  return {
-    reply,
-    newState,
-    additionalData: {
-      status: 'showing_companies',
-      hasMore: false // No more "더보기" after showing all
-    }
-  };
-}
+// 더보기 기능 제거됨 - 모든 기업을 처음부터 표시하므로 별도 함수 불필요
 
 /**
  * Handles ticker selection in SHOW_INDUSTRY stage
@@ -358,7 +345,7 @@ async function handleTickerSelection(context: PipelineContext, selectedTicker: s
  * Handles the ASK_CHART stage of the pipeline
  */
 export async function handleAskChartStage(context: PipelineContext): Promise<StageHandlerResult> {
-  const { userInput, state } = context;
+  const { userInput } = context;
 
   // 로그 최적화: 상세 입력 분석 로그 제거
   // console.log(`🎯 [ASK_CHART] 사용자 입력: "${userInput}"`);
