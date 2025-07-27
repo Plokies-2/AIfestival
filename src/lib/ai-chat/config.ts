@@ -12,8 +12,7 @@ import { RAGThresholds, PatternConfig, KoreanCompanyMapping } from './types';
 // ============================================================================
 
 /**
- * RAG Score Thresholds for Intent Classification (정리됨)
- * 사용되지 않는 임계값들을 제거하여 코드 경량화
+ * RAG Score Thresholds for Intent Classification
  * 현재 활성화된 RAG 로직에서 실제로 사용되는 임계값들만 유지
  */
 export const RAG_THRESHOLDS: RAGThresholds = {
@@ -45,15 +44,16 @@ export const PATTERNS: PatternConfig = {
 };
 
 // ============================================================================
-// OpenAI Configuration
+// Clova API Configuration
 // ============================================================================
 
 /**
- * OpenAI model configuration
+ * Clova Studio model configuration
  */
 export const OPENAI_CONFIG = {
-  model: 'gpt-4.1-nano',
-  embeddingModel: 'text-embedding-3-small',
+  model: 'hcx-dash-002',  // Clova Studio Chat 모델
+  embeddingModel: 'bge-m3',  // Clova Studio 임베딩 모델
+  baseUrl: 'https://clovastudio.stream.ntruss.com/v1/openai',  // OpenAI 호환 엔드포인트
   maxTokens: {
     classification: 50,
     translation: 30,
@@ -189,9 +189,9 @@ export const KOREAN_COMPANY_MAPPING: KoreanCompanyMapping = {
  * Welcome messages for new sessions
  */
 export const WELCOME_MESSAGES = [
-  '안녕하세요! 저는 금융인공지능실무 과제를 위해 탄생한 맞춤 투자지원 AI예요! 📈✨\n\n투자하고 싶은 분야가 있으시면 편하게 말씀해 주세요!',
-  '안녕하세요! 저는 금융인공지능실무 과제를 위해 탄생한 맞춤 투자지원 AI예요! 💡🚀\n\n"전기차", "AI", "바이오" 같은 키워드를 자유롭게 말씀해 주세요!',
-  '안녕하세요? 저는 금융인공지능실무 과제를 위해 탄생한 맞춤 투자지원 AI예요! 🤝💎\n\n어떤 산업에 관심이 있으신지 말씀해 주세요!'
+  '안녕하세요! 저는 AI Festival을 위해 만들어진 사용자 맞춤 투자지원 AI예요! 📈✨\n\n투자하고 싶은 분야가 있으시면 편하게 말씀해 주세요!',
+  '안녕하세요! 저는 AI Festival을 위해 만들어진 사용자 맞춤 투자지원 AI예요! 💡🚀\n\n"전기차", "AI", "바이오" 같은 키워드를 자유롭게 말씀해 주세요!',
+  '안녕하세요? 저는 AI Festival을 위해 만들어진 사용자 맞춤 투자지원 AI예요! 🤝💎\n\n어떤 산업에 관심이 있으신지 말씀해 주세요!'
 ];
 
 // ============================================================================
@@ -203,5 +203,5 @@ export const WELCOME_MESSAGES = [
  */
 export const ENV_CONFIG = {
   baseUrl: process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
-  openaiApiKey: process.env.OPENAI_API_KEY!
+  openaiApiKey: process.env.CLOVA_STUDIO_API_KEY!
 } as const;

@@ -190,9 +190,12 @@ async function generateEmbeddings() {
   try {
     console.log('🔄 임베딩 생성 시작...');
 
-    // OpenAI 클라이언트 직접 사용
+    // Clova Studio OpenAI 호환 임베딩 API 사용
     const OpenAI = require('openai');
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const openai = new OpenAI({
+      apiKey: process.env.CLOVA_STUDIO_API_KEY,
+      baseURL: 'https://clovastudio.stream.ntruss.com/v1/openai'
+    });
 
     // 데이터 로드 (TypeScript 파일을 직접 읽어서 파싱)
     const dataPath = path.join(process.cwd(), 'src', 'data', 'sp500_enriched_final.ts');
@@ -238,92 +241,84 @@ async function generateEmbeddings() {
       return v.map(x => x / n);
     };
 
-    console.log('🏢 기업 임베딩 생성 중...');
-    const tickers = Object.keys(DATA);
+    // 기업 임베딩 생성 제거 - industry_vector와 md 파일들만 임베딩
+    console.log('🏢 기업 임베딩 생성 건너뛰기...');
     const companies = [];
-    const BATCH_SIZE = 100;
-
-    for (let i = 0; i < tickers.length; i += BATCH_SIZE) {
-      const batch = tickers.slice(i, i + BATCH_SIZE);
-      const texts = batch.map(t => \`\${DATA[t].name}. \${DATA[t].industry}. \${DATA[t].description}\`);
-
-      console.log(\`  배치 \${Math.floor(i/BATCH_SIZE) + 1}/\${Math.ceil(tickers.length/BATCH_SIZE)} 처리 중...\`);
-
-      const { data } = await openai.embeddings.create({
-        model: 'text-embedding-3-small',
-        input: texts,
-      });
-
-      data.forEach((d, j) => {
-        const ticker = batch[j];
-        const company = DATA[ticker];
-        companies.push({
-          ticker,
-          name: company.name,
-          industry: company.industry,
-          vec: norm(d.embedding)
-        });
-      });
-    }
 
     console.log('🏭 산업 임베딩 생성 중 (industry_vectors.ts 기반)...');
 
-    // industry_vectors.ts 데이터를 하드코딩으로 정의 (임시 해결책)
-    const INDUSTRY_VECTORS = [
-      {
-        industry_ko: "항공우주 및 방위산업",
-        sp500_industry: "Aerospace & Defense",
-        keywords: ["항공우주", "우주항공", "방위산업", "방산", "군수산업", "항공기", "드론"]
-      },
-      {
-        industry_ko: "응용 소프트웨어",
-        sp500_industry: "Application Software",
-        keywords: ["응용 소프트웨어", "애플리케이션", "앱", "기업 소프트웨어", "설계 프로그램", "워드프로세서", "스프레드시트"]
-      },
-      {
-        industry_ko: "자산·자산 운용",
-        sp500_industry: "Asset & Wealth Management",
-        keywords: ["자산관리", "재산관리", "자산운용", "투자관리", "포트폴리오", "펀드매니지먼트", "재무설계"]
-      },
-      {
-        industry_ko: "자동차 및 부품",
-        sp500_industry: "Automobiles & Components",
-        keywords: ["자동차", "자동차부품", "모빌리티", "차량", "엔진", "자동차 산업", "전기차"]
-      },
-      {
-        industry_ko: "은행",
-        sp500_industry: "Banks",
-        keywords: ["은행", "상업은행", "투자은행", "금융기관", "대출", "예금", "금융업"]
-      },
-      {
-        industry_ko: "생명공학",
-        sp500_industry: "Biotechnology",
-        keywords: ["생명공학", "바이오테크", "유전자편집", "세포치료", "바이오", "바이오 산업", "재조합기술"]
-      },
-      {
-        industry_ko: "반도체 및 파운드리",
-        sp500_industry: "Semiconductors & Foundries",
-        keywords: ["반도체", "칩", "파운드리", "칩제조", "집적회로", "GPU", "ASIC"]
+    // industry_vectors.ts에서 모든 산업 데이터 로드
+    const industryVectorsPath = path.join(process.cwd(), 'src', 'data', 'industry_vectors.ts');
+    console.log('📄 산업 벡터 파일 경로:', industryVectorsPath);
+
+    if (!fs.existsSync(industryVectorsPath)) {
+      throw new Error(\`산업 벡터 파일을 찾을 수 없습니다: \${industryVectorsPath}\`);
+    }
+
+    const industryVectorsContent = fs.readFileSync(industryVectorsPath, 'utf8');
+    console.log('📄 산업 벡터 파일 읽기 완료, 크기:', industryVectorsContent.length, 'bytes');
+
+    // TypeScript 파일에서 INDUSTRY_VECTORS 배열 추출
+    const industryMatch = industryVectorsContent.match(/export const INDUSTRY_VECTORS: IndustryVector\\[\\] = (\\[[\\s\\S]*?\\]);/);
+    if (!industryMatch) {
+      console.error('정규식 매칭 실패. 파일 시작 부분:', industryVectorsContent.substring(0, 200));
+      throw new Error('industry_vectors.ts에서 INDUSTRY_VECTORS를 찾을 수 없습니다. 파일 형식을 확인해주세요.');
+    }
+
+    console.log('📝 산업 벡터 데이터 추출 성공, 파싱 중...');
+    console.log('추출된 데이터 크기:', industryMatch[1].length, 'bytes');
+
+    // 더 안전한 파싱 방법 사용
+    let INDUSTRY_VECTORS;
+    try {
+      INDUSTRY_VECTORS = eval(industryMatch[1]);
+    } catch (parseError) {
+      console.error('산업 벡터 데이터 파싱 오류:', parseError.message);
+      throw new Error('산업 벡터 데이터 파싱에 실패했습니다: ' + parseError.message);
+    }
+
+    console.log('📊 산업 벡터 데이터 로드 완료:', INDUSTRY_VECTORS.length, '개');
+
+    console.log(\`📊 \${INDUSTRY_VECTORS.length}개 산업의 임베딩 생성 중...\`);
+
+    const industryEmbeddings = [];
+
+    // 산업 임베딩 - BGE-M3 최적화된 텍스트 구성
+    for (let i = 0; i < INDUSTRY_VECTORS.length; i++) {
+      const industry = INDUSTRY_VECTORS[i];
+
+      // BGE-M3 모델을 위한 의미적 구분 강화 텍스트 구성
+      const text = \`산업 분야: \${industry.industry_ko}. 이 산업의 핵심 특징과 관련 키워드들: \${industry.keywords.join(', ')}. 이 산업은 \${industry.sp500_industry} 분류에 속하며, 다른 산업과 구별되는 고유한 특성을 가지고 있습니다.\`;
+
+      console.log(\`  \${i + 1}/\${INDUSTRY_VECTORS.length} 처리 중: \${industry.industry_ko}\`);
+
+      try {
+        console.log(\`    📝 입력 텍스트: \${text}\`);
+
+        const startTime = Date.now();
+        const response = await openai.embeddings.create({
+          model: 'bge-m3',
+          input: text,
+          encoding_format: "float"
+        });
+        const endTime = Date.now();
+
+        console.log(\`    ⏱️  API 호출 시간: \${endTime - startTime}ms\`);
+        console.log(\`    📊 응답 데이터 길이: \${response.data[0].embedding.length}\`);
+
+        const normalizedVec = norm(response.data[0].embedding);
+
+        industryEmbeddings.push({
+          industry_ko: industry.industry_ko,
+          sp500_industry: industry.sp500_industry,
+          vec: normalizedVec
+        });
+      } catch (error) {
+        console.error(\`❌ \${industry.industry_ko} 임베딩 생성 실패:\`, error.message);
+        console.error(\`❌ 전체 에러:\`, error);
+        throw error; // 오류 발생 시 중단
       }
-      // 더 많은 산업들이 있지만 테스트를 위해 일부만 포함
-    ];
-
-    const industryTexts = INDUSTRY_VECTORS.map(iv =>
-      \`\${iv.industry_ko}. \${iv.keywords.join('. ')}\`
-    );
-
-    console.log(\`📊 \${industryTexts.length}개 산업의 임베딩 생성 중...\`);
-
-    const { data: indData } = await openai.embeddings.create({
-      model: 'text-embedding-3-small',
-      input: industryTexts,
-    });
-
-    const industryEmbeddings = indData.map((d, i) => ({
-      industry_ko: INDUSTRY_VECTORS[i].industry_ko,
-      sp500_industry: INDUSTRY_VECTORS[i].sp500_industry,
-      vec: norm(d.embedding)
-    }));
+    }
 
     console.log('🎭 페르소나 임베딩 생성 중...');
 
@@ -370,20 +365,95 @@ async function generateEmbeddings() {
     console.log(\`  greeting 예시: \${greetingExamples.length}개\`);
     console.log(\`  investment 예시: \${investmentExamples.length}개\`);
 
-    const aboutAiText = aboutAiExamples.join('. ');
-    const greetingText = greetingExamples.join('. ');
-    const investmentText = investmentExamples.join('. ');
+    // BGE-M3 모델 최적화: 데이터 균형과 명확한 컨텍스트
+    // Investment는 모든 예시 사용, about_ai와 greeting은 확장된 모든 예시 사용
 
-    const { data: personaData } = await openai.embeddings.create({
-      model: 'text-embedding-3-small',
-      input: [aboutAiText, greetingText, investmentText],
-    });
+    console.log(\`  전체 예시 개수 - about_ai: \${aboutAiExamples.length}개, greeting: \${greetingExamples.length}개, investment: \${investmentExamples.length}개\`);
 
-    const personas = [
-      { persona: 'about_ai', vec: norm(personaData[0].embedding) },
-      { persona: 'greeting', vec: norm(personaData[1].embedding) },
-      { persona: 'investment', vec: norm(personaData[2].embedding) }
+    // 텍스트 길이 균형을 위한 청킹 함수 (BGE-M3의 8192 토큰 한도 고려)
+    const createBalancedText = (examples, category, description) => {
+      // 예시들을 적절한 크기로 청킹하여 의미적 일관성 유지
+      const chunkSize = Math.min(50, Math.ceil(examples.length / 4)); // 최대 50개씩 청킹
+      const chunks = [];
+
+      for (let i = 0; i < examples.length; i += chunkSize) {
+        chunks.push(examples.slice(i, i + chunkSize));
+      }
+
+      // 각 청크를 의미적으로 연결하여 하나의 텍스트로 구성
+      const chunkTexts = chunks.map((chunk, index) => {
+        return \`[\${category} 패턴 \${index + 1}] \${chunk.join(' / ')}\`;
+      });
+
+      return \`\${description} 이 카테고리의 특징적인 표현 패턴들: \${chunkTexts.join(' || ')}\`;
+    };
+
+    // BGE-M3 최적화된 텍스트 구성: 모든 데이터 활용 + 명확한 구분
+    const personaTexts = [
+      {
+        name: 'about_ai',
+        text: createBalancedText(
+          aboutAiExamples,
+          'AI 정체성',
+          'AI 어시스턴트의 정체성, 능력, 기능, 특성에 대한 질문들입니다. 사용자가 AI의 역할, 능력, 성격, 한계 등을 궁금해할 때 사용하는 표현들로, AI가 무엇을 할 수 있고 어떤 존재인지에 대한 호기심을 나타냅니다.'
+        )
+      },
+      {
+        name: 'greeting',
+        text: createBalancedText(
+          greetingExamples,
+          '인사 표현',
+          '일상적인 인사말, 안부 표현, 만남과 헤어짐의 인사들입니다. 시간대별 인사, 상황별 안부, 예의를 지키는 사회적 상호작용의 기본 표현들로, 대화의 시작이나 끝에서 사용됩니다.'
+        )
+      },
+      {
+        name: 'investment',
+        text: createBalancedText(
+          investmentExamples,
+          '투자 관련',
+          '투자, 금융, 주식, 기업, 산업, 경제에 관한 질문과 표현들입니다. 투자 기회 탐색, 시장 분석, 기업 정보, 산업 동향 등 투자 의사결정과 관련된 모든 표현들을 포함합니다.'
+        )
+      }
     ];
+
+    console.log('🎭 페르소나 임베딩 생성 중...');
+    const personas = [];
+
+    // 페르소나 임베딩 - Clova Studio OpenAI 호환 API 사용
+    for (let i = 0; i < personaTexts.length; i++) {
+      const persona = personaTexts[i];
+
+      console.log(\`  \${i + 1}/\${personaTexts.length} 처리 중: \${persona.name}\`);
+
+      try {
+        console.log(\`    📝 입력 텍스트 길이: \${persona.text.length}자\`);
+        console.log(\`    📝 입력 텍스트 미리보기: \${persona.text.substring(0, 100)}...\`);
+
+        const startTime = Date.now();
+        const response = await openai.embeddings.create({
+          model: 'bge-m3',
+          input: persona.text,
+          encoding_format: "float"
+        });
+        const endTime = Date.now();
+
+        console.log(\`    ⏱️  API 호출 시간: \${endTime - startTime}ms\`);
+        console.log(\`    📊 응답 데이터 길이: \${response.data[0].embedding.length}\`);
+        console.log(\`    📊 임베딩 벡터 샘플: [\${response.data[0].embedding.slice(0, 5).join(', ')}...]\`);
+
+        const normalizedVec = norm(response.data[0].embedding);
+        console.log(\`    📊 정규화 후 벡터 샘플: [\${normalizedVec.slice(0, 5).join(', ')}...]\`);
+
+        personas.push({
+          persona: persona.name,
+          vec: normalizedVec
+        });
+      } catch (error) {
+        console.error(\`❌ \${persona.name} 임베딩 생성 실패:\`, error.message);
+        console.error(\`❌ 전체 에러:\`, error);
+        throw error; // 오류 발생 시 중단
+      }
+    }
 
     // 캐시 파일 저장
     const cacheData = {

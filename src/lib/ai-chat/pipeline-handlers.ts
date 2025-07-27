@@ -189,7 +189,7 @@ async function handleInvestmentQuery(
     console.log(`🔄 [세션 상태 변경] START → SHOW_INDUSTRY:`);
     console.log(`   - Session ID: ${sessionId}`);
     console.log(`   - Primary Industry: ${primaryIndustry.industry_ko} (${primaryIndustry.sp500_industry}) - Score: ${primaryIndustry.score.toFixed(3)}`);
-    console.log(`   - Secondary Industry: ${industryResults[1]?.industry_ko || 'N/A'} - Score: ${industryResults[1]?.score.toFixed(3) || 'N/A'}`);
+    console.log(`   - Secondary Industry: ${industryResults[1]?.industry_ko || 'N/A'} - Score: ${industryResults[1]?.score ? industryResults[1].score.toFixed(3) : 'N/A'}`);
 
     // 더보기 기능 제거됨 - 산업군 캐시 설정 불필요
 

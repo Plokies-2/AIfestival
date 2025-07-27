@@ -2,7 +2,8 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.CLOVA_STUDIO_API_KEY,  // Clova Studio API 키 사용
+  baseURL: 'https://clovastudio.stream.ntruss.com/v1/openai'  // Clova Studio OpenAI 호환 엔드포인트
 });
 
 interface ReportData {
@@ -55,9 +56,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log(`[REPORT_API] Generating report for ${reportData.symbol} with message: ${userMessage}`);
 
-    // Call the fine-tuned model
+    // Call the Clova Studio model (fine-tuned 모델 대신 기본 모델 사용)
     const response = await openai.chat.completions.create({
-      model: 'ft:gpt-4.1-mini-2025-04-14:personal:trafficanalysis:BlIDQwdg:ckpt-step-905',
+      model: 'hcx-dash-002',  // Clova Studio 기본 모델 사용
       messages: [
         {
           role: 'system',

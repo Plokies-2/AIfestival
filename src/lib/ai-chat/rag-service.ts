@@ -8,20 +8,16 @@
  * - Embedding generation and similarity calculations
  */
 
-import OpenAI from 'openai';
 import { getEmbeddings, cosine } from '@/lib/embeddings';
 import { QUICK_ENRICHED_FINAL as DATA } from '@/data/sp500_enriched_final';
 import { CompanyData, InvestmentIntentResult } from './types';
-import { RAG_THRESHOLDS, /* KOREAN_COMPANY_MAPPING, */ OPENAI_CONFIG, PERFORMANCE_CONFIG, ENV_CONFIG } from './config';
+import { RAG_THRESHOLDS } from './config';
+import { createEmbeddingCompatible } from '@/lib/clova-embedding';
 // 제거된 기능: classifyIndustryWithGPT import - GPT 기반 산업 분류 백업 로직 제거됨
 
 // ============================================================================
-// OpenAI Client for Embeddings
+// Clova Studio 네이티브 임베딩 API 사용
 // ============================================================================
-
-const openai = new OpenAI({ 
-  apiKey: ENV_CONFIG.openaiApiKey 
-});
 
 // ============================================================================
 // Cached Industry List
@@ -51,13 +47,10 @@ const getAvailableIndustries = (() => {
  */
 export async function findBestPersona(userInput: string): Promise<string | null> {
   try {
-    // Generate embedding for user input
-    const queryEmbedding = (await openai.embeddings.create({
-      model: 'text-embedding-3-small',
-      input: userInput
-    })).data[0].embedding;
+    // Generate embedding for user input using Clova Studio native API
+    const queryEmbedding = (await createEmbeddingCompatible(userInput)).data[0].embedding;
 
-    const normalizedQuery = queryEmbedding.map((v, _, arr) => v / Math.hypot(...arr));
+    const normalizedQuery = queryEmbedding.map((v: number, _: number, arr: number[]) => v / Math.hypot(...arr));
 
     // RAG: Calculate cosine similarity with persona embeddings (MD files only)
     const embeddings = await getEmbeddings();
@@ -119,13 +112,10 @@ export async function findBestPersona(userInput: string): Promise<string | null>
  */
 export async function classifyInvestmentIntent(userInput: string): Promise<InvestmentIntentResult> {
   try {
-    // Generate embedding for user input
-    const queryEmbedding = (await openai.embeddings.create({
-      model: 'text-embedding-3-small',
-      input: userInput
-    })).data[0].embedding;
+    // Generate embedding for user input using Clova Studio native API
+    const queryEmbedding = (await createEmbeddingCompatible(userInput)).data[0].embedding;
 
-    const normalizedQuery = queryEmbedding.map((v, _, arr) => v / Math.hypot(...arr));
+    const normalizedQuery = queryEmbedding.map((v: number, _: number, arr: number[]) => v / Math.hypot(...arr));
 
     // Load embeddings
     const embeddings = await getEmbeddings();
@@ -232,13 +222,10 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
  * 새로운 RAG 로직: industry_vectors.ts 기반으로 top 2 산업을 직접 매칭
  */
 export async function findBestIndustries(userInput: string): Promise<Array<{industry_ko: string, sp500_industry: string, score: number}> | null> {
-  // 사용자 입력 임베딩 생성
-  const queryEmbedding = (await openai.embeddings.create({
-    model: OPENAI_CONFIG.embeddingModel,
-    input: userInput
-  })).data[0].embedding;
+  // 사용자 입력 임베딩 생성 using Clova Studio native API
+  const queryEmbedding = (await createEmbeddingCompatible(userInput)).data[0].embedding;
 
-  const normalizedQuery = queryEmbedding.map((v, _, arr) => v / Math.hypot(...arr));
+  const normalizedQuery = queryEmbedding.map((v: number, _: number, arr: number[]) => v / Math.hypot(...arr));
 
   // industry_vectors.ts 기반 산업 임베딩과 유사도 계산
   const { industries } = await getEmbeddings();
