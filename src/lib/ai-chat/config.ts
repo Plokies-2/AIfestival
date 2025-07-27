@@ -32,10 +32,11 @@ export const RAG_THRESHOLDS: RAGThresholds = {
 
 /**
  * Pattern matching for positive and negative responses
+ * 한글 긍정 응답 패턴을 강화하여 더 다양한 표현 지원
  */
 export const PATTERNS: PatternConfig = {
-  positive: /^(네|예|응|좋아|맞아|그래|yes|y|ok)/i,
-  negative: /^(아니|아니요|아뇨|싫어|안돼|no|n|nope|ㄴㄴ|ㄴ|노|안해|싫|패스|pass)/i
+  positive: /^(네|예|응|좋아|맞아|그래|맞습니다|좋습니다|그렇습니다|알겠습니다|시작|분석|확인|yes|y|ok|okay|sure)/i,
+  negative: /^(아니|아니요|아뇨|싫어|안돼|안됩니다|싫습니다|아닙니다|취소|중단|no|n|nope|ㄴㄴ|ㄴ|노|안해|싫|패스|pass|cancel|stop)/i
 };
 
 // ============================================================================

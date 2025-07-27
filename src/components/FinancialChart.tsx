@@ -188,16 +188,18 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ symbol, isMinimized, is
       setError(null);
 
       try {
-        const res = await fetch(`/api/csv_chart_data?symbol=${symbol}`);
+        // 실시간 데이터 API 호출 (캐싱 지원)
+        const res = await fetch(`/api/realtime_chart_data?symbol=${symbol}`);
         const data = await res.json();
 
         if (data.error) {
-          console.error('❌ Chart data API error:', data.error);
+          console.error('❌ Realtime chart data API error:', data.error);
           setError(data.error);
           return;
         }
 
-        console.log('📈 Processing chart data, points count:', data.data?.length || 0);
+        console.log(`📈 Processing realtime chart data, points count: ${data.data?.length || 0} (source: ${data.source})`);
+        console.log(`📅 Last update: ${data.lastUpdate}`);
 
         // 데이터를 lightweight-charts 형식으로 변환
         const chartData = data.data.map((point: any) => ({
@@ -214,8 +216,8 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ symbol, isMinimized, is
           console.log('✅ Chart data loaded and fitted successfully');
         }
       } catch (error) {
-        console.error('❌ Failed to load chart data:', error);
-        setError('차트 데이터를 불러오는 중 오류가 발생했습니다.');
+        console.error('❌ Failed to load realtime chart data:', error);
+        setError('실시간 차트 데이터를 불러오는 중 오류가 발생했습니다.');
       } finally {
         setIsLoading(false);
         console.log('🏁 Chart data loading completed');

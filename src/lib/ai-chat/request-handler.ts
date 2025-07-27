@@ -178,21 +178,25 @@ export async function processPipeline(context: PipelineContext): Promise<ChatRes
   // 텍스트 입력으로는 더보기 기능을 실행하지 않음
 
   // Process based on current stage
+  console.log(`🔄 [PIPELINE] 현재 단계: ${state.stage}, 사용자 입력: "${userInput}"`);
   let result;
-  
+
   switch (state.stage) {
     case 'START':
+      console.log(`🚀 [PIPELINE] START 단계 처리 시작`);
       result = await handleStartStage(context);
       break;
-      
+
     case 'SHOW_INDUSTRY':
+      console.log(`📋 [PIPELINE] SHOW_INDUSTRY 단계 처리 시작`);
       result = await handleShowIndustryStage(context);
       break;
-      
+
     case 'ASK_CHART':
+      console.log(`📊 [PIPELINE] ASK_CHART 단계 처리 시작`);
       result = await handleAskChartStage(context);
       break;
-      
+
     default:
       throw new AIChatError(`Unknown stage: ${state.stage}`, 'INVALID_STAGE');
   }

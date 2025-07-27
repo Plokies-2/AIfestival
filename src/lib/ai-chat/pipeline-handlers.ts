@@ -360,19 +360,31 @@ async function handleTickerSelection(context: PipelineContext, selectedTicker: s
 export async function handleAskChartStage(context: PipelineContext): Promise<StageHandlerResult> {
   const { userInput, state } = context;
 
+  console.log(`🎯 [ASK_CHART] 사용자 입력: "${userInput}"`);
+  console.log(`🎯 [ASK_CHART] 긍정 패턴 매칭: ${isPositive(userInput)}`);
+  console.log(`🎯 [ASK_CHART] 부정 패턴 매칭: ${isNegative(userInput)}`);
+
   // ASK_CHART 단계에서는 의도 분류 없이 직접 긍정/부정 응답만 확인
   // '네', '예', '응' 등의 긍정 응답은 차트 확인으로 처리
   if (isPositive(userInput)) {
+    console.log(`✅ [ASK_CHART] 긍정 응답 감지 - 차트 확인 진행`);
     return await handleChartConfirmation(context);
   }
   // '아니오', '아니요' 등의 부정 응답은 이전 단계로 롤백 (이미 request-handler에서 처리됨)
   else if (isNegative(userInput)) {
+    console.log(`❌ [ASK_CHART] 부정 응답 감지 - 명확화 요청`);
     // 부정 응답은 request-handler.ts의 handleNegativeResponse에서 처리됨
     // 여기서는 명시적으로 부정 응답임을 표시하고 넘어감
     return await handleChartClarification(context);
   }
+  // 추가 긍정 응답 패턴 확인 (fallback)
+  else if (userInput.trim().length <= 3 && /^(예|네|응|ok|y)$/i.test(userInput.trim())) {
+    console.log(`✅ [ASK_CHART] 간단한 긍정 응답 감지 (fallback) - 차트 확인 진행`);
+    return await handleChartConfirmation(context);
+  }
   // 명확하지 않은 응답은 다시 질문
   else {
+    console.log(`❓ [ASK_CHART] 명확하지 않은 응답 - 재질문`);
     return await handleChartClarification(context);
   }
 }

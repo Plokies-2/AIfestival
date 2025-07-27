@@ -27,6 +27,15 @@ from sklearn.metrics import accuracy_score
 from pandas.tseries.offsets import BDay
 import logging
 
+# 실시간 데이터 지원을 위한 추가 import
+try:
+    import yfinance as yf
+    YFINANCE_AVAILABLE = True
+    print("✅ yfinance available for realtime data", file=sys.stderr)
+except ImportError:
+    YFINANCE_AVAILABLE = False
+    print("⚠️ yfinance not available, using CSV fallback", file=sys.stderr)
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -351,40 +360,81 @@ def compute_indicators(df):
 # Removed update_history_csv function - no longer needed for traffic history tracking
 
 
+def load_realtime_data(ticker):
+    """
+    Load realtime data using yfinance
+    Returns DataFrame with OHLCV data for the past 3 years
+    """
+    if not YFINANCE_AVAILABLE:
+        return None
+
+    try:
+        print(f"🔄 Loading realtime data for {ticker} using yfinance...", file=sys.stderr)
+
+        # 3년간의 데이터 가져오기
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=3*365)
+
+        ticker_obj = yf.Ticker(ticker)
+        hist = ticker_obj.history(start=start_date, end=end_date)
+
+        if hist.empty:
+            print(f"❌ No realtime data found for {ticker}", file=sys.stderr)
+            return None
+
+        # 컬럼명 표준화
+        hist.columns = [col.replace(' ', '').title() for col in hist.columns]
+        hist.rename(columns={'Adjclose': 'AdjClose'}, inplace=True)
+
+        print(f"✅ Loaded {len(hist)} days of realtime data for {ticker}", file=sys.stderr)
+        return hist
+
+    except Exception as e:
+        print(f"❌ Error loading realtime data for {ticker}: {e}", file=sys.stderr)
+        return None
+
 def load_and_prepare_data(ticker):
     """
     Load and prepare data according to the new specification:
-    1. Load all available data
+    1. Try realtime data first, fallback to CSV
     2. Compute ret5 on full dataset
     3. Split into train/eval/pred DataFrames
     4. Calculate technical indicators
     5. Dropna only on feature columns
     """
     try:
-        ROOT_DIR = Path(__file__).resolve().parents[1]
-        data_path = lambda name: ROOT_DIR / 'data' / f'sp500_{name}_3y.csv'
+        # 1. 실시간 데이터 시도
+        df = load_realtime_data(ticker)
 
-        # Load all columns
-        df = pd.DataFrame()
-        all_cols = ['open', 'high', 'low', 'close', 'adj_close', 'volume']
+        if df is not None:
+            print(f"📊 Using realtime data for {ticker}", file=sys.stderr)
+        else:
+            print(f"📁 Falling back to CSV data for {ticker}", file=sys.stderr)
+            # CSV 데이터 로딩 로직 (기존 코드)
+            ROOT_DIR = Path(__file__).resolve().parents[1]
+            data_path = lambda name: ROOT_DIR / 'data' / f'sp500_{name}_3y.csv'
 
-        # Track if REF_DATE is found in the data
-        ref_date_found = False
+            # Load all columns
+            df = pd.DataFrame()
+            all_cols = ['open', 'high', 'low', 'close', 'adj_close', 'volume']
 
-        for col_name in all_cols:
-            try:
-                file_path = data_path(col_name)
-                temp_df = pd.read_csv(file_path, usecols=['Date', ticker], parse_dates=['Date'], index_col='Date')
-                col_name_formatted = col_name.replace('_', ' ').title().replace(' ', '')
-                df[col_name_formatted] = temp_df[ticker]
-                
-                # Check if REF_DATE is in the data
-                if not ref_date_found and REF_DATE in temp_df.index:
-                    ref_date_found = True
-                    
-            except (FileNotFoundError, KeyError) as e:
-                print(f"Failed to load data for ticker '{ticker}' from 'sp500_{col_name}_3y.csv'. Details: {e}", file=sys.stderr)
-                sys.exit(1)
+            # Track if REF_DATE is found in the data
+            ref_date_found = False
+
+            for col_name in all_cols:
+                try:
+                    file_path = data_path(col_name)
+                    temp_df = pd.read_csv(file_path, usecols=['Date', ticker], parse_dates=['Date'], index_col='Date')
+                    col_name_formatted = col_name.replace('_', ' ').title().replace(' ', '')
+                    df[col_name_formatted] = temp_df[ticker]
+
+                    # Check if REF_DATE is in the data
+                    if not ref_date_found and REF_DATE in temp_df.index:
+                        ref_date_found = True
+
+                except (FileNotFoundError, KeyError) as e:
+                    print(f"Failed to load data for ticker '{ticker}' from 'sp500_{col_name}_3y.csv'. Details: {e}", file=sys.stderr)
+                    sys.exit(1)
 
         # Log data loading results
         print(f"Loaded data shape: {df.shape}", file=sys.stderr)
