@@ -79,6 +79,7 @@ export {
   getRecentConversationContext,
   clearConversationHistory,
   cleanupOldSessions,
+  triggerSessionCleanup,
   startSessionCleanup,
   stopSessionCleanup,
   clearAllSessions,
@@ -88,7 +89,8 @@ export {
   updateSelectedTicker,
   getSessionStats,
   initializeSessionManager,
-  shutdownSessionManager
+  shutdownSessionManager,
+  resetSessionToStart
 } from './session-manager';
 
 // ============================================================================
@@ -212,41 +214,7 @@ export function createTestContext(
   };
 }
 
-/**
- * 비동기 임베딩 시스템 검증 함수
- */
-export async function validateEmbeddingsSystem(): Promise<{
-  isAvailable: boolean;
-  cacheExists: boolean;
-  error?: string;
-}> {
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    const { getEmbeddings } = require('@/lib/embeddings');
 
-    const cacheFile = path.join(process.cwd(), '.cache', 'sp500_vectors.json');
-    const cacheExists = fs.existsSync(cacheFile);
-
-    // 임베딩 함수 실제 호출 테스트 (캐시가 있으면 빠르게 완료됨)
-    if (cacheExists) {
-      await getEmbeddings();
-      return { isAvailable: true, cacheExists: true };
-    } else {
-      // 캐시가 없으면 함수만 확인
-      return {
-        isAvailable: typeof getEmbeddings === 'function',
-        cacheExists: false
-      };
-    }
-  } catch (error) {
-    return {
-      isAvailable: false,
-      cacheExists: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
-  }
-}
 
 /**
  * Validates the system configuration
@@ -274,20 +242,7 @@ export function validateSystemConfiguration(): {
     errors.push('Failed to load S&P 500 data');
   }
   
-  // Check embeddings - 임베딩 캐시 파일 존재 여부 확인 (함수 호출 없이)
-  try {
-    const fs = require('fs');
-    const path = require('path');
-
-    // 임베딩 캐시 파일 존재 여부만 확인 (함수 호출 없이)
-    const cacheFile = path.join(process.cwd(), '.cache', 'sp500_vectors.json');
-    if (!fs.existsSync(cacheFile)) {
-      warnings.push('Embeddings cache file not found - will be created on first use');
-    }
-    // 캐시 파일이 존재하면 임베딩 시스템이 정상적으로 작동할 것으로 판단
-  } catch (error) {
-    warnings.push('Embeddings module may not be available');
-  }
+  // 임베딩 시스템 검증 제거 - 필요할 때 로드되며 적절한 에러 메시지 제공
   
   return {
     isValid: errors.length === 0,
@@ -360,23 +315,7 @@ function initializeSystem(): void {
       console.warn('⚠️ System configuration warnings:', validation.warnings);
     }
 
-    // 비동기 임베딩 시스템 검증 (백그라운드에서 실행)
-    validateEmbeddingsSystem()
-      .then((embeddingValidation) => {
-        if (embeddingValidation.isAvailable) {
-          console.log('✅ Embeddings system is available');
-          if (embeddingValidation.cacheExists) {
-            console.log('📁 Embeddings cache file found');
-          } else {
-            console.log('📁 Embeddings cache will be created on first use');
-          }
-        } else {
-          console.warn('⚠️ Embeddings system may not be available:', embeddingValidation.error);
-        }
-      })
-      .catch((error) => {
-        console.warn('⚠️ Failed to validate embeddings system:', error);
-      });
+    // 임베딩 시스템은 필요할 때 로드됨 (검증 제거)
 
   } catch (error) {
     console.error('❌ Failed to initialize AI Chat System:', error);

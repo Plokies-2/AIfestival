@@ -29,7 +29,25 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className="dark">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>{children}</body>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        {children}
+        {/* 페이지 새로고침 시 세션 정리 트리거 */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // 페이지 언로드 시 세션 정리 트리거
+              window.addEventListener('beforeunload', function() {
+                try {
+                  // sendBeacon을 사용하여 페이지 언로드 시에도 요청 전송
+                  navigator.sendBeacon('/api/ai_chat', JSON.stringify({ message: '__RESET_SESSION__' }));
+                } catch (error) {
+                  console.warn('Session cleanup on page unload failed:', error);
+                }
+              });
+            `
+          }}
+        />
+      </body>
     </html>
   )
 }

@@ -25,12 +25,24 @@ export default function DashboardPage() {
     setAnalysisData(results);
   };
 
-  // 홈으로 돌아가기 (완전한 페이지 새로고침)
-  const handleHomeClick = () => {
-    console.log('🏠 Home button clicked - performing complete page reload');
+  // 홈으로 돌아가기 (세션 정리 + 완전한 페이지 새로고침)
+  const handleHomeClick = async () => {
+    console.log('🏠 Home button clicked - triggering session cleanup and page reload');
 
     try {
-      // 완전한 페이지 새로고침을 위해 window.location을 사용
+      // 1. 먼저 세션 정리 트리거
+      try {
+        await fetch('/api/ai_chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '__RESET_SESSION__' })
+        });
+        console.log('✅ Session cleanup triggered');
+      } catch (sessionError) {
+        console.warn('⚠️ Session cleanup failed, proceeding with page reload:', sessionError);
+      }
+
+      // 2. 완전한 페이지 새로고침을 위해 window.location을 사용
       // 이는 "처음부터 다시 접속"한 것과 동일한 효과를 제공
       // 모든 세션 데이터, 캐시, 상태가 완전히 초기화됨
 

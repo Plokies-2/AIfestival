@@ -6,7 +6,6 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { v4 as uuid } from 'uuid';
 import { 
   ParsedRequest, 
   ChatResponse, 
@@ -39,21 +38,27 @@ import { classifyUserIntent } from './ai-service';
 export function parseRequest(req: NextApiRequest): ParsedRequest {
   // Parse request - support both JSON and raw text
   let userInput = '';
+  let debugInfo = null;
+
   if (req.headers['content-type']?.includes('application/json')) {
     // JSON format (from frontend)
-    const { message } = req.body;
+    const { message, debug } = req.body;
     userInput = message?.trim() || '';
+    debugInfo = debug;
   } else {
     // Raw text format
     userInput = req.body?.trim() || '';
   }
 
-  // Session management
-  let sessionId = req.cookies.sessionId;
-  const isNewSession = !sessionId;
-  
-  if (!sessionId) {
-    sessionId = uuid();
+  // Simplified session management - always use global session
+  const sessionId = 'global-session';
+  const isNewSession = false; // Always false for global session
+
+  // 더보기 요청에 대한 특별 로깅
+  if (userInput === '__SHOW_MORE_COMPANIES__') {
+    console.log(`🔍 [더보기 요청] 파싱 완료:`);
+    console.log(`   - Session ID: ${sessionId} (global)`);
+    console.log(`   - Debug Info:`, debugInfo || 'none');
   }
 
   return {
@@ -63,12 +68,7 @@ export function parseRequest(req: NextApiRequest): ParsedRequest {
   };
 }
 
-/**
- * Sets session cookie in response
- */
-export function setSessionCookie(res: NextApiResponse, sessionId: string): void {
-  res.setHeader('Set-Cookie', `sessionId=${sessionId}; Path=/; HttpOnly; SameSite=Lax`);
-}
+
 
 // ============================================================================
 // Special Command Handling
@@ -78,27 +78,20 @@ export function setSessionCookie(res: NextApiResponse, sessionId: string): void 
  * Handles special commands like session reset and show more companies
  */
 export function handleSpecialCommands(userInput: string, sessionId: string): ChatResponse | null {
-  // Session reset command
+  // Session reset command (triggered by logo click or page refresh)
   if (userInput === '__RESET_SESSION__') {
-    resetSession(sessionId, false);
+    resetSession(sessionId, true); // Reset but preserve history
+    console.log('🔄 Global session reset to START state');
     return { reply: '새로운 검색을 시작하세요.' };
   }
 
-  // 더보기 버튼 클릭 명령 처리
+  // 더보기 버튼 클릭 명령 처리 (단순화된 버전)
   if (userInput === '__SHOW_MORE_COMPANIES__') {
-    const state = getSession(sessionId);
+    console.log(`🔍 [더보기 요청] 단순화된 처리 시작`);
 
-    // SHOW_INDUSTRY 단계에서만 더보기 기능 실행
-    if (state.stage === 'SHOW_INDUSTRY' && state.selectedIndustry && state.industryCompanies.length > 0) {
-      console.log(`✅ Processing show more companies for industry: ${state.selectedIndustry}`);
-
-      // 더보기 처리는 pipeline-handlers에서 수행하도록 null 반환
-      // 이렇게 하면 processPipeline에서 handleShowIndustryStage가 호출됨
-      return null;
-    } else {
-      console.log(`❌ Show more companies command received but not in valid state. Current stage: ${state.stage}, Industry: ${state.selectedIndustry}`);
-      return { reply: '더보기 기능을 사용할 수 없는 상태입니다.' };
-    }
+    // 더보기 처리는 pipeline-handlers에서 수행하도록 null 반환
+    // 복잡한 세션 상태 검증 없이 산업군 캐시를 사용하여 처리
+    return null;
   }
 
   return null;
@@ -206,6 +199,15 @@ export async function processPipeline(context: PipelineContext): Promise<ChatRes
   }
 
   // Update session with new state
+  if (result.newState.stage !== state.stage ||
+      result.newState.selectedIndustry !== state.selectedIndustry ||
+      result.newState.industryCompanies.length !== state.industryCompanies.length) {
+    console.log(`🔄 [세션 업데이트] ${sessionId}:`);
+    console.log(`   - Stage: ${state.stage} → ${result.newState.stage}`);
+    console.log(`   - Industry: ${state.selectedIndustry} → ${result.newState.selectedIndustry}`);
+    console.log(`   - Companies: ${state.industryCompanies.length} → ${result.newState.industryCompanies.length}`);
+  }
+
   updateSession(sessionId, result.newState);
 
   // Build response
@@ -241,12 +243,7 @@ export async function handleChatRequest(req: NextApiRequest, res: NextApiRespons
     // Parse request
     const { userInput, sessionId, isNewSession } = parseRequest(req);
 
-    // Set session cookie for new sessions
-    if (isNewSession) {
-      setSessionCookie(res, sessionId);
-    }
-
-    // Get session state
+    // Get session state (simplified - always global session)
     const state = getSession(sessionId);
 
     // Handle special commands

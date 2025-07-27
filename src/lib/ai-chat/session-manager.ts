@@ -1,36 +1,49 @@
 /**
- * Session Management Module
- * 
- * This module handles all session-related functionality including:
- * - Session state storage and retrieval
- * - Session cleanup and memory management
- * - Conversation history management
- * - Session lifecycle operations
+ * Simplified Session Management Module
+ *
+ * Single-user application with simplified state management:
+ * - Single global session state
+ * - No session cleanup needed
+ * - Simplified conversation history
+ * - No complex session ID management
  */
 
-import { v4 as uuid } from 'uuid';
 import { SessionState, Stage } from './types';
-import { SESSION_CONFIG } from './config';
 
 // ============================================================================
-// Session Storage
+// Single Global Session State
 // ============================================================================
 
 /**
- * In-memory session storage
- * In production, this could be replaced with Redis or another persistent store
+ * Single global session state for single-user application
+ * No need for complex session ID management
  */
-const SESSIONS = new Map<string, SessionState>();
+let GLOBAL_SESSION_STATE: SessionState = {
+  stage: 'START',
+  selectedIndustry: null,
+  industryCompanies: [],
+  selectedTicker: null,
+  conversationHistory: [],
+  lastActivity: Date.now()
+};
+
+/**
+ * 더보기 기능을 위한 단순한 산업군 캐시
+ * investment 처리 시 선택된 산업군을 저장하여 더보기 기능에서 사용
+ */
+let CURRENT_INDUSTRY_CACHE: string | null = null;
+
+console.log('🚀 Simplified session manager initialized with global state');
 
 // ============================================================================
 // Session Management Functions
 // ============================================================================
 
 /**
- * Creates a new session with default state
+ * Creates/resets the global session state
  */
 export function createNewSession(): SessionState {
-  return {
+  GLOBAL_SESSION_STATE = {
     stage: 'START',
     selectedIndustry: null,
     industryCompanies: [],
@@ -38,58 +51,69 @@ export function createNewSession(): SessionState {
     conversationHistory: [],
     lastActivity: Date.now()
   };
+
+  console.log(`✅ Reset global session state`);
+  return GLOBAL_SESSION_STATE;
 }
 
 /**
- * Generates a new unique session ID
+ * Generates a dummy session ID for compatibility
  */
 export function generateSessionId(): string {
-  return uuid();
+  return 'global-session';
 }
 
 /**
- * Retrieves session state by session ID
- * Creates a new session if none exists
+ * Retrieves the global session state
  */
-export function getSession(sessionId: string): SessionState {
-  let state = SESSIONS.get(sessionId);
-  
-  if (!state) {
-    state = createNewSession();
-    SESSIONS.set(sessionId, state);
-  }
-  
-  // Update last activity timestamp
-  state.lastActivity = Date.now();
-  
-  return state;
+export function getSession(sessionId?: string): SessionState {
+  // Update last activity
+  GLOBAL_SESSION_STATE.lastActivity = Date.now();
+
+  console.log(`🔍 [세션 상태] 현재:`, {
+    stage: GLOBAL_SESSION_STATE.stage,
+    industry: GLOBAL_SESSION_STATE.selectedIndustry,
+    companies: GLOBAL_SESSION_STATE.industryCompanies.length
+  });
+
+  return GLOBAL_SESSION_STATE;
 }
 
 /**
- * Updates session state
+ * Updates the global session state
  */
-export function updateSession(sessionId: string, state: SessionState): void {
-  state.lastActivity = Date.now();
-  SESSIONS.set(sessionId, state);
+export function updateSession(sessionId: string, newState: Partial<SessionState>): SessionState {
+  const previousState = { ...GLOBAL_SESSION_STATE };
+
+  GLOBAL_SESSION_STATE = {
+    ...GLOBAL_SESSION_STATE,
+    ...newState,
+    lastActivity: Date.now()
+  };
+
+  console.log(`🔄 [세션 업데이트]`, {
+    stage: `${previousState.stage} → ${GLOBAL_SESSION_STATE.stage}`,
+    industry: `${previousState.selectedIndustry} → ${GLOBAL_SESSION_STATE.selectedIndustry}`,
+    companies: `${previousState.industryCompanies.length} → ${GLOBAL_SESSION_STATE.industryCompanies.length}`
+  });
+
+  return GLOBAL_SESSION_STATE;
 }
 
 /**
- * Deletes a session
+ * Compatibility function - no-op for single session
  */
 export function deleteSession(sessionId: string): boolean {
-  return SESSIONS.delete(sessionId);
+  return true;
 }
 
 /**
- * Resets a session to initial state while preserving conversation history
+ * Resets the global session state
  */
 export function resetSession(sessionId: string, preserveHistory: boolean = true): SessionState {
-  const existingState = SESSIONS.get(sessionId);
-  const conversationHistory = preserveHistory && existingState 
-    ? existingState.conversationHistory 
-    : [];
+  const conversationHistory = preserveHistory ? GLOBAL_SESSION_STATE.conversationHistory : [];
 
-  const newState: SessionState = {
+  GLOBAL_SESSION_STATE = {
     stage: 'START',
     selectedIndustry: null,
     industryCompanies: [],
@@ -98,22 +122,24 @@ export function resetSession(sessionId: string, preserveHistory: boolean = true)
     lastActivity: Date.now()
   };
 
-  SESSIONS.set(sessionId, newState);
-  return newState;
+  // 세션 리셋 시 산업군 캐시도 초기화
+  CURRENT_INDUSTRY_CACHE = null;
+  console.log(`🔄 Reset global session state (preserve history: ${preserveHistory})`);
+  return GLOBAL_SESSION_STATE;
 }
 
 /**
- * Checks if a session exists
+ * Compatibility function - always true for single session
  */
 export function sessionExists(sessionId: string): boolean {
-  return SESSIONS.has(sessionId);
+  return true;
 }
 
 /**
- * Gets the total number of active sessions
+ * Always returns 1 for single session
  */
 export function getActiveSessionCount(): number {
-  return SESSIONS.size;
+  return 1;
 }
 
 // ============================================================================
@@ -121,7 +147,7 @@ export function getActiveSessionCount(): number {
 // ============================================================================
 
 /**
- * Adds a conversation entry to the session history
+ * Adds a conversation entry to the global session history
  */
 export function addConversationEntry(
   sessionId: string,
@@ -129,30 +155,27 @@ export function addConversationEntry(
   aiResponse: string,
   intent: string
 ): void {
-  const state = getSession(sessionId);
-  
-  state.conversationHistory.push({
+  GLOBAL_SESSION_STATE.conversationHistory.push({
     user: userInput,
     ai: aiResponse,
     intent,
     timestamp: Date.now()
   });
 
-  // Limit history size to prevent memory bloat
-  if (state.conversationHistory.length > SESSION_CONFIG.maxHistorySize) {
-    state.conversationHistory = state.conversationHistory.slice(-SESSION_CONFIG.maxHistorySize);
+  // Limit history size to prevent memory bloat (keep last 10 entries)
+  if (GLOBAL_SESSION_STATE.conversationHistory.length > 10) {
+    GLOBAL_SESSION_STATE.conversationHistory = GLOBAL_SESSION_STATE.conversationHistory.slice(-10);
   }
 
-  updateSession(sessionId, state);
+  GLOBAL_SESSION_STATE.lastActivity = Date.now();
 }
 
 /**
  * Gets recent conversation history for context generation
  */
 export function getRecentConversationContext(sessionId: string): string | undefined {
-  const state = getSession(sessionId);
-  const recentHistory = state.conversationHistory.slice(-SESSION_CONFIG.recentHistorySize);
-  
+  const recentHistory = GLOBAL_SESSION_STATE.conversationHistory.slice(-5);
+
   if (recentHistory.length === 0) {
     return undefined;
   }
@@ -163,67 +186,63 @@ export function getRecentConversationContext(sessionId: string): string | undefi
 }
 
 /**
- * Clears conversation history for a session
+ * Clears conversation history for the global session
  */
 export function clearConversationHistory(sessionId: string): void {
-  const state = getSession(sessionId);
-  state.conversationHistory = [];
-  updateSession(sessionId, state);
+  GLOBAL_SESSION_STATE.conversationHistory = [];
+  GLOBAL_SESSION_STATE.lastActivity = Date.now();
+  console.log('🧹 Cleared conversation history');
 }
 
 // ============================================================================
-// Session Cleanup
+// Simplified Session Management (No Cleanup Needed)
 // ============================================================================
 
 /**
- * Cleans up old sessions based on last activity timestamp
- * This prevents memory leaks from abandoned sessions
+ * No-op cleanup function for compatibility
+ * Single session doesn't need cleanup
  */
 export function cleanupOldSessions(): number {
-  const now = Date.now();
-  let cleanedCount = 0;
-
-  for (const [sessionId, session] of SESSIONS.entries()) {
-    if (now - session.lastActivity > SESSION_CONFIG.maxAge) {
-      SESSIONS.delete(sessionId);
-      cleanedCount++;
-    }
-  }
-
-  if (cleanedCount > 0) {
-    console.log(`🧹 Cleaned up ${cleanedCount} old sessions. Active sessions: ${SESSIONS.size}`);
-  }
-
-  return cleanedCount;
+  console.log('ℹ️ No session cleanup needed for single-user application');
+  return 0;
 }
 
 /**
- * Starts the periodic session cleanup process
+ * No-op cleanup trigger for compatibility
+ */
+export function triggerSessionCleanup(reason: 'page_refresh' | 'logo_click' | 'manual'): number {
+  console.log(`ℹ️ Session cleanup not needed for single-user app (reason: ${reason})`);
+  return 0;
+}
+
+/**
+ * Compatibility function - no-op
  */
 export function startSessionCleanup(): NodeJS.Timeout {
-  console.log(`🔄 Starting session cleanup with ${SESSION_CONFIG.cleanupInterval}ms interval`);
-  
-  return setInterval(() => {
-    cleanupOldSessions();
-  }, SESSION_CONFIG.cleanupInterval);
+  return setTimeout(() => {}, 0);
 }
 
 /**
- * Stops the periodic session cleanup process
+ * Compatibility function - no-op
  */
 export function stopSessionCleanup(intervalId: NodeJS.Timeout): void {
   clearInterval(intervalId);
-  console.log('🛑 Session cleanup stopped');
 }
 
 /**
- * Forces cleanup of all sessions (useful for testing or shutdown)
+ * Resets the global session state
  */
 export function clearAllSessions(): number {
-  const count = SESSIONS.size;
-  SESSIONS.clear();
-  console.log(`🗑️ Cleared all ${count} sessions`);
-  return count;
+  GLOBAL_SESSION_STATE = {
+    stage: 'START',
+    selectedIndustry: null,
+    industryCompanies: [],
+    selectedTicker: null,
+    conversationHistory: [],
+    lastActivity: Date.now()
+  };
+  console.log('🗑️ Reset global session state');
+  return 1;
 }
 
 // ============================================================================
@@ -231,43 +250,43 @@ export function clearAllSessions(): number {
 // ============================================================================
 
 /**
- * Updates the stage of a session
+ * Updates the stage of the global session
  */
 export function updateSessionStage(sessionId: string, stage: Stage): void {
-  const state = getSession(sessionId);
-  state.stage = stage;
-  updateSession(sessionId, state);
+  GLOBAL_SESSION_STATE.stage = stage;
+  GLOBAL_SESSION_STATE.lastActivity = Date.now();
 }
 
 /**
- * Updates the selected industry for a session
+ * Updates the selected industry for the global session
  */
 export function updateSelectedIndustry(sessionId: string, industry: string | null): void {
-  const state = getSession(sessionId);
-  state.selectedIndustry = industry;
-  updateSession(sessionId, state);
+  GLOBAL_SESSION_STATE.selectedIndustry = industry;
+  GLOBAL_SESSION_STATE.lastActivity = Date.now();
+
+  // 더보기 기능을 위해 산업군 캐시 업데이트
+  CURRENT_INDUSTRY_CACHE = industry;
+  console.log(`🏭 [산업군 캐시] 업데이트: ${industry}`);
 }
 
 /**
- * Updates the industry companies list for a session
+ * Updates the industry companies list for the global session
  */
 export function updateIndustryCompanies(sessionId: string, companies: string[]): void {
-  const state = getSession(sessionId);
-  state.industryCompanies = companies;
-  updateSession(sessionId, state);
+  GLOBAL_SESSION_STATE.industryCompanies = companies;
+  GLOBAL_SESSION_STATE.lastActivity = Date.now();
 }
 
 /**
- * Updates the selected ticker for a session
+ * Updates the selected ticker for the global session
  */
 export function updateSelectedTicker(sessionId: string, ticker: string | null): void {
-  const state = getSession(sessionId);
-  state.selectedTicker = ticker;
-  updateSession(sessionId, state);
+  GLOBAL_SESSION_STATE.selectedTicker = ticker;
+  GLOBAL_SESSION_STATE.lastActivity = Date.now();
 }
 
 /**
- * Gets session statistics for monitoring
+ * Gets session statistics for monitoring (simplified for single session)
  */
 export function getSessionStats(): {
   totalSessions: number;
@@ -275,61 +294,73 @@ export function getSessionStats(): {
   averageHistoryLength: number;
   oldestSessionAge: number;
 } {
-  const sessions = Array.from(SESSIONS.values());
   const now = Date.now();
-  
   const sessionsByStage: Record<Stage, number> = {
     'START': 0,
     'SHOW_INDUSTRY': 0,
     'ASK_CHART': 0
   };
 
-  let totalHistoryLength = 0;
-  let oldestSessionAge = 0;
-
-  for (const session of sessions) {
-    sessionsByStage[session.stage]++;
-    totalHistoryLength += session.conversationHistory.length;
-    
-    const age = now - session.lastActivity;
-    if (age > oldestSessionAge) {
-      oldestSessionAge = age;
-    }
-  }
+  sessionsByStage[GLOBAL_SESSION_STATE.stage] = 1;
 
   return {
-    totalSessions: sessions.length,
+    totalSessions: 1,
     sessionsByStage,
-    averageHistoryLength: sessions.length > 0 ? totalHistoryLength / sessions.length : 0,
-    oldestSessionAge
+    averageHistoryLength: GLOBAL_SESSION_STATE.conversationHistory.length,
+    oldestSessionAge: now - GLOBAL_SESSION_STATE.lastActivity
   };
 }
 
 // ============================================================================
-// Session Initialization
+// Simplified Session Initialization
 // ============================================================================
 
-// Start the cleanup process when the module is loaded
-let cleanupInterval: NodeJS.Timeout | null = null;
-
 /**
- * Initializes the session manager
+ * Initializes the simplified session manager
  */
 export function initializeSessionManager(): void {
-  if (!cleanupInterval) {
-    cleanupInterval = startSessionCleanup();
-  }
+  console.log('🚀 Simplified session manager initialized (single global session)');
 }
 
 /**
  * Shuts down the session manager
  */
 export function shutdownSessionManager(): void {
-  if (cleanupInterval) {
-    stopSessionCleanup(cleanupInterval);
-    cleanupInterval = null;
-  }
+  console.log('🛑 Session manager shutdown');
   clearAllSessions();
+}
+
+/**
+ * Resets session to START state (for logo clicks and page refresh)
+ */
+export function resetSessionToStart(sessionId: string): SessionState {
+  console.log(`🔄 Resetting global session to START state`);
+  // 세션 리셋 시 산업군 캐시도 초기화
+  CURRENT_INDUSTRY_CACHE = null;
+  return resetSession(sessionId, true); // Preserve conversation history
+}
+
+/**
+ * 더보기 기능을 위한 현재 산업군 캐시 조회
+ */
+export function getCurrentIndustryCache(): string | null {
+  return CURRENT_INDUSTRY_CACHE;
+}
+
+/**
+ * 더보기 기능을 위한 산업군 캐시 설정
+ */
+export function setCurrentIndustryCache(industry: string | null): void {
+  CURRENT_INDUSTRY_CACHE = industry;
+  console.log(`🏭 [산업군 캐시] 설정: ${industry}`);
+}
+
+/**
+ * 더보기 기능을 위한 산업군 캐시 초기화
+ */
+export function clearCurrentIndustryCache(): void {
+  CURRENT_INDUSTRY_CACHE = null;
+  console.log(`🧹 [산업군 캐시] 초기화`);
 }
 
 // Auto-initialize when module is imported

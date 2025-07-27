@@ -307,12 +307,24 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
 
   // 최적화된 더보기 버튼 클릭 핸들러
   const handleMoreClick = async () => {
+    console.log('🔍 [더보기 버튼] 클릭됨 - 요청 전송 중...');
     setIsLoadingMore(true);
     setShowMoreButton(false);
 
     try {
       // 더보기 버튼 클릭임을 명시적으로 표시하는 특별한 메시지 사용
-      const res = await send({ message: '__SHOW_MORE_COMPANIES__', history });
+      // 세션 ID 일관성을 위해 현재 세션 정보 포함
+      const res = await send({
+        message: '__SHOW_MORE_COMPANIES__',
+        history,
+        debug: {
+          action: 'show_more_companies',
+          timestamp: Date.now(),
+          source: 'ui_button'
+        }
+      });
+
+      console.log('✅ [더보기 버튼] 응답 받음:', res);
 
       // 마지막 봇 메시지를 새로운 전체 리스트로 대체
       setHistory(h => {
@@ -328,7 +340,7 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
 
       handleApiResponse(res);
     } catch (error) {
-      console.error('More companies error:', error);
+      console.error('❌ [더보기 버튼] 오류:', error);
       setHistory(h => [...h, { from: 'bot', text: '죄송합니다. 더보기 요청 중 오류가 발생했습니다.' }]);
     } finally {
       setIsLoadingMore(false);

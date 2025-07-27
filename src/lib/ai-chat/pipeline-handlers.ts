@@ -33,9 +33,11 @@ import {
   formatCompanyDescriptions,
   formatCompanyList 
 } from './company-utils';
-import { 
-  addConversationEntry, 
-  getRecentConversationContext 
+import {
+  addConversationEntry,
+  getRecentConversationContext,
+  getCurrentIndustryCache,
+  setCurrentIndustryCache
 } from './session-manager';
 
 // ============================================================================
@@ -46,8 +48,14 @@ import {
  * Handles the START stage of the pipeline
  */
 export async function handleStartStage(context: PipelineContext): Promise<StageHandlerResult> {
-  const { userInput, sessionId, state } = context;
-  
+  const { userInput } = context;
+
+  // 더보기 버튼 클릭 명령 처리 (START 단계에서도 처리 가능)
+  if (userInput === '__SHOW_MORE_COMPANIES__') {
+    console.log(`🔍 [START] 더보기 요청 처리`);
+    return await handleShowMoreCompanies(context);
+  }
+
   // Perform intent classification
   const intentResult = await classifyUserIntent(userInput);
   console.log(`User intent: ${intentResult.intent}`);
@@ -58,13 +66,13 @@ export async function handleStartStage(context: PipelineContext): Promise<StageH
     case 'about_ai':
     case 'casual_chat':
       return await handleConversationalIntent(context, intentResult);
-      
+
     case 'investment_recommendation':
       return await handleInvestmentRecommendation(context);
-      
+
     case 'company_direct':
       return await handleDirectCompanyQuery(context);
-      
+
     case 'investment_query':
     default:
       return await handleInvestmentQuery(context, intentResult);
@@ -222,6 +230,16 @@ async function handleInvestmentQuery(
       industryCompanies: companies
     };
 
+    // 세션 상태 변경 디버깅 로그
+    console.log(`🔄 [세션 상태 변경] START → SHOW_INDUSTRY:`);
+    console.log(`   - Session ID: ${sessionId}`);
+    console.log(`   - Selected Industry: ${industry}`);
+    console.log(`   - Companies Count: ${companies.length}`);
+    console.log(`   - Companies: [${companies.slice(0, 3).join(', ')}${companies.length > 3 ? '...' : ''}]`);
+
+    // 더보기 기능을 위해 산업군 캐시 설정
+    setCurrentIndustryCache(industry);
+
     const companyList = formatCompanyList(companies);
 
     const totalCompaniesInIndustry = Object.entries(DATA)
@@ -272,8 +290,9 @@ async function handleInvestmentQuery(
 export async function handleShowIndustryStage(context: PipelineContext): Promise<StageHandlerResult> {
   const { userInput, sessionId, state } = context;
 
-  // 더보기 버튼 클릭 명령 처리
+  // 더보기 버튼 클릭 명령 처리 (단순화된 버전)
   if (userInput === '__SHOW_MORE_COMPANIES__') {
+    console.log(`🔍 [SHOW_INDUSTRY] 더보기 요청 처리`);
     return await handleShowMoreCompanies(context);
   }
 
@@ -324,39 +343,48 @@ export async function handleShowIndustryStage(context: PipelineContext): Promise
 }
 
 /**
- * Handles "더보기" requests to show all companies in industry
+ * Handles "더보기" requests to show all companies in industry (단순화된 버전)
  */
 async function handleShowMoreCompanies(context: PipelineContext): Promise<StageHandlerResult> {
   const { state } = context;
 
-  // 개발 환경에서만 디버깅 로그 출력
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`🔍 [더보기] 처리 시작 - 산업: ${state.selectedIndustry}`);
-    console.log(`🔍 현재 industryCompanies 배열:`, state.industryCompanies);
+  // 산업군 캐시에서 현재 산업 정보 가져오기
+  const cachedIndustry = getCurrentIndustryCache();
+
+  console.log(`🔍 [더보기] 단순화된 처리 시작`);
+  console.log(`   - 캐시된 산업: ${cachedIndustry}`);
+  console.log(`   - 세션 산업: ${state.selectedIndustry}`);
+
+  // 캐시된 산업 정보가 있으면 사용, 없으면 세션에서 가져오기
+  const targetIndustry = cachedIndustry || state.selectedIndustry;
+
+  if (!targetIndustry) {
+    console.log(`❌ [더보기] 산업 정보 없음`);
+    return {
+      reply: '더보기 기능을 사용할 수 없습니다. 먼저 산업을 선택해주세요.',
+      newState: state
+    };
   }
 
-  // Show all companies in the industry
+  // 해당 산업의 모든 기업 조회
   const allCompanies = Object.entries(DATA)
-    .filter(([_, company]: [string, any]) => company.industry === state.selectedIndustry!)
+    .filter(([_, company]: [string, any]) => company.industry === targetIndustry)
     .map(([ticker, _]: [string, any]) => ticker);
 
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`🔍 ${state.selectedIndustry} 산업의 전체 기업 목록 (${allCompanies.length}개):`, allCompanies);
-  }
+  console.log(`🔍 ${targetIndustry} 산업의 전체 기업 목록 (${allCompanies.length}개)`);
 
   const allCompanyList = formatCompanyList(allCompanies);
+  const reply = `🎉 ${targetIndustry} 산업의 전체 기업 목록입니다! (총 ${allCompanies.length}개) 📊\n\n${allCompanyList}\n\n어떤 기업이 가장 흥미로우신가요? ✨`;
 
-  const reply = `🎉 ${state.selectedIndustry} 산업의 전체 기업 목록입니다! (총 ${allCompanies.length}개) 📊\n\n${allCompanyList}\n\n어떤 기업이 가장 흥미로우신가요? ✨`;
-
-  // Update state with all companies
+  // 세션 상태 업데이트 (SHOW_INDUSTRY 단계로 설정하고 모든 기업 포함)
   const newState: SessionState = {
     ...state,
+    stage: 'SHOW_INDUSTRY',
+    selectedIndustry: targetIndustry,
     industryCompanies: allCompanies
   };
 
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`✅ 새로운 상태의 industryCompanies 배열:`, newState.industryCompanies);
-  }
+  console.log(`✅ [더보기] 처리 완료 - ${allCompanies.length}개 기업 표시`);
 
   return {
     reply,
