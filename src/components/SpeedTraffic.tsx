@@ -19,6 +19,7 @@ interface LSTMResult {
   symbol: string;
   train_until: string;
   accuracy?: number;  // Add accuracy field
+  pred_prob_up?: number;  // 상승 확률 (0-1 범위)
   predictions: Array<{
     date: string;
     pred_prob_up: number;

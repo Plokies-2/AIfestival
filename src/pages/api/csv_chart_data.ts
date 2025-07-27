@@ -70,7 +70,7 @@ export default async function handler(
 
       // 헤더 파싱 (첫 번째 줄)
       const headers = lines[0].split(',');
-      const symbolIndex = headers.findIndex(header => header.trim() === symbol.toUpperCase());
+      const symbolIndex = headers.findIndex((header: string) => header.trim() === symbol.toUpperCase());
 
       if (symbolIndex === -1) {
         return res.status(404).json({ error: `심볼 ${symbol}을 찾을 수 없습니다.` });
