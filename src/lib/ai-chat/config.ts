@@ -26,7 +26,7 @@ export const RAG_THRESHOLDS: RAGThresholds = {
   INVESTMENT_INTENT_MIN_SCORE: 0.3, // 투자 의도 분류 최소 점수
 
   // 조건부 산업 표시 (handleInvestmentQuery에서 사용)
-  PRIMARY_INDUSTRY_ONLY_THRESHOLD: 0.55, // 1순위 산업 점수가 이 값 초과시 1순위만 표시
+  PRIMARY_INDUSTRY_ONLY_THRESHOLD: 0.52, // 1순위 산업 점수가 이 값 초과시 1순위만 표시
   SECONDARY_INDUSTRY_MIN_THRESHOLD: 0.3   // 2순위 산업 점수가 이 값 이하시 표시 안함
 } as const;
 
