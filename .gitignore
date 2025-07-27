@@ -35,11 +35,14 @@ coverage/
 Thumbs.db
 
 # 기타 캐시·임시 파일
-.cache/
+.cache/chart_data/
 .cache-loader/
 .tmp/
 .pnp.*
 **/.turbo/
+
+# 임베딩 캐시 파일은 포함 (Vercel 배포용)
+!.cache/sp500_vectors.json
 
 
 # Next.js build/dev artifacts
