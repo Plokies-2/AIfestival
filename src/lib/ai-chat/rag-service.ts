@@ -12,7 +12,7 @@ import OpenAI from 'openai';
 import { getEmbeddings, cosine } from '@/lib/embeddings';
 import { QUICK_ENRICHED_FINAL as DATA } from '@/data/sp500_enriched_final';
 import { IndustryMatchResult, RAGServiceError, CompanyData, PersonaMatchResult, InvestmentIntentResult } from './types';
-import { RAG_THRESHOLDS, KOREAN_COMPANY_MAPPING, OPENAI_CONFIG, PERFORMANCE_CONFIG, ENV_CONFIG } from './config';
+import { RAG_THRESHOLDS, /* KOREAN_COMPANY_MAPPING, */ OPENAI_CONFIG, PERFORMANCE_CONFIG, ENV_CONFIG } from './config';
 // 제거된 기능: classifyIndustryWithGPT import - GPT 기반 산업 분류 백업 로직 제거됨
 
 // ============================================================================
@@ -135,21 +135,25 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
       return { intent: null, score: 0, method: 'none' };
     }
 
-    // 1. Check for direct company match (highest priority)
-    let bestCompanyScore = -1;
-    let bestCompanyMatch = null;
+    // 1. Check for direct company match (highest priority) - 주석처리: company direct match 제거
+    // let bestCompanyScore = -1;
+    // let bestCompanyMatch = null;
 
-    const topCompanies = companies.slice(0, PERFORMANCE_CONFIG.maxCompaniesForRAG);
+    // const topCompanies = companies.slice(0, PERFORMANCE_CONFIG.maxCompaniesForRAG);
 
-    for (const company of topCompanies) {
-      if (!company.vec || !Array.isArray(company.vec)) continue;
+    // for (const company of topCompanies) {
+    //   if (!company.vec || !Array.isArray(company.vec)) continue;
 
-      const score = cosine(company.vec, normalizedQuery);
-      if (score > bestCompanyScore) {
-        bestCompanyScore = score;
-        bestCompanyMatch = company;
-      }
-    }
+    //   const score = cosine(company.vec, normalizedQuery);
+    //   if (score > bestCompanyScore) {
+    //     bestCompanyScore = score;
+    //     bestCompanyMatch = company;
+    //   }
+    // }
+
+    // company direct match 제거로 인한 기본값 설정 - 변수 제거
+    // let bestCompanyScore = -1;
+    // let bestCompanyMatch = null;
 
     // 2. Check for industry match
     let bestIndustryScore = -1;
@@ -168,40 +172,43 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
     // 3. Determine intent based on scores and patterns
     // 제거된 기능: investment_recommendation 패턴 매칭 - 더 이상 사용되지 않음
 
-    // Check for direct company mention (high confidence)
-    if (bestCompanyScore >= RAG_THRESHOLDS.COMPANY_DIRECT_MIN_SCORE) {
-      console.log(`🏢 Selected: ${bestCompanyMatch?.name} (${bestCompanyScore.toFixed(3)})`);
-      return {
-        intent: 'company_direct',
-        score: bestCompanyScore,
-        matchedEntity: bestCompanyMatch?.name,
-        method: 'rag_company'
-      };
-    }
+    // Check for direct company mention (high confidence) - 주석처리: company direct match 제거
+    // if (bestCompanyScore >= RAG_THRESHOLDS.COMPANY_DIRECT_MIN_SCORE) {
+    //   console.log(`🏢 Selected: ${bestCompanyMatch?.name} (${bestCompanyScore.toFixed(3)})`);
+    //   return {
+    //     intent: 'company_direct',
+    //     score: bestCompanyScore,
+    //     matchedEntity: bestCompanyMatch?.name,
+    //     method: 'rag_company'
+    //   };
+    // }
 
-    // Check for investment query (medium confidence)
-    console.log(`🔍 [Investment Intent] Company score: ${bestCompanyScore.toFixed(3)}, Industry score: ${bestIndustryScore.toFixed(3)}, Threshold: ${RAG_THRESHOLDS.INVESTMENT_INTENT_MIN_SCORE}`);
+    // Check for investment query (medium confidence) - 산업 매칭만 사용
+    // 로그 최적화: 상세 점수 로그 제거
+    // console.log(`🔍 [Investment Intent] Industry score: ${bestIndustryScore.toFixed(3)}, Threshold: ${RAG_THRESHOLDS.INVESTMENT_INTENT_MIN_SCORE}`);
 
-    if (bestCompanyScore >= RAG_THRESHOLDS.INVESTMENT_INTENT_MIN_SCORE ||
-        bestIndustryScore >= RAG_THRESHOLDS.INVESTMENT_INTENT_MIN_SCORE) {
-      const selectedEntity = bestCompanyScore > bestIndustryScore ? bestCompanyMatch?.name : bestIndustryMatch?.industry;
-      const selectedScore = Math.max(bestCompanyScore, bestIndustryScore);
-      const icon = bestCompanyScore > bestIndustryScore ? '🏢' : '🏭';
-      console.log(`${icon} Selected: ${selectedEntity} (${selectedScore.toFixed(3)})`);
+    // 산업 매칭만 고려 (company direct match 제거)
+    if (bestIndustryScore >= RAG_THRESHOLDS.INVESTMENT_INTENT_MIN_SCORE) {
+      const selectedEntity = bestIndustryMatch?.industry;
+      const selectedScore = bestIndustryScore;
+      // 로그 최적화: 최종 결과만 출력
+      console.log(`🏭 [RAG] Selected: ${selectedEntity}`);
       return {
         intent: 'investment_query',
         score: selectedScore,
         matchedEntity: selectedEntity,
-        method: bestCompanyScore > bestIndustryScore ? 'rag_company' : 'rag_industry'
+        method: 'rag_industry'
       };
     } else {
-      console.log(`❌ [Investment Intent] Scores below threshold, returning null`);
+      // 로그 최적화: 실패 로그 제거
+      // console.log(`❌ [Investment Intent] Industry score below threshold, returning null`);
     }
 
     // Check for basic investment keywords (fallback)
     const investmentKeywords = /(투자|주식|종목|매수|매도|분석|포트폴리오|수익|손실|시장|경제|금융)/;
     if (investmentKeywords.test(userInput.toLowerCase())) {
-      console.log('📈 Selected: investment keywords (0.600)');
+      // 로그 최적화: 키워드 매칭 로그 제거
+      // console.log('📈 Selected: investment keywords (0.600)');
       return {
         intent: 'investment_query',
         score: 0.6, // Medium confidence for keyword matching
@@ -248,11 +255,13 @@ export async function findBestIndustry(userInput: string): Promise<string | null
     }
   }
 
-  console.log(`RAG Best match: ${bestIndustry} with score: ${bestScore.toFixed(3)}`);
+  // 로그 최적화: 상세 점수 로그 제거
+  // console.log(`RAG Best match: ${bestIndustry} with score: ${bestScore.toFixed(3)}`);
 
   // RAG threshold check: If industry level score is too low, try company level search
   if (bestScore < RAG_THRESHOLDS.COMPANY_MIN_SCORE) {
-    console.log('Industry score too low, trying company-level RAG...');
+    // 로그 최적화: 중간 과정 로그 제거
+    // console.log('Industry score too low, trying company-level RAG...');
 
     const { companies } = await getEmbeddings();
     let bestCompanyIndustry: string | null = null;
@@ -268,7 +277,8 @@ export async function findBestIndustry(userInput: string): Promise<string | null
       }
     }
 
-    console.log(`Company-level RAG: ${bestCompanyIndustry} with score: ${bestCompanyScore.toFixed(3)}`);
+    // 로그 최적화: 상세 점수 로그 제거
+    // console.log(`Company-level RAG: ${bestCompanyIndustry} with score: ${bestCompanyScore.toFixed(3)}`);
 
     if (bestCompanyScore > bestScore) {
       bestIndustry = bestCompanyIndustry;
@@ -302,63 +312,65 @@ export async function findBestIndustry(userInput: string): Promise<string | null
 // ============================================================================
 
 /**
- * Searches for company in all data (for START stage)
+ * Searches for company in all data (for START stage) - 주석처리: Company Direct Match 완전 제거
  */
-export function findCompanyInAllData(userInput: string): string | null {
-  const allTickers = Object.keys(DATA);
+// export function findCompanyInAllData(userInput: string): string | null {
+//   const allTickers = Object.keys(DATA);
 
-  // 1. Direct ticker matching
-  const upperInput = userInput.toUpperCase().trim();
-  const directTicker = allTickers.find(ticker => ticker === upperInput);
-  if (directTicker) {
-    console.log(`Direct ticker match: ${userInput} -> ${directTicker}`);
-    return directTicker;
-  }
+//   // 1. Direct ticker matching
+//   const upperInput = userInput.toUpperCase().trim();
+//   const directTicker = allTickers.find(ticker => ticker === upperInput);
+//   if (directTicker) {
+//     console.log(`Direct ticker match: ${userInput} -> ${directTicker}`);
+//     return directTicker;
+//   }
 
-  // 2. Korean company name mapping table usage
-  const normalizedInput = userInput.trim().toLowerCase();
-  for (const [koreanName, englishNames] of Object.entries(KOREAN_COMPANY_MAPPING)) {
-    if (normalizedInput.includes(koreanName)) {
-      for (const ticker of allTickers) {
-        const company = (DATA as any)[ticker];
-        if (!company) continue;
+//   // 2. Korean company name mapping table usage - 주석처리: Korean Company Mapping 비활성화
+//   // const normalizedInput = userInput.trim().toLowerCase();
+//   // for (const [koreanName, englishNames] of Object.entries(KOREAN_COMPANY_MAPPING)) {
+//   //   if (normalizedInput.includes(koreanName)) {
+//   //     for (const ticker of allTickers) {
+//   //       const company = (DATA as any)[ticker];
+//   //       if (!company) continue;
 
-        const companyName = company.name.toLowerCase();
-        for (const englishName of englishNames) {
-          if (companyName.includes(englishName)) {
-            console.log(`Korean company name match: "${koreanName}" -> ${ticker} (${company.name})`);
-            return ticker;
-          }
-        }
-      }
-    }
-  }
+//   //       const companyName = company.name.toLowerCase();
+//   //       for (const englishName of englishNames) {
+//   //         if (companyName.includes(englishName)) {
+//   //           console.log(`Korean company name match: "${koreanName}" -> ${ticker} (${company.name})`);
+//   //           return ticker;
+//   //         }
+//   //       }
+//   //     }
+//   //   }
+//   // }
 
-  // 3. Direct English company name matching
-  for (const ticker of allTickers) {
-    const company = (DATA as any)[ticker];
-    if (!company) continue;
+//   const normalizedInput = userInput.trim().toLowerCase();
 
-    const companyName = company.name.toLowerCase();
+//   // 3. Direct English company name matching
+//   for (const ticker of allTickers) {
+//     const company = (DATA as any)[ticker];
+//     if (!company) continue;
 
-    // Full name matching
-    if (companyName.includes(normalizedInput) || normalizedInput.includes(companyName)) {
-      console.log(`Full company name match: "${normalizedInput}" -> ${ticker} (${company.name})`);
-      return ticker;
-    }
+//     const companyName = company.name.toLowerCase();
 
-    // Main word matching (3+ characters)
-    const companyWords = companyName.split(' ').filter((word: string) => word.length > 2);
-    for (const word of companyWords) {
-      if (normalizedInput.includes(word) && word.length > 3) {
-        console.log(`Company word match: "${word}" -> ${ticker} (${company.name})`);
-        return ticker;
-      }
-    }
-  }
+//     // Full name matching
+//     if (companyName.includes(normalizedInput) || normalizedInput.includes(companyName)) {
+//       console.log(`Full company name match: "${normalizedInput}" -> ${ticker} (${company.name})`);
+//       return ticker;
+//     }
 
-  return null;
-}
+//     // Main word matching (3+ characters)
+//     const companyWords = companyName.split(' ').filter((word: string) => word.length > 2);
+//     for (const word of companyWords) {
+//       if (normalizedInput.includes(word) && word.length > 3) {
+//         console.log(`Company word match: "${word}" -> ${ticker} (${company.name})`);
+//         return ticker;
+//       }
+//     }
+//   }
+
+//   return null;
+// }
 
 /**
  * Finds ticker in text from available tickers list
@@ -379,24 +391,24 @@ export function findTickerInText(text: string, availableTickers: string[]): stri
     return directTicker;
   }
 
-  // 2. Korean company name matching
+  // 2. Korean company name matching - 주석처리: Korean Company Mapping 비활성화
   // 2-1. Korean-English mapping table usage
-  for (const [koreanName, englishNames] of Object.entries(KOREAN_COMPANY_MAPPING)) {
-    if (normalizedInput.includes(koreanName.toLowerCase())) {
-      for (const ticker of availableTickers) {
-        const company = (DATA as any)[ticker];
-        if (!company) continue;
+  // for (const [koreanName, englishNames] of Object.entries(KOREAN_COMPANY_MAPPING)) {
+  //   if (normalizedInput.includes(koreanName.toLowerCase())) {
+  //     for (const ticker of availableTickers) {
+  //       const company = (DATA as any)[ticker];
+  //       if (!company) continue;
 
-        const companyName = company.name.toLowerCase();
-        for (const englishName of englishNames) {
-          if (companyName.includes(englishName)) {
-            console.log(`Korean name match: "${koreanName}" -> ${ticker} (${company.name})`);
-            return ticker;
-          }
-        }
-      }
-    }
-  }
+  //       const companyName = company.name.toLowerCase();
+  //       for (const englishName of englishNames) {
+  //         if (companyName.includes(englishName)) {
+  //           console.log(`Korean name match: "${koreanName}" -> ${ticker} (${company.name})`);
+  //           return ticker;
+  //         }
+  //       }
+  //     }
+  //   }
+  // }
 
   // 2-2. Number matching (1, 2, 3 etc)
   const numberMatch = normalizedInput.match(/^(\d+)$/);
@@ -454,23 +466,26 @@ export function findTickerInText(text: string, availableTickers: string[]): stri
  * Gets companies in a specific industry (exactly 5 companies)
  */
 export function getIndustryCompanies(industry: string): string[] {
-  console.log(`Looking for companies in industry: "${industry}"`);
+  // 로그 최적화: 상세 검색 로그 제거
+  // console.log(`Looking for companies in industry: "${industry}"`);
 
   const allCompanies = Object.entries(DATA);
-  console.log(`Total companies in DATA: ${allCompanies.length}`);
+  // console.log(`Total companies in DATA: ${allCompanies.length}`);
 
   const matchingCompanies = allCompanies
     .filter(([ticker, company]: [string, any]) => {
       const matches = company.industry === industry;
-      if (matches) {
-        console.log(`Found matching company: ${company.name} (${ticker}) in ${company.industry}`);
-      }
+      // 로그 최적화: 개별 회사 매칭 로그 제거
+      // if (matches) {
+      //   console.log(`Found matching company: ${company.name} (${ticker}) in ${company.industry}`);
+      // }
       return matches;
     })
     .slice(0, PERFORMANCE_CONFIG.maxCompaniesForDisplay) // Exactly 5 companies
     .map(([ticker, _]: [string, any]) => ticker);
 
-  console.log(`Found ${matchingCompanies.length} companies for industry "${industry}":`, matchingCompanies);
+  // 로그 최적화: 최종 결과만 출력
+  console.log(`[RAG] Found ${matchingCompanies.length} companies for "${industry}"`);
   return matchingCompanies;
 }
 

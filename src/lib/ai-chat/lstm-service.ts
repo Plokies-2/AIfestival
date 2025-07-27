@@ -26,20 +26,23 @@ export async function getLSTMDataForSymbol(symbol: string): Promise<LSTMData | n
     );
     
     if (!response.ok) {
-      console.warn(`LSTM API returned ${response.status} for symbol ${symbol}`);
+      // 로그 최적화: 에러만 간단히 출력
+      console.warn(`[LSTM] ${symbol} API failed: ${response.status}`);
       return null;
     }
-    
+
     const result = await response.json();
-    
+
     if (!result.success) {
-      console.warn(`LSTM API returned unsuccessful result for symbol ${symbol}:`, result);
+      // 로그 최적화: 에러만 간단히 출력
+      console.warn(`[LSTM] ${symbol} unsuccessful`);
       return null;
     }
     
     return result.data;
   } catch (error) {
-    console.error(`Failed to get LSTM data for ${symbol}:`, error);
+    // 로그 최적화: 에러만 간단히 출력
+    console.error(`[LSTM] ${symbol} failed:`, error instanceof Error ? error.message : error);
     return null;
   }
 }
@@ -109,7 +112,8 @@ export async function enhanceResponseWithLSTMData(
 
     return response;
   } catch (error) {
-    console.error('Failed to enhance response with LSTM data:', error);
+    // 로그 최적화: 에러만 간단히 출력
+    console.error('[LSTM] Enhancement failed:', error instanceof Error ? error.message : error);
     return response; // Return original response on error
   }
 }

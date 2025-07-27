@@ -39,7 +39,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(200).json(result);
 
   } catch (error) {
-    console.error(`[SPEEDTRAFFIC_STAGED] Error for ${ticker} stage ${stage}:`, error);
+    // 로그 최적화: 에러만 출력
+    console.error(`[SPEEDTRAFFIC_STAGED] ${ticker} ${stage} failed:`, error instanceof Error ? error.message : error);
     
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     res.status(500).json({

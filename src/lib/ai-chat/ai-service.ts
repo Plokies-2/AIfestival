@@ -10,7 +10,7 @@
 
 import OpenAI from 'openai';
 import { IntentClassificationResult } from './types';
-import { KOREAN_COMPANY_MAPPING, OPENAI_CONFIG, ENV_CONFIG } from './config';
+import { OPENAI_CONFIG, ENV_CONFIG } from './config';
 import { findBestPersona, classifyInvestmentIntent } from './rag-service';
 
 // ============================================================================
@@ -33,7 +33,8 @@ const openai = new OpenAI({
  * This is the primary method for understanding user intentions
  */
 export async function classifyUserIntent(userInput: string): Promise<IntentClassificationResult> {
-  console.log(`🔍 Classifying user intent for: "${userInput}"`);
+  // 로그 최적화: 상세 입력 로그 제거
+  // console.log(`🔍 Classifying user intent for: "${userInput}"`);
 
   try {
     // 2단계 RAG 시스템 구현
@@ -61,35 +62,38 @@ export async function classifyUserIntent(userInput: string): Promise<IntentClass
     console.log(`🔍 [2단계 RAG] bestPersona: ${bestPersona}, 투자 의도 검사 수행 여부: ${bestPersona === 'investment' || bestPersona === null}`);
 
     if (bestPersona === 'investment' || bestPersona === null) {
-      console.log(`🔍 [2단계 RAG] classifyInvestmentIntent 호출 시작`);
+      // 로그 최적화: 상세 과정 로그 제거
+      // console.log(`🔍 [2단계 RAG] classifyInvestmentIntent 호출 시작`);
       const investmentResult = await classifyInvestmentIntent(userInput);
-      console.log(`🔍 [2단계 RAG] classifyInvestmentIntent 결과:`, investmentResult);
+      // console.log(`🔍 [2단계 RAG] classifyInvestmentIntent 결과:`, investmentResult);
 
       if (investmentResult.intent) {
-        console.log(`✅ [2단계 RAG] 투자 의도 확정: ${investmentResult.intent}`);
+        // 로그 최적화: 최종 결과만 출력
+        console.log(`✅ [Intent] ${investmentResult.intent}: ${investmentResult.matchedEntity || '키워드 매칭'}`);
         return {
           intent: investmentResult.intent,
           confidence: Math.min(0.95, investmentResult.score + 0.1), // Boost confidence slightly
           reasoning: `2단계 RAG 기반 투자 의도 분류 (${investmentResult.method}): ${investmentResult.matchedEntity || '키워드 매칭'}`
         };
       } else {
-        console.log(`❌ [2단계 RAG] 투자 의도 없음, 기본값으로 진행`);
+        // 로그 최적화: 실패 로그 제거
+        // console.log(`❌ [2단계 RAG] 투자 의도 없음, 기본값으로 진행`);
       }
     }
 
-    // 3. Fallback: Korean company name check (legacy support)
-    const lowerInput = userInput.toLowerCase().trim();
+    // 3. Fallback: Korean company name check (legacy support) - 주석처리: company direct match 제거
+    // const lowerInput = userInput.toLowerCase().trim();
 
-    for (const koreanName of Object.keys(KOREAN_COMPANY_MAPPING)) {
-      if (lowerInput.includes(koreanName)) {
-        // 제거된 기능: 한국 기업명 컨텍스트 기반 필터링 - 사용되지 않던 레거시 코드
-        return {
-          intent: 'company_direct',
-          confidence: 0.8, // Lower confidence for fallback
-          reasoning: `한국 기업명 매칭 (fallback): ${koreanName}`
-        };
-      }
-    }
+    // for (const koreanName of Object.keys(KOREAN_COMPANY_MAPPING)) {
+    //   if (lowerInput.includes(koreanName)) {
+    //     // 제거된 기능: 한국 기업명 컨텍스트 기반 필터링 - 사용되지 않던 레거시 코드
+    //     return {
+    //       intent: 'company_direct',
+    //       confidence: 0.8, // Lower confidence for fallback
+    //       reasoning: `한국 기업명 매칭 (fallback): ${koreanName}`
+    //     };
+    //   }
+    // }
 
     // 4. Default: classify as greeting (수정된 로직)
     return {

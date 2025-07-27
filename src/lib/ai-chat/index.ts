@@ -108,7 +108,7 @@ export {
 
 export {
   findBestIndustry,
-  findCompanyInAllData,
+  // findCompanyInAllData, // 주석처리: Company Direct Match 완전 제거
   findTickerInText,
   getIndustryCompanies,
   getCompanyName,

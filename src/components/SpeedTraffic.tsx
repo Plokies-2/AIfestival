@@ -246,11 +246,8 @@ const SpeedTraffic: React.FC<SpeedTrafficProps> = ({ symbol, onPhaseMessage, onA
       // Wait 1.5 seconds before starting Phase 1
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      console.log(`[SpeedTraffic] Starting staged prediction for ${symbol}`);
-
       // Phase 1: Execute fast services (Technical, Industry, Market, Volatility)
       setPhase1Loading(true);
-      console.log(`[SpeedTraffic] Phase 1: Starting fast services for ${symbol}`);
 
       // Fetch phase 1 data with proper typing
       const phase1Response = await fetch(`/api/speedtraffic_staged?symbol=${symbol}&stage=phase1`, {
@@ -267,34 +264,23 @@ const SpeedTraffic: React.FC<SpeedTrafficProps> = ({ symbol, onPhaseMessage, onA
 
       // Parse and type the phase 1 response
       const phase1Result = await phase1Response.json() as Phase1Result;
-      console.log(`[SpeedTraffic] Phase 1 result:`, phase1Result);
 
-      // 📊 SpeedTraffic 프론트엔드에서 Phase 1 분석 결과 상세 로그
-      console.log(`\n🎯 [SpeedTraffic] ${symbol} Phase 1 분석 결과 수신 상세 로그`);
-      console.log(`📈 Technical Analysis: RSI=${phase1Result.rsi?.rsi_value}, Bollinger=${phase1Result.bollinger?.percent_b}, MFI=${phase1Result.mfi?.mfi_value}`);
-      console.log(`🏭 Industry Analysis: ${JSON.stringify(phase1Result.industry)}`);
-      console.log(`📊 Market Analysis (CAPM): ${JSON.stringify(phase1Result.capm)}`);
-      console.log(`⚠️ Risk Analysis (GARCH): ${JSON.stringify(phase1Result.garch)}`);
-      console.log(`🚦 Traffic Lights: ${JSON.stringify(phase1Result.traffic_lights)}`);
-      console.log(`🎯 [SpeedTraffic] Phase 1 로그 완료\n`);
+      // 📊 SpeedTraffic Phase 1 핵심 결과만 로그
+      console.log(`🎯 [SpeedTraffic] ${symbol} Phase 1 완료 - Traffic Lights:`, phase1Result.traffic_lights);
 
       // Update lights 1-4 immediately after Phase 1 completes
       if (phase1Result.traffic_lights) {
         if (phase1Result.traffic_lights.technical) {
           setTechnicalLight(resultColorToStatus(phase1Result.traffic_lights.technical));
-          console.log(`[SpeedTraffic] Technical light set to: ${phase1Result.traffic_lights.technical}`);
         }
         if (phase1Result.traffic_lights.industry) {
           setIndustryLight(resultColorToStatus(phase1Result.traffic_lights.industry));
-          console.log(`[SpeedTraffic] Industry light set to: ${phase1Result.traffic_lights.industry}`);
         }
         if (phase1Result.traffic_lights.market) {
           setMarketLight(resultColorToStatus(phase1Result.traffic_lights.market));
-          console.log(`[SpeedTraffic] Market light set to: ${phase1Result.traffic_lights.market}`);
         }
         if (phase1Result.traffic_lights.risk) {
           setRiskLight(resultColorToStatus(phase1Result.traffic_lights.risk));
-          console.log(`[SpeedTraffic] Risk light set to: ${phase1Result.traffic_lights.risk}`);
         }
       }
 
@@ -315,7 +301,6 @@ const SpeedTraffic: React.FC<SpeedTrafficProps> = ({ symbol, onPhaseMessage, onA
       }));
 
       setPhase1Loading(false);
-      console.log(`[SpeedTraffic] Phase 1 completed successfully for ${symbol}`);
 
       // Send Phase 1 completion message to chat
       onPhaseMessage?.('기술적 분석, 산업 민감도, 시장 민감도, 변동성 리스크 분석을 마쳤어요! 📊');
@@ -329,7 +314,6 @@ const SpeedTraffic: React.FC<SpeedTrafficProps> = ({ symbol, onPhaseMessage, onA
       // Phase 2: Execute LSTM service
       setPhase2Loading(true);
       setLstmLoading(true);
-      console.log(`[SpeedTraffic] Phase 2: Starting LSTM service for ${symbol}`);
 
       // Start 20-second timer for Korean timeout message
       const timeoutTimer = setTimeout(() => {
@@ -353,15 +337,10 @@ const SpeedTraffic: React.FC<SpeedTrafficProps> = ({ symbol, onPhaseMessage, onA
 
       // Parse and type the phase 2 response
       const phase2Result = await phase2Response.json() as Phase2Result;
-      console.log(`[SpeedTraffic] Phase 2 result:`, phase2Result);
 
-      // 🤖 SpeedTraffic 프론트엔드에서 Phase 2 분석 결과 상세 로그
-      console.log(`\n🎯 [SpeedTraffic] ${symbol} Phase 2 분석 결과 수신 상세 로그`);
+      // 🤖 SpeedTraffic Phase 2 핵심 결과만 로그
       if (phase2Result.lstm) {
-        console.log(`🤖 Neural Analysis (LSTM):`);
-        console.log(`   - 정확도: ${phase2Result.lstm.accuracy ? (phase2Result.lstm.accuracy * 100).toFixed(2) + '%' : 'N/A'}`);
-        console.log(`   - 상승 확률: ${phase2Result.lstm.pred_prob_up ? (phase2Result.lstm.pred_prob_up * 100).toFixed(2) + '%' : 'N/A'}`);
-        console.log(`   - 전체 결과: ${JSON.stringify(phase2Result.lstm)}`);
+        console.log(`🤖 [SpeedTraffic] ${symbol} Phase 2 완료 - 정확도: ${phase2Result.lstm.accuracy ? (phase2Result.lstm.accuracy * 100).toFixed(2) + '%' : 'N/A'}, 상승확률: ${phase2Result.lstm.pred_prob_up ? (phase2Result.lstm.pred_prob_up * 100).toFixed(2) + '%' : 'N/A'}, Traffic: ${phase2Result.traffic_lights?.neural || 'N/A'}`);
       }
       console.log(`🚦 Neural Traffic Light: ${phase2Result.traffic_lights?.neural}`);
       console.log(`🎯 [SpeedTraffic] Phase 2 로그 완료\n`);
@@ -418,17 +397,8 @@ const SpeedTraffic: React.FC<SpeedTrafficProps> = ({ symbol, onPhaseMessage, onA
         }
       };
 
-      // Log the final results for debugging
-      console.log('[SpeedTraffic] Final analysis results:', JSON.stringify(finalResults, null, 2));
-
-      // 📊 SpeedTraffic 최종 분석 결과 종합 로그
-      console.log(`\n🎯 [SpeedTraffic] ${symbol} 최종 분석 결과 종합 로그`);
-      console.log(`📈 Technical: ${finalResults.traffic_lights?.technical || 'N/A'}`);
-      console.log(`🏭 Industry: ${finalResults.traffic_lights?.industry || 'N/A'}`);
-      console.log(`📊 Market: ${finalResults.traffic_lights?.market || 'N/A'}`);
-      console.log(`⚠️ Risk: ${finalResults.traffic_lights?.risk || 'N/A'}`);
-      console.log(`🤖 Neural: ${finalResults.traffic_lights?.neural || 'N/A'}`);
-      console.log(`🎯 [SpeedTraffic] 최종 로그 완료\n`);
+      // 📊 SpeedTraffic 최종 결과 요약 로그
+      console.log(`🎯 [SpeedTraffic] ${symbol} 최종 완료 - T:${finalResults.traffic_lights?.technical || 'N/A'} I:${finalResults.traffic_lights?.industry || 'N/A'} M:${finalResults.traffic_lights?.market || 'N/A'} R:${finalResults.traffic_lights?.risk || 'N/A'} N:${finalResults.traffic_lights?.neural || 'N/A'}`);
 
       // JSON 저장 로직 제거됨 - 더 이상 분석 결과를 파일로 저장하지 않음
 

@@ -13,16 +13,14 @@ import {
   classifyUserIntent,
   generateDynamicResponse
 } from './ai-service';
-import { 
-  findBestIndustry, 
-  findCompanyInAllData, 
-  findTickerInText, 
-  getIndustryCompanies, 
-  getCompanyName 
+import {
+  findBestIndustry,
+  findTickerInText,
+  getIndustryCompanies,
+  getCompanyName
 } from './rag-service';
-import { 
-  enhanceResponseWithLSTMData, 
-  getDetailedLSTMAnalysis 
+import {
+  enhanceResponseWithLSTMData
 } from './lstm-service';
 import {
   isPositive,
@@ -52,7 +50,8 @@ export async function handleStartStage(context: PipelineContext): Promise<StageH
 
   // Perform intent classification
   const intentResult = await classifyUserIntent(userInput);
-  console.log(`User intent: ${intentResult.intent}`);
+  // 로그 최적화: 의도 분류 결과는 이미 ai-service에서 출력됨
+  // console.log(`User intent: ${intentResult.intent}`);
 
   // Handle different intents
   switch (intentResult.intent) {
@@ -61,8 +60,8 @@ export async function handleStartStage(context: PipelineContext): Promise<StageH
     case 'casual_chat':
       return await handleConversationalIntent(context, intentResult);
 
-    case 'company_direct':
-      return await handleDirectCompanyQuery(context);
+    // case 'company_direct': // 주석처리: company direct match 제거
+    //   return await handleDirectCompanyQuery(context);
 
     case 'investment_query':
     default:
@@ -91,49 +90,49 @@ async function handleConversationalIntent(
 // 제거된 기능: handleInvestmentRecommendation - investment_recommendation 의도 처리 제거됨
 
 /**
- * Handles direct company queries
+ * Handles direct company queries - 주석처리: company direct match 제거
  */
-async function handleDirectCompanyQuery(context: PipelineContext): Promise<StageHandlerResult> {
-  const { userInput, state } = context;
-  
-  const directCompany = findCompanyInAllData(userInput);
-  if (directCompany) {
-    // Company name directly entered - go straight to chart confirmation stage
-    const newState: SessionState = {
-      ...state,
-      stage: 'ASK_CHART',
-      selectedTicker: directCompany
-    };
-    
-    const companyName = getCompanyName(directCompany);
-    const directChartQuestions = [
-      `🎯 ${companyName} (${directCompany}) 분석을 시작하시겠습니까? 📊`,
-      `📈 ${companyName} (${directCompany}) 차트 분석을 시작해볼까요? ✨`,
-      `🚀 ${companyName} (${directCompany})의 주가 분석을 확인해 드릴까요? 💹`
-    ];
-    
-    // Get LSTM data
-    const lstmAnalysis = await getDetailedLSTMAnalysis(directCompany);
-    let analysisInfo = '';
-    
-    if (lstmAnalysis) {
-      analysisInfo = `\n\n${lstmAnalysis.summary}${lstmAnalysis.details}`;
-    }
-    
-    const reply = `${directChartQuestions[Math.floor(Math.random() * directChartQuestions.length)]}${analysisInfo}`;
-    
-    // 대화 기록 저장 제거
-    
-    return {
-      reply,
-      newState,
-      shouldReturn: true
-    };
-  }
-  
-  // If company not found, fall back to investment query handling
-  return await handleInvestmentQuery(context);
-}
+// async function handleDirectCompanyQuery(context: PipelineContext): Promise<StageHandlerResult> {
+//   const { userInput, state } = context;
+//
+//   const directCompany = findCompanyInAllData(userInput);
+//   if (directCompany) {
+//     // Company name directly entered - go straight to chart confirmation stage
+//     const newState: SessionState = {
+//       ...state,
+//       stage: 'ASK_CHART',
+//       selectedTicker: directCompany
+//     };
+//
+//     const companyName = getCompanyName(directCompany);
+//     const directChartQuestions = [
+//       `🎯 ${companyName} (${directCompany}) 분석을 시작하시겠습니까? 📊`,
+//       `📈 ${companyName} (${directCompany}) 차트 분석을 시작해볼까요? ✨`,
+//       `🚀 ${companyName} (${directCompany})의 주가 분석을 확인해 드릴까요? 💹`
+//     ];
+//
+//     // Get LSTM data
+//     const lstmAnalysis = await getDetailedLSTMAnalysis(directCompany);
+//     let analysisInfo = '';
+//
+//     if (lstmAnalysis) {
+//       analysisInfo = `\n\n${lstmAnalysis.summary}${lstmAnalysis.details}`;
+//     }
+//
+//     const reply = `${directChartQuestions[Math.floor(Math.random() * directChartQuestions.length)]}${analysisInfo}`;
+//
+//     // 대화 기록 저장 제거
+//
+//     return {
+//       reply,
+//       newState,
+//       shouldReturn: true
+//     };
+//   }
+//
+//   // If company not found, fall back to investment query handling
+//   return await handleInvestmentQuery(context);
+// }
 
 /**
  * Handles investment queries (industry matching)
@@ -147,7 +146,8 @@ async function handleInvestmentQuery(
 
   // RAG score too low, classified as greeting (수정된 로직)
   if (industry === null) {
-    console.log(`🗣️ Input classified as greeting due to low RAG scores: "${userInput}"`);
+    // 로그 최적화: 상세 분류 로그 제거
+    // console.log(`🗣️ Input classified as greeting due to low RAG scores: "${userInput}"`);
     const reply = await generateDynamicResponse(userInput, 'greeting');
 
     return {
@@ -360,8 +360,9 @@ async function handleTickerSelection(context: PipelineContext, selectedTicker: s
 export async function handleAskChartStage(context: PipelineContext): Promise<StageHandlerResult> {
   const { userInput, state } = context;
 
-  console.log(`🎯 [ASK_CHART] 사용자 입력: "${userInput}"`);
-  console.log(`🎯 [ASK_CHART] 긍정 패턴 매칭: ${isPositive(userInput)}`);
+  // 로그 최적화: 상세 입력 분석 로그 제거
+  // console.log(`🎯 [ASK_CHART] 사용자 입력: "${userInput}"`);
+  // console.log(`🎯 [ASK_CHART] 긍정 패턴 매칭: ${isPositive(userInput)}`);
   console.log(`🎯 [ASK_CHART] 부정 패턴 매칭: ${isNegative(userInput)}`);
 
   // ASK_CHART 단계에서는 의도 분류 없이 직접 긍정/부정 응답만 확인
