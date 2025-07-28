@@ -239,7 +239,7 @@ export class NaverNewsSearcher {
   /**
    * 뉴스 검색 함수
    */
-  async searchNews(query: string, display: number = 10, sort: string = 'date'): Promise<{
+  async searchNews(query: string, display: number = 10, sort: string = 'sim'): Promise<{
     success: boolean;
     data: any;
     total: number;
@@ -258,7 +258,7 @@ export class NaverNewsSearcher {
       query: query,
       display: Math.min(display, 100),
       start: 1,
-      sort: ['sim', 'date'].includes(sort) ? sort : 'date'
+      sort: ['sim', 'date'].includes(sort) ? sort : 'sim'
     };
 
     try {
@@ -379,6 +379,71 @@ export class RAGNewsSearchSystem {
       };
     } else {
       console.error(`❌ [Intelligent Search] 실패 (${overallTime}ms):`, searchResult.error);
+
+      return {
+        success: false,
+        original_query: userQuery,
+        refined_query: refinedQuery,
+        search_intent: searchIntent,
+        total_found: 0,
+        items_returned: 0,
+        news_items: [],
+        refinement_success: refinementResult.success,
+        thinking_content: thinkingContent,
+        error: searchResult.error
+      };
+    }
+  }
+
+  /**
+   * 투자 동향 뉴스 대량 검색 (새로운 파이프라인용)
+   * RAG reasoning으로 정제된 쿼리로 30개 뉴스를 한 번에 검색
+   */
+  async searchInvestmentTrendNews(userQuery: string): Promise<NewsSearchResult> {
+    const overallStartTime = Date.now();
+    console.log(`📈 [Investment Trend Search] 투자 동향 뉴스 대량 검색 시작: "${userQuery}"`);
+
+    // 1단계: RAG reasoning으로 투자 관련 쿼리 정제
+    const refinementResult = await this.ragExecutor.refineSearchQuery(userQuery);
+
+    const refinedQuery = refinementResult.refined_query;
+    const searchIntent = refinementResult.search_intent;
+    const thinkingContent = refinementResult.thinking_content || '';
+
+    console.log(`📈 [Investment Trend Search] RAG reasoning 완료:`);
+    console.log(`   정제된 쿼리: "${refinedQuery}"`);
+    console.log(`   검색 의도: ${searchIntent}`);
+
+    // 2단계: 정제된 쿼리로 네이버 뉴스 30개 검색
+    const searchResult = await this.newsSearcher.searchNews(
+      refinedQuery,
+      30,
+      'date'
+    );
+
+    const overallTime = Date.now() - overallStartTime;
+
+    if (searchResult.success) {
+      const formattedItems = searchResult.items.map(item =>
+        this.newsSearcher.formatNewsItem(item)
+      );
+
+      console.log(`✅ [Investment Trend Search] 투자 동향 뉴스 검색 완료 (${overallTime}ms)`);
+      console.log(`   검색된 뉴스: ${formattedItems.length}개 (목표: 30개)`);
+
+      return {
+        success: true,
+        original_query: userQuery,
+        refined_query: refinedQuery,
+        search_intent: searchIntent,
+        total_found: searchResult.total,
+        items_returned: formattedItems.length,
+        news_items: formattedItems,
+        refinement_success: refinementResult.success,
+        thinking_content: thinkingContent
+      };
+    } else {
+      console.error(`❌ [Investment Trend Search] 실패 (${overallTime}ms):`, searchResult.error);
 
       return {
         success: false,

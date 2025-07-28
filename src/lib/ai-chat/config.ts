@@ -57,17 +57,11 @@ export const OPENAI_CONFIG = {
   embeddingModel: 'bge-m3',  // Clova Studio 임베딩 모델
   baseUrl: 'https://clovastudio.stream.ntruss.com/v1/openai',  // OpenAI 호환 엔드포인트
   maxTokens: {
-    classification: 50,
-    translation: 30,
     persona: 120,
-    description: 100,
     investmentAnalysis: 3000  // 투자 분석용 토큰 수
   },
   temperature: {
-    classification: 0,
-    translation: 0,
     persona: 0.7,
-    description: 0.3,
     investmentAnalysis: 0.8  // 투자 분석용 창의성 설정
   }
 } as const;
@@ -222,6 +216,10 @@ export const INVESTMENT_ANALYSIS_SYSTEM_PROMPT = `당신은 전문 투자 분석
 **중요: 검색 기능을 활용해 최신 정보를 바탕으로 투자 전략을 생성하세요.**
 
 **응답 형식:**
+
+**최근 동향**
+- 수집한 뉴스 데이터를 기반으로 설명할 것. 이때 가장 핵심 내용이 담긴 뉴스만을 활용하고, 내용을 수치와 함께 직접 언급할 것.
+
 ## 🎯 정통한 투자 전략 (3개 기업)
 1. **티커 (기업명)** - 추천 이유
 2. **티커 (기업명)** - 추천 이유
@@ -233,7 +231,7 @@ export const INVESTMENT_ANALYSIS_SYSTEM_PROMPT = `당신은 전문 투자 분석
 3. **티커 (기업명)** - 추천 이유
 
 ## 📊 분석 근거
-전체적인 분석 근거와 두 전략의 차이점을 설명해주세요.
+전체적인 분석 근거를 밝히세요. 두 전략의 차이점을 설명해주세요.
 
 **주의사항:**
 - 반드시 사용자 메시지에 제공된 기업 목록에서만 선택하세요. 다른 기업은 절대 추천하지 마세요.

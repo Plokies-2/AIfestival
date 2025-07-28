@@ -21,7 +21,7 @@ import {
 } from './config';
 import { findBestPersona, classifyInvestmentIntent } from './rag-service';
 import { FunctionCallingExecutor } from './function-calling-tools';
-import { NewsItem } from './news-service';
+import { NewsItem, NewsSearchResult, RAGNewsSearchSystem } from './news-service';
 
 // ============================================================================
 // OpenAI Client 초기화 (복구됨)
@@ -471,110 +471,102 @@ export interface EnhancedInvestmentAnalysisResult {
 export async function generateEnhancedInvestmentAnalysis(
   input: InvestmentRecommendationInput
 ): Promise<EnhancedInvestmentAnalysisResult> {
-  console.log(`🚀 [Enhanced Analysis] 검색 기능이 통합된 투자 분석 시작`);
+  const overallStartTime = Date.now();
+  console.log(`🚀 [New Pipeline] 검색 최적화된 투자 분석 시작`);
+  console.log(`🔧 [New Pipeline] 사용자 메시지: "${input.userMessage.substring(0, 50)}..."`);
+  console.log(`🔧 [New Pipeline] 선택된 산업 수: ${input.selectedIndustries.length}`);
+
+  const functionExecutor = new FunctionCallingExecutor();
+  const newsSearchSystem = new RAGNewsSearchSystem();
 
   try {
-    if (!openai) {
-      throw new Error('OpenAI client not initialized - CLOVA_STUDIO_API_KEY is required');
+    // 1단계: RAG reasoning으로 투자 동향 뉴스 30개 검색
+    console.log(`💡 [New Pipeline] 1단계: 투자 동향 뉴스 대량 검색 (30개)`);
+    const trendSearchResult = await newsSearchSystem.searchInvestmentTrendNews(input.userMessage);
+
+    if (!trendSearchResult.success) {
+      throw new Error('투자 동향 뉴스 검색 실패');
     }
 
-    const functionExecutor = new FunctionCallingExecutor();
-
-    // Function Calling 로그 초기화
-    functionExecutor.clearFunctionCallLogs();
-
-    // 1단계: RAG reasoning으로 최신 동향 검색
-    console.log(`📰 [Enhanced Analysis] 1단계: 최신 동향 검색`);
-    console.log(`🔧 [Function Calling] search_latest_trends 호출 준비`);
-
-    const trendSearchResult = await functionExecutor.executeSearchLatestTrends({
-      user_query: input.userMessage,
-      max_results: 5
-    });
-
-    // 2단계: 선택된 기업들에 대한 최신 동향 검색
-    console.log(`🏢 [Enhanced Analysis] 2단계: 기업별 최신 동향 검색`);
-    const allCompanies = input.selectedIndustries.flatMap(industry =>
-      industry.companies.map(company => company.name)
-    );
-
-    // 중복 제거 및 최대 10개 기업으로 제한 (API 호출 최적화)
-    const uniqueCompanies = [...new Set(allCompanies)].slice(0, 10);
-    console.log(`🔧 [Function Calling] search_company_trends 호출 준비: ${uniqueCompanies.length}개 기업`);
-
-    const companySearchResults = await functionExecutor.executeSearchCompanyTrends({
-      company_names: uniqueCompanies,
-      max_results_per_company: 2
-    });
-
-    // 3단계: HCX-005 모델을 사용한 Function Calling으로 투자 전략 생성
-    console.log(`💡 [Enhanced Analysis] 3단계: HCX-005 Function Calling으로 투자 전략 생성`);
-    console.log(`🔧 [Function Calling] 모델: ${OPENAI_CONFIG.functionCallingModel}`);
-    console.log(`🔧 [Function Calling] generate_investment_strategies 호출 준비`);
-
-    // Function Calling으로 투자 전략 생성 실행
-    const strategyResult = await functionExecutor.executeGenerateInvestmentStrategies({
+    // 2단계: 뉴스 기반 기업 6개 추출 (정통한 3개 + 창의적 3개)
+    console.log(`💡 [New Pipeline] 2단계: 뉴스 기반 기업 추출 (6개)`);
+    const extractedCompanies = await functionExecutor.executeExtractCompaniesFromNews({
       user_message: input.userMessage,
-      trend_news: trendSearchResult.success ? trendSearchResult.news_items : [],
-      company_news: companySearchResults,
-      selected_industries: input.selectedIndustries,
-      rag_accuracy: input.ragAccuracy
+      trend_news: trendSearchResult.news_items,
+      selected_industries: input.selectedIndustries
     });
 
-    console.log(`✅ [Function Calling] generate_investment_strategies 완료`);
+    // 3단계: 추출된 기업 6개만 개별 뉴스 검색
+    console.log(`💡 [New Pipeline] 3단계: 추출된 기업 개별 뉴스 검색 (6개)`);
+    const companySearchResults: { [companyName: string]: NewsSearchResult } = {};
 
-    // Function Calling 결과를 사용하여 구조화된 데이터 구성
-    const parsedResult = {
-      traditionalStrategy: strategyResult.traditionalStrategy || [],
-      creativeStrategy: strategyResult.creativeStrategy || [],
-      analysisReasoning: strategyResult.analysisReasoning || '검색 기반 투자 분석이 완료되었습니다.'
-    };
+    const allExtractedCompanies = [
+      ...extractedCompanies.traditional_companies,
+      ...extractedCompanies.creative_companies
+    ];
 
-    console.log(`✅ [Enhanced Analysis] Function Calling 기반 투자 분석 완료`);
+    for (const company of allExtractedCompanies) {
+      try {
+        const companyResult = await newsSearchSystem.searchCompanyNews(company.name, 6);
+        companySearchResults[company.name] = companyResult;
+        console.log(`   ✅ ${company.name}: ${companyResult.success ? companyResult.news_items.length : 0}개 뉴스 (목표: 6개)`);
+      } catch (error) {
+        console.error(`   ❌ ${company.name} 검색 실패:`, error);
+      }
+    }
+
+    // 4단계: 산업 동향 중심 최종 투자 전략 생성
+    console.log(`💡 [New Pipeline] 4단계: 산업 동향 중심 최종 분석`);
 
     // 검색 결과 정리
-    const trendNews = trendSearchResult.success ? trendSearchResult.news_items : [];
     const companyNews: { [companyName: string]: NewsItem[] } = {};
-
     Object.entries(companySearchResults).forEach(([company, result]) => {
       if (result.success) {
         companyNews[company] = result.news_items;
       }
     });
 
-    // 검색 요약 생성
-    const searchSummary = `최신 동향 뉴스 ${trendNews.length}개, 기업별 뉴스 ${Object.keys(companyNews).length}개 기업 정보 수집 완료`;
-
+    // 최종 결과 구성 (새로운 답변 구조 적용)
+    // 현재는 간단히 추출된 기업 정보를 사용하고, 나중에 산업 동향 중심 분석 함수 추가 예정
     const result: EnhancedInvestmentAnalysisResult = {
-      traditionalStrategy: parsedResult.traditionalStrategy,
-      creativeStrategy: parsedResult.creativeStrategy,
-      analysisReasoning: parsedResult.analysisReasoning,
-      trendNews,
+      traditionalStrategy: extractedCompanies.traditional_companies,
+      creativeStrategy: extractedCompanies.creative_companies,
+      analysisReasoning: extractedCompanies.market_analysis,
+      trendNews: trendSearchResult.news_items,
       companyNews,
-      searchSummary
+      searchSummary: `투자 동향 뉴스 ${trendSearchResult.news_items.length}개 분석, 추출된 기업 ${allExtractedCompanies.length}개 개별 검색 완료 (기업당 최대 6개 뉴스)`
     };
 
-    // Function Calling 로그 출력
-    const functionLogs = functionExecutor.getFunctionCallLogs();
-    console.log(`🔧 [Function Calling] 총 ${functionLogs.length}개 함수 호출 완료`);
-    functionLogs.forEach((log, index) => {
-      console.log(`   ${index + 1}. ${log.functionName} (${log.executionTime}ms) - ${log.success ? '성공' : '실패'}`);
-    });
-
-    console.log(`✅ [Enhanced Analysis] 검색 기능이 통합된 투자 분석 완료`);
-    console.log(`📊 [Enhanced Analysis] 결과 요약:`, {
-      traditionalCount: result.traditionalStrategy.length,
-      creativeCount: result.creativeStrategy.length,
-      trendNewsCount: result.trendNews.length,
-      companyNewsCount: Object.keys(result.companyNews).length,
-      functionCallsExecuted: functionLogs.length
-    });
+    const overallTime = Date.now() - overallStartTime;
+    console.log(`✅ [New Pipeline] 전체 분석 완료 (${overallTime}ms)`);
+    console.log(`✅ [New Pipeline] API 사용량: 총 7회 (동향 1회 + 기업 6회)`);
+    console.log(`✅ [New Pipeline] 결과 요약: {
+  traditionalCount: ${result.traditionalStrategy.length},
+  creativeCount: ${result.creativeStrategy.length},
+  trendNewsCount: ${result.trendNews.length},
+  extractedCompaniesCount: ${allExtractedCompanies.length},
+  companyNewsCount: ${Object.keys(result.companyNews).length}
+}`);
 
     return result;
 
   } catch (error) {
-    console.error('❌ 검색 기능이 통합된 투자 분석 실패:', error);
-    throw error;
+    const overallTime = Date.now() - overallStartTime;
+    console.error(`❌ [New Pipeline] 전체 분석 실패 (${overallTime}ms):`, error);
+
+    // 오류 발생 시 기존 방식으로 폴백
+    console.log(`🔄 [New Pipeline] 기존 방식으로 폴백 시도`);
+
+    // 기존 방식 결과를 새로운 형식으로 변환
+    const fallbackResult = await generateInvestmentRecommendations(input);
+    return {
+      traditionalStrategy: fallbackResult.traditionalStrategy,
+      creativeStrategy: fallbackResult.creativeStrategy,
+      analysisReasoning: fallbackResult.analysisReasoning,
+      trendNews: [],
+      companyNews: {},
+      searchSummary: '폴백 모드: 기존 분석 방식 사용'
+    };
   }
 }
 
