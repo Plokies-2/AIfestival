@@ -10,6 +10,8 @@
     "regenerate-embeddings": "node src/data/corpus/regenerate-embeddings.js"
   },
   "dependencies": {
+    "@types/uuid": "^10.0.0",
+    "axios": "^1.11.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lightweight-charts": "^4.2.3",
@@ -20,7 +22,8 @@
     "react-dom": "^19.0.0",
     "recharts": "^2.12.4",
     "tailwind-merge": "^2.6.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/node": "^20",

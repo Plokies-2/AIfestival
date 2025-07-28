@@ -12,7 +12,9 @@ import { QUICK_ENRICHED_FINAL as DATA } from '@/data/sp500_enriched_final';
 import { RAG_THRESHOLDS } from './config';
 import {
   classifyUserIntent,
-  generateDynamicResponse
+  generateDynamicResponse,
+  generateEnhancedInvestmentAnalysis,
+  InvestmentRecommendationInput
 } from './ai-service';
 import {
   findBestIndustries,
@@ -370,37 +372,134 @@ export async function handleAskChartStage(context: PipelineContext): Promise<Sta
 }
 
 /**
- * Handles positive chart confirmation
+ * Handles positive chart confirmation - 이제 검색 기능이 통합된 투자 분석 실행
  */
 async function handleChartConfirmation(context: PipelineContext): Promise<StageHandlerResult> {
-  const { state } = context;
-  
-  const ticker = state.selectedTicker!;
-  const chartResponses = [
-    `🎉 ${getCompanyName(ticker)} (${ticker}) 차트입니다. SpeedTraffic도 준비하는 중! 📈`,
-    `✨ ${getCompanyName(ticker)}는 투자해도 될까요? 같이 분석 도와드릴게요! 💹`,
-    `🚀 ${getCompanyName(ticker)} 분석을 요청주셨네요. 조금만 기다려 주세요! 📊`
-  ];
-  const reply = chartResponses[Math.floor(Math.random() * chartResponses.length)];
+  const { state, userInput } = context;
 
-  // Reset session after chart request (for new search)
-  const resetState: SessionState = {
-    stage: 'START',
-    selectedIndustry: null,
-    industryCompanies: [],
-    selectedTicker: null,
-    conversationHistory: state.conversationHistory,
-    lastActivity: Date.now()
-  };
+  console.log(`🚀 [Chart Confirmation] 검색 기능이 통합된 투자 분석 시작`);
+  console.log(`🔧 [Chart Confirmation] handleChartConfirmation 함수 호출됨!`);
 
-  return {
-    reply,
-    newState: resetState,
-    additionalData: {
-      symbol: ticker,
-      status: 'chart_requested'
+  try {
+    // 현재 세션에서 선택된 산업과 기업 정보 수집
+    const selectedIndustries = [];
+
+    if (state.selectedIndustry && state.industryCompanies.length > 0) {
+      // 간단한 산업 정보 구성
+      const companies = state.industryCompanies.map(ticker => ({
+        ticker: ticker,
+        name: getCompanyName(ticker),
+        industry: state.selectedIndustry || 'Unknown'
+      }));
+
+      selectedIndustries.push({
+        industry_ko: state.selectedIndustry,
+        sp500_industry: state.selectedIndustry,
+        score: 0.8, // 기본 점수
+        companies: companies
+      });
     }
-  };
+
+    // 사용자의 원본 메시지 재구성 (대화 히스토리에서 추출)
+    const originalUserMessage = state.conversationHistory.length > 0
+      ? (typeof state.conversationHistory[0] === 'string'
+         ? state.conversationHistory[0]
+         : state.conversationHistory[0].user)
+      : `${state.selectedIndustry} 산업에 투자하고 싶습니다.`;
+
+    // 검색 기능이 통합된 투자 분석 실행
+    const input: InvestmentRecommendationInput = {
+      userMessage: originalUserMessage,
+      selectedIndustries: selectedIndustries,
+      ragAccuracy: 0.8
+    };
+
+    console.log(`📊 [Chart Confirmation] 투자 분석 입력:`, {
+      userMessage: input.userMessage,
+      industriesCount: input.selectedIndustries.length,
+      companiesCount: input.selectedIndustries.reduce((sum, industry) => sum + industry.companies.length, 0)
+    });
+
+    const analysisResult = await generateEnhancedInvestmentAnalysis(input);
+
+    // 분석 결과를 사용자 친화적 형태로 포맷팅
+    let reply = `🎯 **검색 기반 투자 분석 결과**\n\n`;
+
+    // 검색 요약 추가
+    reply += `📰 **최신 정보 수집**: ${analysisResult.searchSummary}\n\n`;
+
+    // 정통한 전략
+    if (analysisResult.traditionalStrategy.length > 0) {
+      reply += `## 🎯 정통한 투자 전략\n`;
+      analysisResult.traditionalStrategy.forEach((strategy, index) => {
+        reply += `${index + 1}. **${strategy.ticker} (${strategy.name})** - ${strategy.reason}\n`;
+      });
+      reply += `\n`;
+    }
+
+    // 창의적 전략
+    if (analysisResult.creativeStrategy.length > 0) {
+      reply += `## 🚀 창의적 투자 전략\n`;
+      analysisResult.creativeStrategy.forEach((strategy, index) => {
+        reply += `${index + 1}. **${strategy.ticker} (${strategy.name})** - ${strategy.reason}\n`;
+      });
+      reply += `\n`;
+    }
+
+    // 최신 동향 뉴스 요약 (상위 3개만)
+    if (analysisResult.trendNews.length > 0) {
+      reply += `## 📰 관련 최신 동향\n`;
+      analysisResult.trendNews.slice(0, 3).forEach((news, index) => {
+        reply += `${index + 1}. ${news.title}\n`;
+      });
+      reply += `\n`;
+    }
+
+    reply += `💡 더 자세한 분석이 필요하시면 언제든 말씀해 주세요!`;
+
+    console.log(`✅ [Chart Confirmation] 검색 기반 투자 분석 완료`);
+
+    // Reset session after analysis (for new search)
+    const resetState: SessionState = {
+      stage: 'START',
+      selectedIndustry: null,
+      industryCompanies: [],
+      selectedTicker: null,
+      conversationHistory: state.conversationHistory,
+      lastActivity: Date.now()
+    };
+
+    return {
+      reply,
+      newState: resetState,
+      additionalData: {
+        status: 'enhanced_analysis_completed'
+      }
+    };
+
+  } catch (error) {
+    console.error('❌ [Chart Confirmation] 검색 기반 투자 분석 실패:', error);
+
+    // 오류 발생 시 기본 응답
+    const fallbackReply = `죄송합니다. 투자 분석 중 오류가 발생했습니다. 다시 시도해 주세요. 🙏`;
+
+    const resetState: SessionState = {
+      stage: 'START',
+      selectedIndustry: null,
+      industryCompanies: [],
+      selectedTicker: null,
+      conversationHistory: state.conversationHistory,
+      lastActivity: Date.now()
+    };
+
+    return {
+      reply: fallbackReply,
+      newState: resetState,
+      additionalData: {
+        status: 'analysis_failed'
+      }
+    };
+  }
 }
 
 /**

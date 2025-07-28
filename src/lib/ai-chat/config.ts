@@ -52,7 +52,8 @@ export const PATTERNS: PatternConfig = {
  */
 export const OPENAI_CONFIG = {
   model: 'hcx-dash-002',  // Clova Studio Chat 모델 (기본)
-  investmentAnalysisModel: 'HCX-003',  // 투자 분석용 고급 모델
+  functionCallingModel: 'HCX-005',  // Function calling 지원 모델
+  investmentAnalysisModel: 'HCX-005',  // 투자 분석용 고급 모델 (function calling 지원)
   embeddingModel: 'bge-m3',  // Clova Studio 임베딩 모델
   baseUrl: 'https://clovastudio.stream.ntruss.com/v1/openai',  // OpenAI 호환 엔드포인트
   maxTokens: {
@@ -218,7 +219,7 @@ export const ENV_CONFIG = {
  */
 export const INVESTMENT_ANALYSIS_SYSTEM_PROMPT = `당신은 전문 투자 분석가입니다. 사용자의 투자 관심사와 선택된 산업, 기업들을 분석하여 다음과 같이 응답해주세요:
 
-**중요: 사용자 메시지에 제공된 기업 목록을 반드시 확인하고 그 목록에서만 기업을 선택하세요.**
+**중요: 검색 기능을 활용해 최신 정보를 바탕으로 투자 전략을 생성하세요.**
 
 **응답 형식:**
 ## 🎯 정통한 투자 전략 (3개 기업)

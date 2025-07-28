@@ -1,7 +1,8 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { 
+import {
   generateInvestmentRecommendations,
-  InvestmentRecommendationInput 
+  generateEnhancedInvestmentAnalysis,
+  InvestmentRecommendationInput
 } from '@/lib/ai-chat/ai-service';
 import { 
   enhanceResponseWithLSTMData 
@@ -92,12 +93,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ragAccuracy: investmentInput.ragAccuracy
     });
 
-    // 고급 모델을 사용한 투자 분석
-    const investmentRecommendation = await generateInvestmentRecommendations(investmentInput);
+    // 🚀 검색 기능이 통합된 고급 투자 분석 (HCX-005 Function Calling + 네이버 뉴스 API)
+    console.log(`🚀 [Enhanced Analysis] 검색 기능이 통합된 투자 분석 시작`);
+    const investmentRecommendation = await generateEnhancedInvestmentAnalysis(investmentInput);
 
-    // LLM 분석 결과를 기반으로 응답 생성
-    let reply = `🎯 투자 관심 분야를 분석한 결과, 다음과 같이 추천드립니다!\n\n`;
-    
+    // 🔍 검색 기능이 통합된 분석 결과를 기반으로 응답 생성
+    let reply = `🎯 **검색 기반 투자 분석 결과**\n\n`;
+
+    // 검색 요약 추가
+    if (investmentRecommendation.searchSummary) {
+      reply += `📰 **최신 정보 수집**: ${investmentRecommendation.searchSummary}\n\n`;
+    }
+
     // 정통한 전략 섹션
     if (investmentRecommendation.traditionalStrategy.length > 0) {
       reply += `## 🎯 정통한 투자 전략\n`;
@@ -116,12 +123,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       reply += `\n`;
     }
 
-    // 분석 근거 추가
-    if (investmentRecommendation.analysisReasoning) {
-      reply += `${investmentRecommendation.analysisReasoning}\n\n`;
+    // 최신 동향 뉴스 요약 (상위 3개만)
+    if (investmentRecommendation.trendNews && investmentRecommendation.trendNews.length > 0) {
+      reply += `## 📰 관련 최신 동향\n`;
+      investmentRecommendation.trendNews.slice(0, 3).forEach((news, index) => {
+        reply += `${index + 1}. ${news.title}\n`;
+      });
+      reply += `\n`;
     }
 
-    reply += `어떤 기업이 더 궁금하신가요? 😊`;
+    // 분석 근거 추가
+    if (investmentRecommendation.analysisReasoning) {
+      reply += `### 📈 분석 근거\n${investmentRecommendation.analysisReasoning}\n\n`;
+    }
+
+    reply += `💡 더 자세한 분석이 필요하시면 언제든 말씀해 주세요!`;
 
     console.log(`✅ [상세 분석] 고급 모델 응답 생성 완료`);
 
