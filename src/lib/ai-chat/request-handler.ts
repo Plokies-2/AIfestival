@@ -264,6 +264,9 @@ export async function handleChatRequest(req: NextApiRequest, res: NextApiRespons
     // Process through pipeline
     const response = await processPipeline(context);
 
+    // 1차 답변에 1.75초 delay 추가
+    await new Promise(resolve => setTimeout(resolve, 1750));
+
     // 디버깅: 응답 데이터 로깅 (필요시 활성화)
     // console.log('📤 [API 응답] 전송 데이터:', {
     //   reply: response.reply.substring(0, 100) + '...',

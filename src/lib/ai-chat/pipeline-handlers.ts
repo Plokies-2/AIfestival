@@ -175,6 +175,34 @@ async function handleInvestmentQuery(
     // 첫 번째 산업을 주 산업으로 설정 (기존 로직과의 호환성)
     const primaryIndustry = industryResults[0];
 
+    // RAG 점수 0.4 미만 처리: 더 자세한 정보 요청 메시지 출력 후 초기 상태로 돌아가기
+    if (primaryIndustry.score < 0.4) {
+      const detailRequestMessages = [
+        "🤔 좀 더 구체적으로 알려주시면 더 정확한 추천을 드릴 수 있어요! 어떤 분야에 관심이 있으신지 자세히 말씀해 주세요.",
+        "💡 투자하고 싶은 분야를 조금 더 자세히 설명해 주시면 맞춤형 추천을 해드릴게요!",
+        "🎯 관심 있는 산업이나 기업 유형을 더 구체적으로 말씀해 주시면 정확한 분석을 도와드릴 수 있어요.",
+        "📈 투자 관심사를 좀 더 상세하게 알려주시면 더 나은 투자 기회를 찾아드릴게요!",
+        "🔍 어떤 종류의 투자에 관심이 있으신지 더 자세히 설명해 주시면 맞춤 추천을 해드릴 수 있어요!"
+      ];
+
+      // 메시지 rotate를 위한 인덱스 계산 (세션 ID 기반)
+      const messageIndex = Math.abs(sessionId.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % detailRequestMessages.length;
+      const reply = detailRequestMessages[messageIndex];
+
+      console.log(`⚠️ [RAG 점수 부족] 1순위 산업 점수 ${primaryIndustry.score.toFixed(3)} < 0.4 → 더 자세한 정보 요청 (메시지 ${messageIndex + 1}/5)`);
+
+      return {
+        reply,
+        newState: {
+          ...state,
+          stage: 'START', // 초기 상태로 돌아가기
+          selectedIndustry: null,
+          industryCompanies: [],
+          selectedTicker: null
+        }
+      };
+    }
+
     const newState: SessionState = {
       ...state,
       stage: 'SHOW_INDUSTRY',

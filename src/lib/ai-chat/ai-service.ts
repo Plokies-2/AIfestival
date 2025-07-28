@@ -218,7 +218,7 @@ function getSimpleFallbackResponse(intent: string): string {
 }
 
 // ============================================================================
-// 투자 분석 및 기업 추천 (HCX-005 모델 사용)
+// 투자 분석 및 기업 추천 (고급 모델 사용)
 // ============================================================================
 
 /**
@@ -254,7 +254,7 @@ export interface InvestmentRecommendationResult {
 }
 
 /**
- * HCX-005 모델을 사용한 투자 분석 및 기업 추천
+ * 고급 모델을 사용한 투자 분석 및 기업 추천
  * 사용자의 메시지와 선택된 산업, 기업들을 기반으로 정통한 전략과 창의적 전략으로 각각 3개씩 기업을 추천
  */
 export async function generateInvestmentRecommendations(
@@ -284,11 +284,16 @@ export async function generateInvestmentRecommendations(
       input.ragAccuracy
     );
 
-    console.log(`🤖 [투자 분석] HCX-005 모델로 투자 추천 생성 시작`);
+    console.log(`🤖 [투자 분석] 고급 모델로 투자 추천 생성 시작`);
     console.log(`📝 [투자 분석] 전달되는 사용자 메시지:`, userMessage);
+    console.log(`🏢 [투자 분석] 기업 데이터 확인:`, {
+      industriesCount: input.selectedIndustries.length,
+      totalCompanies: input.selectedIndustries.reduce((sum, industry) => sum + industry.companies.length, 0),
+      industriesInfo: industriesInfo.substring(0, 500) + '...'
+    });
 
     const response = await openai.chat.completions.create({
-      model: OPENAI_CONFIG.investmentAnalysisModel, // HCX-005 모델 사용
+      model: OPENAI_CONFIG.investmentAnalysisModel, // 고급 모델 사용
       messages: [
         {
           role: 'system',
@@ -309,7 +314,7 @@ export async function generateInvestmentRecommendations(
       throw new Error('투자 분석 응답 생성 실패');
     }
 
-    console.log(`✅ [투자 분석] HCX-005 모델 응답 생성 완료`);
+    console.log(`✅ [투자 분석] 고급 모델 응답 생성 완료`);
 
     // 응답을 파싱하여 구조화된 데이터로 변환
     return parseInvestmentRecommendation(aiResponse);
@@ -326,6 +331,9 @@ export async function generateInvestmentRecommendations(
 function parseInvestmentRecommendation(
   aiResponse: string
 ): InvestmentRecommendationResult {
+  console.log(`🔍 [응답 파싱] AI 응답 길이: ${aiResponse.length}자`);
+  console.log(`🔍 [응답 파싱] AI 응답 미리보기:`, aiResponse.substring(0, 300) + '...');
+
   // 기본 결과 구조
   const result: InvestmentRecommendationResult = {
     traditionalStrategy: [],
@@ -338,18 +346,34 @@ function parseInvestmentRecommendation(
     const traditionalMatch = aiResponse.match(/## 🎯 정통한 투자 전략[\s\S]*?(?=## 🚀|$)/);
     if (traditionalMatch) {
       const traditionalSection = traditionalMatch[0];
-      const traditionalItems = traditionalSection.match(/\d+\.\s*\*\*\[([^\]]+)\]\s*([^*]+)\*\*\s*-\s*([^\n]+)/g);
+      console.log(`🔍 [파싱] 정통한 전략 섹션:`, traditionalSection.substring(0, 200) + '...');
+
+      // 실제 AI 응답 형식에 맞는 정규식: **GM (General Motors)** - 설명
+      const traditionalItems = traditionalSection.match(/\d+\.\s*\*\*([^*]+)\*\*\s*-\s*([^\n]+)/g);
+      console.log(`🔍 [파싱] 정통한 전략 아이템 수:`, traditionalItems?.length || 0);
 
       if (traditionalItems) {
-        traditionalItems.slice(0, 3).forEach(item => {
-          const match = item.match(/\*\*\[([^\]]+)\]\s*([^*]+)\*\*\s*-\s*(.+)/);
+        traditionalItems.slice(0, 3).forEach((item, index) => {
+          console.log(`🔍 [파싱] 정통한 전략 아이템 ${index + 1}:`, item);
+          const match = item.match(/\d+\.\s*\*\*([^*]+)\*\*\s*-\s*(.+)/);
           if (match) {
-            const [, ticker, name, reason] = match;
-            result.traditionalStrategy.push({
-              ticker: ticker.trim(),
-              name: name.trim(),
-              reason: reason.trim()
-            });
+            const [, companyInfo, reason] = match;
+            // 티커와 회사명 분리: "GM (General Motors)" -> ticker: "GM", name: "General Motors"
+            const companyMatch = companyInfo.trim().match(/^([A-Z]+)\s*\(([^)]+)\)$/) ||
+                                companyInfo.trim().match(/^([A-Z]+)\s+(.+)$/) ||
+                                [null, companyInfo.trim(), companyInfo.trim()];
+
+            if (companyMatch) {
+              const ticker = companyMatch[1]?.trim() || companyInfo.trim();
+              const name = companyMatch[2]?.trim() || companyInfo.trim();
+
+              result.traditionalStrategy.push({
+                ticker,
+                name,
+                reason: reason.trim()
+              });
+              console.log(`✅ [파싱] 정통한 전략 추가:`, { ticker, name, reason: reason.substring(0, 50) + '...' });
+            }
           }
         });
       }
@@ -359,18 +383,34 @@ function parseInvestmentRecommendation(
     const creativeMatch = aiResponse.match(/## 🚀 창의적 투자 전략[\s\S]*?(?=## 📊|$)/);
     if (creativeMatch) {
       const creativeSection = creativeMatch[0];
-      const creativeItems = creativeSection.match(/\d+\.\s*\*\*\[([^\]]+)\]\s*([^*]+)\*\*\s*-\s*([^\n]+)/g);
+      console.log(`🔍 [파싱] 창의적 전략 섹션:`, creativeSection.substring(0, 200) + '...');
+
+      // 실제 AI 응답 형식에 맞는 정규식: **GM (General Motors)** - 설명
+      const creativeItems = creativeSection.match(/\d+\.\s*\*\*([^*]+)\*\*\s*-\s*([^\n]+)/g);
+      console.log(`🔍 [파싱] 창의적 전략 아이템 수:`, creativeItems?.length || 0);
 
       if (creativeItems) {
-        creativeItems.slice(0, 3).forEach(item => {
-          const match = item.match(/\*\*\[([^\]]+)\]\s*([^*]+)\*\*\s*-\s*(.+)/);
+        creativeItems.slice(0, 3).forEach((item, index) => {
+          console.log(`🔍 [파싱] 창의적 전략 아이템 ${index + 1}:`, item);
+          const match = item.match(/\d+\.\s*\*\*([^*]+)\*\*\s*-\s*(.+)/);
           if (match) {
-            const [, ticker, name, reason] = match;
-            result.creativeStrategy.push({
-              ticker: ticker.trim(),
-              name: name.trim(),
-              reason: reason.trim()
-            });
+            const [, companyInfo, reason] = match;
+            // 티커와 회사명 분리: "GM (General Motors)" -> ticker: "GM", name: "General Motors"
+            const companyMatch = companyInfo.trim().match(/^([A-Z]+)\s*\(([^)]+)\)$/) ||
+                                companyInfo.trim().match(/^([A-Z]+)\s+(.+)$/) ||
+                                [null, companyInfo.trim(), companyInfo.trim()];
+
+            if (companyMatch) {
+              const ticker = companyMatch[1]?.trim() || companyInfo.trim();
+              const name = companyMatch[2]?.trim() || companyInfo.trim();
+
+              result.creativeStrategy.push({
+                ticker,
+                name,
+                reason: reason.trim()
+              });
+              console.log(`✅ [파싱] 창의적 전략 추가:`, { ticker, name, reason: reason.substring(0, 50) + '...' });
+            }
           }
         });
       }
@@ -386,6 +426,14 @@ function parseInvestmentRecommendation(
     console.warn('⚠️ 투자 추천 파싱 실패, 원본 응답 반환:', parseError);
     // 파싱 실패시 원본 응답을 그대로 사용
   }
+
+  console.log(`✅ [응답 파싱] 파싱 결과:`, {
+    traditionalCount: result.traditionalStrategy.length,
+    creativeCount: result.creativeStrategy.length,
+    hasReasoning: !!result.analysisReasoning,
+    traditionalTickers: result.traditionalStrategy.map(s => s.ticker),
+    creativeTickers: result.creativeStrategy.map(s => s.ticker)
+  });
 
   return result;
 }

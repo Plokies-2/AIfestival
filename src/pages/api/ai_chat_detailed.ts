@@ -14,7 +14,7 @@ import { QUICK_ENRICHED_FINAL as DATA } from '@/data/sp500_enriched_final';
 
 /**
  * 상세 투자 분석 API 엔드포인트
- * HCX-005 모델을 사용하여 심층적인 투자 추천을 제공
+ * 고급 모델을 사용하여 심층적인 투자 추천을 제공
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -49,7 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    console.log(`🤖 [상세 분석] HCX-005 모델로 투자 추천 생성 시작`);
+    console.log(`🤖 [상세 분석] 고급 모델로 투자 추천 생성 시작`);
 
     // 상세 분석 데이터 구조 로깅
     console.log(`📊 [상세 분석] 입력 데이터 구조:`, {
@@ -92,7 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ragAccuracy: investmentInput.ragAccuracy
     });
 
-    // HCX-005 모델을 사용한 투자 분석
+    // 고급 모델을 사용한 투자 분석
     const investmentRecommendation = await generateInvestmentRecommendations(investmentInput);
 
     // LLM 분석 결과를 기반으로 응답 생성
@@ -123,7 +123,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     reply += `어떤 기업이 더 궁금하신가요? 😊`;
 
-    console.log(`✅ [상세 분석] HCX-005 모델 응답 생성 완료`);
+    console.log(`✅ [상세 분석] 고급 모델 응답 생성 완료`);
 
     // LSTM 데이터로 응답 향상 (첫 번째 산업 기준)
     const primaryIndustryCompanies = analysisData.industryResults[0]?.companies || [];
