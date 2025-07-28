@@ -54,6 +54,7 @@ export interface SessionState {
     timestamp: number;
   }>;
   lastActivity: number; // For session cleanup optimization
+  pendingDetailedAnalysis?: any; // 상세 분석 대기 데이터
 }
 
 // ============================================================================
@@ -172,6 +173,7 @@ export interface ChatResponse {
   symbol?: string;
   status?: 'showing_companies' | 'chart_requested';
   hasMore?: boolean;
+  needsDetailedAnalysis?: boolean; // 상세 분석 필요 여부
 }
 
 /**
@@ -195,6 +197,7 @@ export interface StageHandlerResult {
     symbol?: string;
     status?: string;
     hasMore?: boolean;
+    needsDetailedAnalysis?: boolean; // 상세 분석 필요 여부
   };
 }
 

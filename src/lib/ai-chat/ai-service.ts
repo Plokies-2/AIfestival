@@ -10,7 +10,15 @@
 
 import OpenAI from 'openai';
 import { IntentClassificationResult } from './types';
-import { OPENAI_CONFIG, ENV_CONFIG } from './config';
+import {
+  OPENAI_CONFIG,
+  ENV_CONFIG,
+  INVESTMENT_ANALYSIS_SYSTEM_PROMPT,
+  ABOUT_AI_SYSTEM_PROMPT,
+  GREETING_SYSTEM_PROMPT,
+  DEFAULT_SYSTEM_PROMPT,
+  INVESTMENT_ANALYSIS_USER_MESSAGE_TEMPLATE
+} from './config';
 import { findBestPersona, classifyInvestmentIntent } from './rag-service';
 
 // ============================================================================
@@ -131,35 +139,15 @@ export async function generateDynamicResponse(userInput: string, intent: string)
 
   switch (intent) {
     case 'about_ai':
-      systemMessage = `당신은 '사용자 맞춤형 투자지원 AI'입니다. 당신은 2025년 7월에 탄생했으며,
-       미래에셋증권 AI 패스티벌을 위해 만들어졌으며, NAVER CLOVA의 기술력을 바탕으로 만들어졌습니다. 
-       당신이 가장 잘 하는 것은 '기업 이름같은 세세한 정보를 모르더라도, 투자 분야에 대한 아이디어만 있다면 투자처를
-       적절하게 찾아내는 것'입니다. 따라서 대략적인 투자 아이디어라도 충분한 정보를 제공할 수 있음을 강조하세요.
-       만들어진 지는 오래 되진 않았지만, S&P500 기업 분석, 산업 분류, 차트 분석 및 요약
-       등 여러 가지 강력한 투자 관련 기능을 가지고 있습니다. 사용자가 AI의 정체성, 나이, 능력에 대해 질문할 때는
-       구체적이고 자신감 있게 답변하세요. 투자와 거리가 있는 CLOVA에 대한 질문에도 친절히 답변하세요.
-       답변할 때엔 존댓말을 유지하며 최대한 친절하게 답합니다.
-       이모티콘을 최대 3개까지 사용할 수 있으며, 최소 1개는 사용해야 합니다.
-       주의: ** 로 문장을 절대 강조하지 말 것.`;
+      systemMessage = ABOUT_AI_SYSTEM_PROMPT;
       break;
 
     case 'greeting':
-      systemMessage = `당신은 '사용자 맞춤형 투자지원 AI'입니다. 당신은 2025년 7월에 탄생했으며,
-       사용자가 S&P500 투자를 성공하도록 돕는 역할을 부여받았습니다. 인사, 안부, 첫 만남 상황에서는
-       따뜻하고 친근한 톤으로 응답하며, 자연스럽게 사용자가 '미국 부동산 시장이 요즘 괜찮다던데..',
-       '요즘 정세가 불안정해서 미국 방산주가 괜찮아 보이는데?' 
-       같은 비정형적 투자 질의를 하도록 유도하세요. 답변할 때엔 존댓말을 유지하며 최대한 친절하게 답합니다.
-       이모티콘을 최대 3개까지 사용할 수 있으며, 최소 1개는 사용해야 합니다.
-       주의: ** 로 문장을 절대 강조하지 말 것.`;
+      systemMessage = GREETING_SYSTEM_PROMPT;
       break;
 
-
     default:
-      systemMessage = `당신은 '사용자 맞춤형 투자지원 AI'입니다. 당신은 2025년 7월에 탄생했으며,
-       사용자가 S&P500 투자를 성공하도록 돕는 역할을 부여받았습니다.
-       답변할 때엔 존댓말을 유지하며 최대한 친절하게 답합니다.
-       이모티콘을 최대 3개까지 사용할 수 있으며, 최소 1개는 사용해야 합니다.
-       주의: ** 로 문장을 절대 강조하지 말 것.`;
+      systemMessage = DEFAULT_SYSTEM_PROMPT;
   }
 
   // Intent별 차별화된 max_tokens 설정
@@ -227,6 +215,179 @@ function getSimpleFallbackResponse(intent: string): string {
     default:
       return '호출 오류!';
   }
+}
+
+// ============================================================================
+// 투자 분석 및 기업 추천 (HCX-005 모델 사용)
+// ============================================================================
+
+/**
+ * 투자 분석 및 기업 추천 인터페이스
+ */
+export interface InvestmentRecommendationInput {
+  userMessage: string;
+  selectedIndustries: Array<{
+    industry_ko: string;
+    sp500_industry: string;
+    score: number;
+    companies: Array<{
+      ticker: string;
+      name: string;
+      industry: string;
+    }>;
+  }>;
+  ragAccuracy: number;
+}
+
+export interface InvestmentRecommendationResult {
+  traditionalStrategy: Array<{
+    ticker: string;
+    name: string;
+    reason: string;
+  }>;
+  creativeStrategy: Array<{
+    ticker: string;
+    name: string;
+    reason: string;
+  }>;
+  analysisReasoning: string;
+}
+
+/**
+ * HCX-005 모델을 사용한 투자 분석 및 기업 추천
+ * 사용자의 메시지와 선택된 산업, 기업들을 기반으로 정통한 전략과 창의적 전략으로 각각 3개씩 기업을 추천
+ */
+export async function generateInvestmentRecommendations(
+  input: InvestmentRecommendationInput
+): Promise<InvestmentRecommendationResult> {
+  try {
+    if (!openai) {
+      throw new Error('OpenAI client not initialized - CLOVA_STUDIO_API_KEY is required');
+    }
+
+    // 산업별 기업 정보를 문자열로 포맷팅
+    const industriesInfo = input.selectedIndustries.map(industry => {
+      const companiesText = industry.companies.map(company =>
+        `${company.ticker} (${company.name})`
+      ).join(', ');
+
+      return `**${industry.industry_ko}** (매칭 점수: ${industry.score.toFixed(3)})\n기업들: ${companiesText}`;
+    }).join('\n\n');
+
+    // 시스템 메시지 구성 (config에서 가져옴)
+    const systemMessage = INVESTMENT_ANALYSIS_SYSTEM_PROMPT;
+
+    // 사용자 메시지 구성 (config 템플릿 사용)
+    const userMessage = INVESTMENT_ANALYSIS_USER_MESSAGE_TEMPLATE(
+      input.userMessage,
+      industriesInfo,
+      input.ragAccuracy
+    );
+
+    console.log(`🤖 [투자 분석] HCX-005 모델로 투자 추천 생성 시작`);
+    console.log(`📝 [투자 분석] 전달되는 사용자 메시지:`, userMessage);
+
+    const response = await openai.chat.completions.create({
+      model: OPENAI_CONFIG.investmentAnalysisModel, // HCX-005 모델 사용
+      messages: [
+        {
+          role: 'system',
+          content: systemMessage
+        },
+        {
+          role: 'user',
+          content: userMessage
+        }
+      ],
+      temperature: OPENAI_CONFIG.temperature.investmentAnalysis,
+      max_tokens: OPENAI_CONFIG.maxTokens.investmentAnalysis,
+    });
+
+    const aiResponse = response.choices[0].message.content?.trim();
+
+    if (!aiResponse) {
+      throw new Error('투자 분석 응답 생성 실패');
+    }
+
+    console.log(`✅ [투자 분석] HCX-005 모델 응답 생성 완료`);
+
+    // 응답을 파싱하여 구조화된 데이터로 변환
+    return parseInvestmentRecommendation(aiResponse);
+
+  } catch (error) {
+    console.error('❌ 투자 분석 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * LLM 응답을 파싱하여 구조화된 투자 추천 결과로 변환
+ */
+function parseInvestmentRecommendation(
+  aiResponse: string
+): InvestmentRecommendationResult {
+  // 기본 결과 구조
+  const result: InvestmentRecommendationResult = {
+    traditionalStrategy: [],
+    creativeStrategy: [],
+    analysisReasoning: aiResponse // 전체 응답을 기본값으로 사용
+  };
+
+  try {
+    // 정통한 전략 섹션 추출
+    const traditionalMatch = aiResponse.match(/## 🎯 정통한 투자 전략[\s\S]*?(?=## 🚀|$)/);
+    if (traditionalMatch) {
+      const traditionalSection = traditionalMatch[0];
+      const traditionalItems = traditionalSection.match(/\d+\.\s*\*\*\[([^\]]+)\]\s*([^*]+)\*\*\s*-\s*([^\n]+)/g);
+
+      if (traditionalItems) {
+        traditionalItems.slice(0, 3).forEach(item => {
+          const match = item.match(/\*\*\[([^\]]+)\]\s*([^*]+)\*\*\s*-\s*(.+)/);
+          if (match) {
+            const [, ticker, name, reason] = match;
+            result.traditionalStrategy.push({
+              ticker: ticker.trim(),
+              name: name.trim(),
+              reason: reason.trim()
+            });
+          }
+        });
+      }
+    }
+
+    // 창의적 전략 섹션 추출
+    const creativeMatch = aiResponse.match(/## 🚀 창의적 투자 전략[\s\S]*?(?=## 📊|$)/);
+    if (creativeMatch) {
+      const creativeSection = creativeMatch[0];
+      const creativeItems = creativeSection.match(/\d+\.\s*\*\*\[([^\]]+)\]\s*([^*]+)\*\*\s*-\s*([^\n]+)/g);
+
+      if (creativeItems) {
+        creativeItems.slice(0, 3).forEach(item => {
+          const match = item.match(/\*\*\[([^\]]+)\]\s*([^*]+)\*\*\s*-\s*(.+)/);
+          if (match) {
+            const [, ticker, name, reason] = match;
+            result.creativeStrategy.push({
+              ticker: ticker.trim(),
+              name: name.trim(),
+              reason: reason.trim()
+            });
+          }
+        });
+      }
+    }
+
+    // 분석 근거 섹션 추출
+    const reasoningMatch = aiResponse.match(/## 📊 분석 근거[\s\S]*$/);
+    if (reasoningMatch) {
+      result.analysisReasoning = reasoningMatch[0].trim();
+    }
+
+  } catch (parseError) {
+    console.warn('⚠️ 투자 추천 파싱 실패, 원본 응답 반환:', parseError);
+    // 파싱 실패시 원본 응답을 그대로 사용
+  }
+
+  return result;
 }
 
 

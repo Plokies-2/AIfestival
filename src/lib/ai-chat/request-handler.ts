@@ -53,13 +53,6 @@ export function parseRequest(req: NextApiRequest): ParsedRequest {
   const sessionId = 'global-session';
   const isNewSession = false; // Always false for global session
 
-  // 더보기 요청에 대한 특별 로깅
-  if (userInput === '__SHOW_MORE_COMPANIES__') {
-    console.log(`🔍 [더보기 요청] 파싱 완료:`);
-    console.log(`   - Session ID: ${sessionId} (global)`);
-    console.log(`   - Debug Info:`, debugInfo || 'none');
-  }
-
   return {
     userInput,
     sessionId,
@@ -119,11 +112,7 @@ export function handleNegativeResponse(state: SessionState, sessionId: string): 
         .map((ticker, index) => `${index + 1}. ${require('./company-utils').getCompanyName(ticker)} (${ticker})`)
         .join('\n');
 
-      const totalCompaniesInIndustry = Object.entries(require('@/data/sp500_enriched_final').QUICK_ENRICHED_FINAL)
-        .filter(([_, company]: [string, any]) => company.industry === state.selectedIndustry!).length;
-      const moreText = totalCompaniesInIndustry > 5 ? `\n\n더 많은 기업을 보시려면 "더보기"라고 말씀해 주세요. (총 ${totalCompaniesInIndustry}개 기업)` : '';
-
-      const reply = `${state.selectedIndustry} 산업의 주요 기업들입니다:\n\n${companyList}${moreText}\n\n관심 있는 기업이 있나요?`;
+      const reply = `${state.selectedIndustry} 산업의 주요 기업들입니다:\n\n${companyList}\n\n관심 있는 기업이 있나요?`;
       
       updateSession(sessionId, newState);
       return { reply };
@@ -206,6 +195,12 @@ export async function processPipeline(context: PipelineContext): Promise<ChatRes
 
   updateSession(sessionId, result.newState);
 
+  // 디버깅: StageHandlerResult 로깅 (필요시 활성화)
+  // console.log('🔍 [PIPELINE] StageHandlerResult:', {
+  //   reply: result.reply.substring(0, 50) + '...',
+  //   additionalData: result.additionalData
+  // });
+
   // Build response
   const response: ChatResponse = {
     reply: result.reply
@@ -216,6 +211,9 @@ export async function processPipeline(context: PipelineContext): Promise<ChatRes
     if (result.additionalData.symbol) response.symbol = result.additionalData.symbol;
     if (result.additionalData.status) response.status = result.additionalData.status as any;
     if (result.additionalData.hasMore !== undefined) response.hasMore = result.additionalData.hasMore;
+    if (result.additionalData.needsDetailedAnalysis !== undefined) {
+      response.needsDetailedAnalysis = result.additionalData.needsDetailedAnalysis;
+    }
   }
 
   return response;
@@ -265,6 +263,14 @@ export async function handleChatRequest(req: NextApiRequest, res: NextApiRespons
 
     // Process through pipeline
     const response = await processPipeline(context);
+
+    // 디버깅: 응답 데이터 로깅 (필요시 활성화)
+    // console.log('📤 [API 응답] 전송 데이터:', {
+    //   reply: response.reply.substring(0, 100) + '...',
+    //   needsDetailedAnalysis: response.needsDetailedAnalysis,
+    //   status: response.status,
+    //   hasMore: response.hasMore
+    // });
 
     // Send response
     res.json(response);

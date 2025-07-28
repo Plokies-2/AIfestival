@@ -9,13 +9,12 @@ interface AIChatProps {
   onShowingCompanyList?: (showing: boolean) => void;
   hasChart?: boolean; // 차트 표시 여부
   showingCompanyList?: boolean; // 기업 리스트 표시 여부
-  isChartExpanded?: boolean; // 차트 확장 상태 (상태 보존용)
   currentSymbol?: string; // 현재 분석 중인 심볼
   analysisData?: any; // 분석 데이터 (SpeedTraffic 결과)
 }
 
 export interface AIChatRef {
-  addBotMessage: (message: string, hasReportButton?: boolean) => void;
+  addBotMessage: (message: string, hasReportButton?: boolean, isLoading?: boolean) => void;
   resetChat: () => void;
 }
 
@@ -23,6 +22,7 @@ interface ChatMessage {
   from: 'user' | 'bot';
   text: string;
   hasReportButton?: boolean;
+  isLoading?: boolean; // 로딩 상태 표시용
 }
 
 interface ChatApiResponse {
@@ -30,10 +30,8 @@ interface ChatApiResponse {
   // Add other fields from the API response if needed
 }
 
-const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolError, onShowingCompanyList, hasChart, showingCompanyList, isChartExpanded, currentSymbol, analysisData }, ref) => {
+const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolError, onShowingCompanyList, hasChart, showingCompanyList, currentSymbol, analysisData }, ref) => {
   const [history, setHistory] = useState<ChatMessage[]>([]);
-  const [showMoreButton, setShowMoreButton] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
   const [isHidingSuggestions, setIsHidingSuggestions] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -190,8 +188,8 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
-    addBotMessage: (message: string, hasReportButton?: boolean) => {
-      setHistory(h => [...h, { from: 'bot', text: message, hasReportButton }]);
+    addBotMessage: (message: string, hasReportButton?: boolean, isLoading?: boolean) => {
+      setHistory(h => [...h, { from: 'bot', text: message, hasReportButton, isLoading }]);
       // Auto-scroll to bottom
       setTimeout(() => {
         scrollDiv.current?.scrollTo({
@@ -203,8 +201,6 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
     resetChat: () => {
       console.log('🔄 Resetting AI chat');
       setHistory([]);
-      setShowMoreButton(false);
-      setIsLoadingMore(false);
       setIsHidingSuggestions(false);
 
       // 환영 메시지 다시 표시
@@ -227,35 +223,109 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
       /등이\s*있습니다/,
       /관심\s*있는\s*기업이\s*있나요/,
       /어떤\s*회사가\s*궁금하신가요/
-    ],
-    moreButton: [
-      /더 많은 기업을 보시려면.*더보기.*말씀해 주세요/,
-      /총 \d+개 기업/
     ]
   }), []);
 
   const detectCompanyList = useCallback((text: string): boolean =>
     DETECTION_PATTERNS.companyList.some(pattern => pattern.test(text)), [DETECTION_PATTERNS]);
 
-  const detectMoreButton = useCallback((text: string): boolean =>
-    DETECTION_PATTERNS.moreButton.some(pattern => pattern.test(text)), [DETECTION_PATTERNS]);
+  // 상세 분석 API 호출 함수 (개선된 에러 핸들링)
+  const fetchDetailedAnalysis = useCallback(async (retryCount = 0) => {
+    const maxRetries = 3; // 재시도 횟수 증가
+
+    try {
+      console.log(`🔄 상세 분석 요청 시도 ${retryCount + 1}/${maxRetries + 1}`);
+
+      const response = await fetch('/api/ai_chat_detailed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: 'global-session' })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ 상세 분석 API 오류:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData.error || '알 수 없는 오류',
+          retryCount: retryCount + 1
+        });
+
+        // 400 에러 (세션 데이터 없음)인 경우 재시도 - 지연 시간 증가
+        if (response.status === 400 && retryCount < maxRetries) {
+          const delayMs = (retryCount + 1) * 500; // 점진적 지연 증가 (500ms, 1000ms, 1500ms)
+          console.log(`⏳ 세션 데이터 동기화 대기 후 재시도... (${retryCount + 1}/${maxRetries}, ${delayMs}ms 대기)`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          return fetchDetailedAnalysis(retryCount + 1);
+        }
+
+        throw new Error(`상세 분석 요청 실패 (${response.status}): ${errorData.error || response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ 상세 분석 성공');
+      return data.reply;
+    } catch (error) {
+      console.error('❌ 상세 분석 오류:', error);
+
+      if (retryCount < maxRetries) {
+        const delayMs = (retryCount + 1) * 500;
+        console.log(`⏳ 네트워크 오류 재시도... (${retryCount + 1}/${maxRetries}, ${delayMs}ms 대기)`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        return fetchDetailedAnalysis(retryCount + 1);
+      }
+
+      return '죄송합니다. 상세 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
+    }
+  }, []);
 
   // 공통 응답 처리 로직 (메모이제이션)
-  const handleApiResponse = useCallback((res: any) => {
+  const handleApiResponse = useCallback(async (res: any) => {
+
     const isShowingCompanies = res.status === 'showing_companies' || detectCompanyList(res.reply);
-    const shouldShowMoreButton = res.hasMore || detectMoreButton(res.reply);
 
     if (isShowingCompanies) {
       onShowingCompanyList?.(true);
     }
 
-    setShowMoreButton(shouldShowMoreButton);
+    // 상세 분석이 필요한 경우 2단계 처리
+    if (res.needsDetailedAnalysis) {
+      console.log('🤖 상세 분석 시작...');
+
+      // 2차 분석 로딩 메시지를 독립적으로 추가
+      setHistory(h => [...h, {
+        from: 'bot',
+        text: '더 자세한 분석을 진행하고 있습니다...',
+        isLoading: true
+      }]);
+
+      // 세션 업데이트 완료를 위한 짧은 지연
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // 상세 분석 요청 (재시도 로직 포함)
+      const detailedReply = await fetchDetailedAnalysis();
+
+      // 로딩 메시지를 상세 분석 결과로 교체
+      setHistory(h => {
+        const newHistory = [...h];
+        if (newHistory.length > 0 && newHistory[newHistory.length - 1].isLoading) {
+          newHistory[newHistory.length - 1] = {
+            from: 'bot',
+            text: detailedReply,
+            isLoading: false
+          };
+        }
+        return newHistory;
+      });
+
+      console.log('✅ 상세 분석 완료');
+      return;
+    }
 
     // 차트 요청 처리
     if (res.status === 'chart_requested' && res.symbol) {
       onSymbolSubmit?.(res.symbol);
       onShowingCompanyList?.(false);
-      setShowMoreButton(false);
 
       // 스크롤 재조정
       setTimeout(() => {
@@ -276,9 +346,8 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
     } else if (res.status === 'error') {
       onSymbolError?.();
       onShowingCompanyList?.(false);
-      setShowMoreButton(false);
     }
-  }, [detectCompanyList, detectMoreButton, onShowingCompanyList, onSymbolSubmit, onSymbolError, send]);
+  }, [detectCompanyList, onShowingCompanyList, onSymbolSubmit, onSymbolError, send, fetchDetailedAnalysis]);
 
   // 최적화된 질문 예시 버튼 클릭 핸들러
   const handleSuggestedQuestionClick = async (question: string) => {
@@ -295,55 +364,12 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
     try {
       const res = await send({ message: question, history });
       setHistory(h => [...h, { from: 'bot', text: res.reply }]);
-      handleApiResponse(res);
+      await handleApiResponse(res);
     } catch (error) {
       console.error('Suggested question error:', error);
       setHistory(h => [...h, { from: 'bot', text: '죄송합니다. 일시적인 오류가 발생했습니다.' }]);
       onSymbolError?.();
       onShowingCompanyList?.(false);
-      setShowMoreButton(false);
-    }
-  };
-
-  // 최적화된 더보기 버튼 클릭 핸들러
-  const handleMoreClick = async () => {
-    console.log('🔍 [더보기 버튼] 클릭됨 - 요청 전송 중...');
-    setIsLoadingMore(true);
-    setShowMoreButton(false);
-
-    try {
-      // 더보기 버튼 클릭임을 명시적으로 표시하는 특별한 메시지 사용
-      // 세션 ID 일관성을 위해 현재 세션 정보 포함
-      const res = await send({
-        message: '__SHOW_MORE_COMPANIES__',
-        history,
-        debug: {
-          action: 'show_more_companies',
-          timestamp: Date.now(),
-          source: 'ui_button'
-        }
-      });
-
-      console.log('✅ [더보기 버튼] 응답 받음:', res);
-
-      // 마지막 봇 메시지를 새로운 전체 리스트로 대체
-      setHistory(h => {
-        const newHistory = [...h];
-        for (let i = newHistory.length - 1; i >= 0; i--) {
-          if (newHistory[i].from === 'bot') {
-            newHistory[i] = { from: 'bot', text: res.reply };
-            break;
-          }
-        }
-        return newHistory;
-      });
-
-      handleApiResponse(res);
-    } catch (error) {
-      console.error('❌ [더보기 버튼] 오류:', error);
-      setHistory(h => [...h, { from: 'bot', text: '죄송합니다. 더보기 요청 중 오류가 발생했습니다.' }]);
-    } finally {
-      setIsLoadingMore(false);
     }
   };
 
@@ -444,13 +470,12 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
     try {
       const res = await send({ message: text, history });
       setHistory(h => [...h, { from: 'bot', text: res.reply }]);
-      handleApiResponse(res);
+      await handleApiResponse(res);
     } catch (error) {
       console.error('Chat error:', error);
       setHistory(h => [...h, { from: 'bot', text: '죄송합니다. 일시적인 오류가 발생했습니다.' }]);
       onSymbolError?.();
       onShowingCompanyList?.(false);
-      setShowMoreButton(false);
     }
   };
 
@@ -530,7 +555,14 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
                 {/* 메시지 버블 */}
                 <div className="space-y-2">
                   <div className="px-3 py-2 rounded-xl shadow-sm whitespace-pre-line bg-white border border-slate-200 text-slate-900">
-                    <p className="text-sm leading-relaxed">{m.text}</p>
+                    {m.isLoading ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+                        <p className="text-sm leading-relaxed text-slate-600">{m.text}</p>
+                      </div>
+                    ) : (
+                      <p className="text-sm leading-relaxed">{m.text}</p>
+                    )}
                   </div>
 
                   {/* 보고서 버튼 */}
@@ -553,30 +585,7 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
           </div>
         ))}
 
-        {/* '더보기' 버튼 */}
-        {showMoreButton && (
-          <div className="flex justify-center py-3">
-            <button
-              onClick={handleMoreClick}
-              disabled={isLoadingMore}
-              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white text-sm font-medium rounded-lg transition-colors duration-200 flex items-center space-x-2"
-            >
-              {isLoadingMore ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>로딩중...</span>
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                  <span>더보기</span>
-                </>
-              )}
-            </button>
-          </div>
-        )}
+
       </div>
 
       {/* 질문 예시 버튼들 - 채팅창 바로 위 */}

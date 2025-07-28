@@ -16,13 +16,10 @@ import {
 } from './ai-service';
 import {
   findBestIndustries,
-  findTickerInText,
   getIndustryCompanies,
   getCompanyName
 } from './rag-service';
-import {
-  enhanceResponseWithLSTMData
-} from './lstm-service';
+
 import {
   isPositive,
   isNegative,
@@ -218,35 +215,35 @@ async function handleInvestmentQuery(
       }
     }
 
-    // 표시할 산업들에 대한 응답 생성
-    let replyParts = [];
-
-    for (let i = 0; i < displayIndustries.length; i++) {
-      const result = displayIndustries[i];
-
-      const industryEmoji = i === 0 ? '🥇' : '🥈';
-      replyParts.push(
-        `${industryEmoji} **${result.industry_ko}** 산업의 모든 기업들 (총 ${result.totalCompanies}개):\n\n${result.companyList}`
-      );
-    }
-
-    // 응답 메시지 조건부 생성
-    let baseReply;
+    // 1단계: hcx-dash-002로 빠른 산업 적합성 메시지 생성
+    let quickReply;
     if (displayIndustries.length === 1) {
-      baseReply = `🎯 투자 관심 분야를 분석한 결과, **${displayIndustries[0].industry_ko}** 산업이 가장 적합합니다!\n\n${replyParts.join('\n\n')}\n\n어떤 기업이 더 궁금하신가요? 😊`;
+      quickReply = `🎯 사용자님의 투자 전략을 생각해봤을 때, **${displayIndustries[0].industry_ko}** 산업이 가장 적합해 보입니다! 💡\n\n잠시만 기다려주세요, AI가 더 자세한 투자 전략을 구상하고 있어요... ⚡️`;
     } else {
-      baseReply = `🎯 투자 관심 분야를 분석한 결과, 다음 2개 산업이 가장 적합합니다!\n\n${replyParts.join('\n\n')}\n\n어떤 산업이나 기업이 더 궁금하신가요? 😊`;
+      quickReply = `🎯 사용자님의 투자 전략을 생각해봤을 때, **${displayIndustries[0].industry_ko}**와 **${displayIndustries[1].industry_ko}** 산업이 가장 적합해 보입니다! 💡\n\n잠시만 기다려주세요, AI가 더 자세한 투자 전략을 구상하고 있어요... ⚡️`;
     }
 
-    // Enhance with LSTM data if available (첫 번째 산업 기준)
-    const reply = await enhanceResponseWithLSTMData(primaryIndustry.companies, baseReply);
+    // 세션에 상세 분석용 데이터 저장
+    const detailedAnalysisData = {
+      userMessage: userInput,
+      industryResults: industryResults,
+      displayIndustries: displayIndustries,
+      ragAccuracy: industryResults.reduce((sum, industry) => sum + industry.score, 0) / industryResults.length
+    };
+
+    // 세션 상태에 상세 분석 데이터 저장
+    const newStateWithAnalysisData: SessionState = {
+      ...newState,
+      pendingDetailedAnalysis: detailedAnalysisData
+    };
 
     return {
-      reply,
-      newState,
+      reply: quickReply,
+      newState: newStateWithAnalysisData,
       additionalData: {
         status: 'showing_companies',
-        hasMore: false // 더보기 기능 제거됨 - 모든 기업을 처음부터 표시
+        hasMore: false,
+        needsDetailedAnalysis: true // 상세 분석이 필요함을 표시
       }
     };
   } else {
@@ -267,75 +264,42 @@ async function handleInvestmentQuery(
 
 /**
  * Handles the SHOW_INDUSTRY stage of the pipeline
+ * 수정된 로직: 기업 선택 기능 제거, 투자 질의만 처리
  */
 export async function handleShowIndustryStage(context: PipelineContext): Promise<StageHandlerResult> {
   const { userInput, state } = context;
 
-  // 더보기 기능 제거됨 - 모든 기업을 처음부터 표시
-
-  // Check for ticker selection (priority over intent classification)
-  // 현재 산업의 전체 기업 목록을 동적으로 가져와서 매칭에 사용
-  // 이렇게 하면 [더보기] 후에도 전체 목록에서 매칭이 가능함
-  const allIndustryCompanies = Object.entries(DATA)
-    .filter(([_, company]: [string, any]) => company.industry === state.selectedIndustry!)
-    .map(([ticker, _]: [string, any]) => ticker);
-
-  const selectedTicker = findTickerInText(userInput, allIndustryCompanies);
-  if (selectedTicker) {
-    return await handleTickerSelection(context, selectedTicker);
-  }
-
-  // If no ticker found, perform intent classification
+  // 의도 분류 수행
   const intentResult = await classifyUserIntent(userInput);
   console.log(`User intent in SHOW_INDUSTRY: ${intentResult.intent} (confidence: ${intentResult.confidence})`);
 
-  // 제거된 기능: casual_chat 의도 처리 - 더 이상 사용되지 않음
-
-  // Not in list input → ask again
-    // Not in list input → ask again
-    const companyList = formatCompanyList(state.industryCompanies);
-
-    const retryMessages = [
-      `🤗 위 목록에서 선택해 주세요!\n\n${companyList}\n\n또는 "아니오"라고 말씀해 주세요! 😊`,
-      `💡 다음 기업 중에서 골라주세요!\n\n${companyList}\n\n관심 없으시면 "아니오"라고 해주세요! 🙂`,
-      `✨ 이 중에서 선택해 주시거나 "아니오"라고 말씀해 주세요!\n\n${companyList} 🎯`
-    ];
-    const reply = retryMessages[Math.floor(Math.random() * retryMessages.length)];
-    
-    return {
-      reply,
-      newState: state // Stay in SHOW_INDUSTRY stage
+  // 새로운 투자 질의가 들어온 경우 새로운 검색 시작
+  if (intentResult.intent === 'investment_query') {
+    console.log(`🔄 [SHOW_INDUSTRY] 새로운 투자 질의 감지 - 새로운 검색 시작: "${userInput}"`);
+    // 새로운 투자 질의를 START 단계에서 처리하도록 위임
+    const newContext = {
+      ...context,
+      state: {
+        ...state,
+        stage: 'START' as const,
+        selectedIndustry: null,
+        industryCompanies: [],
+        selectedTicker: null
+      }
     };
-}
+    return await handleInvestmentQuery(newContext);
+  }
 
-// 더보기 기능 제거됨 - 모든 기업을 처음부터 표시하므로 별도 함수 불필요
+  // 기타 의도는 인사말로 처리
+  const reply = await generateDynamicResponse(userInput, intentResult.intent || 'greeting');
 
-/**
- * Handles ticker selection in SHOW_INDUSTRY stage
- */
-async function handleTickerSelection(context: PipelineContext, selectedTicker: string): Promise<StageHandlerResult> {
-  const { state } = context;
-  
-  console.log(`✅ Ticker found in industry list: ${selectedTicker}`);
-  
-  const newState: SessionState = {
-    ...state,
-    stage: 'ASK_CHART',
-    selectedTicker
-  };
-
-  const chartQuestions = [
-    `📈 ${getCompanyName(selectedTicker)} (${selectedTicker}) 차트 분석을 시작해볼까요? (예/아니오) ✨`,
-    `📊 ${getCompanyName(selectedTicker)} (${selectedTicker})의 차트를 확인해 드릴까요? (예/아니오) 🚀`,
-    `💹 ${getCompanyName(selectedTicker)} (${selectedTicker}) 주가 차트를 보여드릴까요? (예/아니오) 😊`
-  ];
-  const reply = chartQuestions[Math.floor(Math.random() * chartQuestions.length)];
-  
   return {
     reply,
-    newState
+    newState: state // 현재 상태 유지
   };
 }
+
+// 기업 선택 기능 제거됨 - RAG 기반 투자 분석만 제공
 
 // ============================================================================
 // ASK_CHART Stage Handler

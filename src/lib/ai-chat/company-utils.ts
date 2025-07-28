@@ -101,65 +101,7 @@ export function getCompaniesByIndustry(industry: string): Array<{ticker: string,
   return companies;
 }
 
-// ============================================================================
-// Random Recommendation Generation
-// ============================================================================
-
-/**
- * Generates random investment recommendation (performance optimized)
- */
-export function generateRandomRecommendation(): RandomRecommendation {
-  const allIndustries = getAllAvailableIndustries();
-  const randomIndustry = allIndustries[Math.floor(Math.random() * allIndustries.length)];
-
-  // Efficiently collect companies in the industry
-  const industryCompanies: CompanyRecommendation[] = [];
-
-  for (const [ticker, company] of Object.entries(DATA)) {
-    const comp = company as any;
-    if (comp.industry === randomIndustry) {
-      industryCompanies.push({
-        ticker,
-        name: comp.name,
-        description: comp.description
-      });
-    }
-  }
-
-  // Fisher-Yates shuffle algorithm for performance optimization
-  for (let i = industryCompanies.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [industryCompanies[i], industryCompanies[j]] = [industryCompanies[j], industryCompanies[i]];
-  }
-
-  return {
-    industry: randomIndustry,
-    companies: industryCompanies.slice(0, 3)
-  };
-}
-
-/**
- * Generates multiple random recommendations
- */
-export function generateMultipleRecommendations(count: number): RandomRecommendation[] {
-  const recommendations: RandomRecommendation[] = [];
-  const usedIndustries = new Set<string>();
-  
-  for (let i = 0; i < count; i++) {
-    let recommendation: RandomRecommendation;
-    let attempts = 0;
-    
-    do {
-      recommendation = generateRandomRecommendation();
-      attempts++;
-    } while (usedIndustries.has(recommendation.industry) && attempts < 10);
-    
-    usedIndustries.add(recommendation.industry);
-    recommendations.push(recommendation);
-  }
-  
-  return recommendations;
-}
+// 랜덤 기업 추천 기능 제거됨 - RAG 기반 투자 분석만 제공
 
 // ============================================================================
 // Company Name and Description Utilities

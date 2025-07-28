@@ -17,19 +17,35 @@ import { SessionState, Stage } from './types';
 /**
  * Single global session state for single-user application
  * No need for complex session ID management
+ * 전역 상태를 안정적으로 유지하기 위해 globalThis 사용
  */
-let GLOBAL_SESSION_STATE: SessionState = {
-  stage: 'START',
-  selectedIndustry: null,
-  industryCompanies: [],
-  selectedTicker: null,
-  conversationHistory: [],
-  lastActivity: Date.now()
-};
+declare global {
+  var __AI_CHAT_SESSION_STATE__: SessionState | undefined;
+}
+
+// 전역 상태를 안정적으로 유지 (Hot Reload 및 모듈 재로드 시에도 유지)
+if (!globalThis.__AI_CHAT_SESSION_STATE__) {
+  globalThis.__AI_CHAT_SESSION_STATE__ = {
+    stage: 'START',
+    selectedIndustry: null,
+    industryCompanies: [],
+    selectedTicker: null,
+    conversationHistory: [],
+    lastActivity: Date.now(),
+    pendingDetailedAnalysis: undefined
+  };
+  console.log('🚀 Simplified session manager initialized with new global state');
+} else {
+  console.log('🔄 Simplified session manager reusing existing global state:', {
+    stage: globalThis.__AI_CHAT_SESSION_STATE__.stage,
+    industry: globalThis.__AI_CHAT_SESSION_STATE__.selectedIndustry,
+    hasPendingAnalysis: !!globalThis.__AI_CHAT_SESSION_STATE__.pendingDetailedAnalysis
+  });
+}
+
+let GLOBAL_SESSION_STATE: SessionState = globalThis.__AI_CHAT_SESSION_STATE__;
 
 // 더보기 기능 제거됨 - 산업군 캐시 불필요
-
-console.log('🚀 Simplified session manager initialized with global state');
 
 // ============================================================================
 // Session Management Functions
@@ -87,11 +103,28 @@ export function updateSession(_sessionId: string, newState: Partial<SessionState
     lastActivity: Date.now()
   };
 
+  // 전역 상태도 동기화
+  globalThis.__AI_CHAT_SESSION_STATE__ = GLOBAL_SESSION_STATE;
+
+  // 상세 분석 데이터 로깅 추가
+  const hasPendingAnalysis = !!GLOBAL_SESSION_STATE.pendingDetailedAnalysis;
+  const previousHadAnalysis = !!previousState.pendingDetailedAnalysis;
+
   console.log(`🔄 [세션 업데이트]`, {
     stage: `${previousState.stage} → ${GLOBAL_SESSION_STATE.stage}`,
     industry: `${previousState.selectedIndustry} → ${GLOBAL_SESSION_STATE.selectedIndustry}`,
-    companies: `${previousState.industryCompanies.length} → ${GLOBAL_SESSION_STATE.industryCompanies.length}`
+    companies: `${previousState.industryCompanies.length} → ${GLOBAL_SESSION_STATE.industryCompanies.length}`,
+    pendingDetailedAnalysis: `${previousHadAnalysis} → ${hasPendingAnalysis}`
   });
+
+  // 상세 분석 데이터가 추가된 경우 추가 로깅
+  if (hasPendingAnalysis && !previousHadAnalysis) {
+    console.log(`✅ [세션] 상세 분석 데이터 저장됨:`, {
+      userMessage: GLOBAL_SESSION_STATE.pendingDetailedAnalysis?.userMessage?.substring(0, 50) + '...',
+      industryCount: GLOBAL_SESSION_STATE.pendingDetailedAnalysis?.industryResults?.length || 0,
+      ragAccuracy: GLOBAL_SESSION_STATE.pendingDetailedAnalysis?.ragAccuracy
+    });
+  }
 
   return GLOBAL_SESSION_STATE;
 }

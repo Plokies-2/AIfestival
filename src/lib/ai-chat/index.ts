@@ -150,11 +150,8 @@ export {
   isValidTicker,
   getAllTickers,
   getCompaniesByIndustry,
-  generateRandomRecommendation,
-  generateMultipleRecommendations,
   formatCompanyDisplay,
   formatCompanyList,
-
   formatCompanyDescriptions,
   getIndustryStats,
   getTopIndustries,
