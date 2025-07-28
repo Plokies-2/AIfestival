@@ -213,7 +213,7 @@ export function validateSystemConfiguration(): {
   
   // Check data availability
   try {
-    const { QUICK_ENRICHED_FINAL } = require('@/data/sp500_enriched_final');
+    const { QUICK_ENRICHED_FINAL } = require('@/data/KOSPI_enriched_final');
     if (!QUICK_ENRICHED_FINAL || Object.keys(QUICK_ENRICHED_FINAL).length === 0) {
       errors.push('S&P 500 data is not available or empty');
     }

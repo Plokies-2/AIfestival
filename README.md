@@ -1,8 +1,19 @@
 # AIfestival
 
 이 프로젝트는 금융 데이터를 활용한 AI 분석 웹 서비스입니다. 처음 방문하는 개발자도 전체 흐름을 이해할 수 있도록 주요 파이프라인과 사용 방법을 정리했습니다.
- 
+
 -폴더에서 npm install을 실행하여 의존성을 설치해 주세요
+
+## ⚠️ 중요 변경사항 (2025-07-29)
+
+**KOSPI 상장 기업으로 전환**: 기존 SP500 기반 시스템에서 한국 KOSPI 상장 기업 기반으로 전환되었습니다.
+
+- **격리된 SP500 데이터**: 기존 SP500 관련 파일들은 `src/data/legacy_sp500/` 폴더로 이동되었습니다.
+  - `sp500_enriched_final.ts` → `src/data/legacy_sp500/sp500_enriched_final.ts`
+  - `industry_vectors.ts` → `src/data/legacy_sp500/industry_vectors.ts`
+  - 관련 캐시 및 결과 파일들도 함께 이동
+- **새로운 KOSPI 데이터**: `src/data/KOSPI_companies.json`과 `src/data/KOSPI_industry_mapping.json` 기반으로 동작
+- **뉴스 데이터 최적화**: 한국 기업 뉴스에 특화되어 더 정확한 분석 결과 제공
 
 ## 특징
 - **Next.js 15 기반의 프론트엔드**: `src` 디렉터리의 React 컴포넌트와 페이지에서 사용자 인터페이스를 구성합니다.

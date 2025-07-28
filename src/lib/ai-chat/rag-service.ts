@@ -9,7 +9,7 @@
  */
 
 import { getEmbeddings, cosine } from '@/lib/embeddings';
-import { QUICK_ENRICHED_FINAL as DATA } from '@/data/sp500_enriched_final';
+import { KOSPI_ENRICHED_FINAL as DATA } from '@/data/kospi_enriched_final';
 import { CompanyData, InvestmentIntentResult } from './types';
 import { RAG_THRESHOLDS } from './config';
 import { createEmbeddingCompatible } from '@/lib/clova-embedding';
@@ -179,7 +179,7 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
 
     // 산업 매칭만 고려 (company direct match 제거)
     if (bestIndustryScore >= RAG_THRESHOLDS.INVESTMENT_INTENT_MIN_SCORE) {
-      const selectedEntity = bestIndustryMatch?.industry_ko || bestIndustryMatch?.sp500_industry;
+      const selectedEntity = bestIndustryMatch?.industry_ko;
       const selectedScore = bestIndustryScore;
       // 로그 최적화: 최종 결과만 출력
       console.log(`🏭 [RAG] Selected: ${selectedEntity}`);
@@ -219,20 +219,19 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
 // ============================================================================
 
 /**
- * 새로운 RAG 로직: industry_vectors.ts 기반으로 top 2 산업을 직접 매칭
+ * 새로운 RAG 로직: kospi_industry_vectors.ts 기반으로 top 2 산업을 직접 매칭
  */
-export async function findBestIndustries(userInput: string): Promise<Array<{industry_ko: string, sp500_industry: string, score: number}> | null> {
+export async function findBestIndustries(userInput: string): Promise<Array<{industry_ko: string, score: number}> | null> {
   // 사용자 입력 임베딩 생성 using Clova Studio native API
   const queryEmbedding = (await createEmbeddingCompatible(userInput)).data[0].embedding;
 
   const normalizedQuery = queryEmbedding.map((v: number, _: number, arr: number[]) => v / Math.hypot(...arr));
 
-  // industry_vectors.ts 기반 산업 임베딩과 유사도 계산
+  // kospi_industry_vectors.ts 기반 산업 임베딩과 유사도 계산
   const { industries } = await getEmbeddings();
 
   const industryScores = industries.map(industry => ({
     industry_ko: industry.industry_ko,
-    sp500_industry: industry.sp500_industry,
     score: cosine(industry.vec, normalizedQuery)
   }));
 

@@ -230,7 +230,6 @@ export interface InvestmentRecommendationInput {
   userMessage: string;
   selectedIndustries: Array<{
     industry_ko: string;
-    sp500_industry: string;
     score: number;
     companies: Array<{
       ticker: string;

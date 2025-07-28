@@ -11,7 +11,7 @@ import {
   getSession, 
   updateSession 
 } from '@/lib/ai-chat/session-manager';
-import { QUICK_ENRICHED_FINAL as DATA } from '@/data/sp500_enriched_final';
+import { KOSPI_ENRICHED_FINAL as DATA } from '@/data/kospi_enriched_final';
 
 /**
  * 상세 투자 분석 API 엔드포인트
@@ -71,14 +71,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       userMessage: analysisData.userMessage,
       selectedIndustries: analysisData.industryResults.map((industry: any) => ({
         industry_ko: industry.industry_ko,
-        sp500_industry: industry.sp500_industry,
         score: industry.score,
         companies: industry.companies.map((ticker: string) => {
           const companyData = (DATA as any)[ticker];
           return {
             ticker: ticker,
             name: companyData?.name || ticker,
-            industry: companyData?.industry || industry.sp500_industry
+            industry: companyData?.industry || industry.industry_ko
           };
         })
       })),

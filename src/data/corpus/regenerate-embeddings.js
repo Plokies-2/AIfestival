@@ -41,7 +41,7 @@ const log = {
 
 // 프로젝트 루트 경로
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
-const CACHE_FILE = path.join(PROJECT_ROOT, '.cache', 'sp500_vectors.json');
+const CACHE_FILE = path.join(PROJECT_ROOT, '.cache', 'kospi_vectors.json');
 const CORPUS_DIR = path.join(PROJECT_ROOT, 'src', 'data', 'corpus');
 
 /**
@@ -198,7 +198,7 @@ async function generateEmbeddings() {
     });
 
     // 데이터 로드 (TypeScript 파일을 직접 읽어서 파싱)
-    const dataPath = path.join(process.cwd(), 'src', 'data', 'sp500_enriched_final.ts');
+    const dataPath = path.join(process.cwd(), 'src', 'data', 'kospi_enriched_final.ts');
     console.log('📄 데이터 파일 경로:', dataPath);
 
     if (!fs.existsSync(dataPath)) {
@@ -209,10 +209,10 @@ async function generateEmbeddings() {
     console.log('📄 파일 읽기 완료, 크기:', dataContent.length, 'bytes');
 
     // TypeScript 파일에서 데이터 추출 (개선된 정규식 사용)
-    const dataMatch = dataContent.match(/export const QUICK_ENRICHED_FINAL = ({[\\s\\S]*?})\\s*as const;/);
+    const dataMatch = dataContent.match(/export const KOSPI_ENRICHED_FINAL = ({[\\s\\S]*?})\\s*as const;/);
     if (!dataMatch) {
       console.error('정규식 매칭 실패. 파일 시작 부분:', dataContent.substring(0, 200));
-      throw new Error('sp500_enriched_final.ts에서 데이터를 찾을 수 없습니다. 파일 형식을 확인해주세요.');
+      throw new Error('kospi_enriched_final.ts에서 데이터를 찾을 수 없습니다. 파일 형식을 확인해주세요.');
     }
 
     console.log('📝 데이터 추출 성공, 파싱 중...');
@@ -241,14 +241,17 @@ async function generateEmbeddings() {
       return v.map(x => x / n);
     };
 
+    // Rate limit 방지를 위한 delay 함수
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
     // 기업 임베딩 생성 제거 - industry_vector와 md 파일들만 임베딩
     console.log('🏢 기업 임베딩 생성 건너뛰기...');
     const companies = [];
 
     console.log('🏭 산업 임베딩 생성 중 (industry_vectors.ts 기반)...');
 
-    // industry_vectors.ts에서 모든 산업 데이터 로드
-    const industryVectorsPath = path.join(process.cwd(), 'src', 'data', 'industry_vectors.ts');
+    // kospi_industry_vectors.ts에서 모든 산업 데이터 로드
+    const industryVectorsPath = path.join(process.cwd(), 'src', 'data', 'kospi_industry_vectors.ts');
     console.log('📄 산업 벡터 파일 경로:', industryVectorsPath);
 
     if (!fs.existsSync(industryVectorsPath)) {
@@ -258,11 +261,11 @@ async function generateEmbeddings() {
     const industryVectorsContent = fs.readFileSync(industryVectorsPath, 'utf8');
     console.log('📄 산업 벡터 파일 읽기 완료, 크기:', industryVectorsContent.length, 'bytes');
 
-    // TypeScript 파일에서 INDUSTRY_VECTORS 배열 추출
-    const industryMatch = industryVectorsContent.match(/export const INDUSTRY_VECTORS: IndustryVector\\[\\] = (\\[[\\s\\S]*?\\]);/);
+    // TypeScript 파일에서 KOSPI_INDUSTRY_VECTORS 배열 추출
+    const industryMatch = industryVectorsContent.match(/export const KOSPI_INDUSTRY_VECTORS: IndustryVector\\[\\] = (\\[[\\s\\S]*?\\]);/);
     if (!industryMatch) {
       console.error('정규식 매칭 실패. 파일 시작 부분:', industryVectorsContent.substring(0, 200));
-      throw new Error('industry_vectors.ts에서 INDUSTRY_VECTORS를 찾을 수 없습니다. 파일 형식을 확인해주세요.');
+      throw new Error('kospi_industry_vectors.ts에서 KOSPI_INDUSTRY_VECTORS를 찾을 수 없습니다. 파일 형식을 확인해주세요.');
     }
 
     console.log('📝 산업 벡터 데이터 추출 성공, 파싱 중...');
@@ -288,7 +291,7 @@ async function generateEmbeddings() {
       const industry = INDUSTRY_VECTORS[i];
 
       // BGE-M3 모델을 위한 의미적 구분 강화 텍스트 구성
-      const text = \`산업 분야: \${industry.industry_ko}. 이 산업의 핵심 특징과 관련 키워드들: \${industry.keywords.join(', ')}. 이 산업은 \${industry.sp500_industry} 분류에 속하며, 다른 산업과 구별되는 고유한 특성을 가지고 있습니다.\`;
+      const text = \`산업 분야: \${industry.industry_ko}. 이 산업의 핵심 특징과 관련 키워드들: \${industry.keywords.join(', ')}. 이 산업은 한국 \${industry.industry_ko} 기업들이 속한 분야로, 다른 산업과 구별되는 고유한 특성을 가지고 있습니다.\`;
 
       console.log(\`  \${i + 1}/\${INDUSTRY_VECTORS.length} 처리 중: \${industry.industry_ko}\`);
 
@@ -310,9 +313,11 @@ async function generateEmbeddings() {
 
         industryEmbeddings.push({
           industry_ko: industry.industry_ko,
-          sp500_industry: industry.sp500_industry,
           vec: normalizedVec
         });
+
+        // Rate limit 방지를 위한 delay (100ms)
+        await delay(1200);
       } catch (error) {
         console.error(\`❌ \${industry.industry_ko} 임베딩 생성 실패:\`, error.message);
         console.error(\`❌ 전체 에러:\`, error);
@@ -448,6 +453,9 @@ async function generateEmbeddings() {
           persona: persona.name,
           vec: normalizedVec
         });
+
+        // Rate limit 방지를 위한 delay (100ms)
+        await delay(100);
       } catch (error) {
         console.error(\`❌ \${persona.name} 임베딩 생성 실패:\`, error.message);
         console.error(\`❌ 전체 에러:\`, error);
@@ -462,7 +470,7 @@ async function generateEmbeddings() {
       personas
     };
 
-    const cachePath = path.join(cacheDir, 'sp500_vectors.json');
+    const cachePath = path.join(cacheDir, 'kospi_vectors.json');
     console.log('💾 캐시 파일 저장 경로:', cachePath);
     fs.writeFileSync(cachePath, JSON.stringify(cacheData));
 

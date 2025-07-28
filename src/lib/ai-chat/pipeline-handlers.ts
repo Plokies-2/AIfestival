@@ -8,7 +8,7 @@
  */
 
 import { PipelineContext, StageHandlerResult, SessionState, IntentClassificationResult } from './types';
-import { QUICK_ENRICHED_FINAL as DATA } from '@/data/sp500_enriched_final';
+import { KOSPI_ENRICHED_FINAL as DATA } from '@/data/kospi_enriched_final';
 import { RAG_THRESHOLDS } from './config';
 import {
   classifyUserIntent,
@@ -129,14 +129,14 @@ async function handleConversationalIntent(
 
 /**
  * 투자 질의 처리 (산업 매칭) - 새로운 로직: top 2 산업 처리
- * industry_vectors.ts 기반으로 직접 산업 매칭하여 상위 2개 산업 반환
+ * kospi_industry_vectors.ts 기반으로 직접 산업 매칭하여 상위 2개 산업 반환
  */
 async function handleInvestmentQuery(
   context: PipelineContext
 ): Promise<StageHandlerResult> {
   const { userInput, sessionId, state } = context;
 
-  // 새로운 RAG 로직: industry_vectors.ts 기반 top 2 산업 매칭
+  // 새로운 RAG 로직: kospi_industry_vectors.ts 기반 top 2 산업 매칭
   const topIndustries = await findBestIndustries(userInput);
 
   // RAG 점수가 임계값보다 낮으면 인사말로 분류
@@ -156,15 +156,14 @@ async function handleInvestmentQuery(
 
   // 각 산업별로 기업 정보 수집 및 포맷팅
   for (const industryInfo of topIndustries) {
-    const companies = getIndustryCompanies(industryInfo.sp500_industry);
+    const companies = getIndustryCompanies(industryInfo.industry_ko);
     if (companies.length > 0) {
       const companyList = formatCompanyList(companies);
       const totalCompaniesInIndustry = Object.entries(DATA)
-        .filter(([_, company]: [string, any]) => company.industry === industryInfo.sp500_industry).length;
+        .filter(([_, company]: [string, any]) => company.industry === industryInfo.industry_ko).length;
 
       industryResults.push({
         industry_ko: industryInfo.industry_ko,
-        sp500_industry: industryInfo.sp500_industry,
         companies,
         companyList,
         totalCompanies: totalCompaniesInIndustry,
@@ -208,14 +207,14 @@ async function handleInvestmentQuery(
     const newState: SessionState = {
       ...state,
       stage: 'SHOW_INDUSTRY',
-      selectedIndustry: primaryIndustry.sp500_industry,
+      selectedIndustry: primaryIndustry.industry_ko,
       industryCompanies: primaryIndustry.companies
     };
 
     // 세션 상태 변경 디버깅 로그
     console.log(`🔄 [세션 상태 변경] START → SHOW_INDUSTRY:`);
     console.log(`   - Session ID: ${sessionId}`);
-    console.log(`   - Primary Industry: ${primaryIndustry.industry_ko} (${primaryIndustry.sp500_industry}) - Score: ${primaryIndustry.score.toFixed(3)}`);
+    console.log(`   - Primary Industry: ${primaryIndustry.industry_ko} - Score: ${primaryIndustry.score.toFixed(3)}`);
     console.log(`   - Secondary Industry: ${industryResults[1]?.industry_ko || 'N/A'} - Score: ${industryResults[1]?.score ? industryResults[1].score.toFixed(3) : 'N/A'}`);
 
     // 더보기 기능 제거됨 - 산업군 캐시 설정 불필요
@@ -394,7 +393,6 @@ async function handleChartConfirmation(context: PipelineContext): Promise<StageH
 
       selectedIndustries.push({
         industry_ko: state.selectedIndustry,
-        sp500_industry: state.selectedIndustry,
         score: 0.8, // 기본 점수
         companies: companies
       });

@@ -1,9 +1,9 @@
 /**
- * Company name lookup utility for S&P 500 companies
+ * Company name lookup utility for KOSPI companies
  * Provides functions to get company names from ticker symbols
  */
 
-import { QUICK_ENRICHED_FINAL } from '../data/sp500_enriched_final';
+import { KOSPI_ENRICHED_FINAL as QUICK_ENRICHED_FINAL } from '../data/kospi_enriched_final';
 
 export interface CompanyInfo {
   name: string;
@@ -34,7 +34,7 @@ export function getCompanyInfo(ticker: string): CompanyInfo | null {
 }
 
 /**
- * Check if a ticker exists in the S&P 500 data
+ * Check if a ticker exists in the KOSPI data
  * @param ticker - Stock ticker symbol
  * @returns true if ticker exists, false otherwise
  */

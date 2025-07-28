@@ -227,7 +227,7 @@ export interface PatternConfig {
 // ============================================================================
 
 /**
- * Company data structure from the S&P 500 dataset
+ * Company data structure from the KOSPI dataset
  */
 export interface CompanyData {
   name: string;

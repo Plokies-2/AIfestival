@@ -25,14 +25,14 @@ except ImportError:
 # ――― 경로 상수 ―――
 BASE_DIR   = Path(__file__).resolve().parent              # …/src/services
 DATA_DIR   = BASE_DIR.parent / "data"                     # …/src/data
-MAP_FILE   = DATA_DIR / "sp500_enriched_final.ts"
-PRICE_FILE = DATA_DIR / "sp500_adj_close_3y.csv"
+MAP_FILE   = DATA_DIR / "kospi_enriched_final.ts"
+PRICE_FILE = DATA_DIR / "kospi_adj_close_3y.csv"
 WIN = 126  # 6 개월(거래일 21×6)
 
 # ――― 매핑 로드 ―――
 def load_mapping() -> dict:
     """
-    sp500_enriched_final.ts 전체를 스캔해
+    kospi_enriched_final.ts 전체를 스캔해
     {TICKER: industry} 딕셔너리를 만든다.
     따옴표·줄바꿈 모두 허용.
     """

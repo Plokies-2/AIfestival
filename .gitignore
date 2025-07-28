@@ -42,7 +42,7 @@ Thumbs.db
 **/.turbo/
 
 # 임베딩 캐시 파일은 포함 (Vercel 배포용)
-!.cache/sp500_vectors.json
+!.cache/kospi_vectors.json
 
 
 # Next.js build/dev artifacts

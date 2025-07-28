@@ -21,9 +21,9 @@ DATA_FT.mkdir(parents=True, exist_ok=True)
 sys.path.append(str(ROOT_SRC))
 
 # ── Ticker and date selection functions ──────────────────────────────
-def load_sp500_tickers():
-    """Load S&P 500 tickers from sp500_enriched_final.ts"""
-    ts_file = ROOT_SRC / "data" / "sp500_enriched_final.ts"
+def load_kospi_tickers():
+    """Load KOSPI tickers from kospi_enriched_final.ts"""
+    ts_file = ROOT_SRC / "data" / "kospi_enriched_final.ts"
 
     if not ts_file.exists():
         print(f"Error: {ts_file} not found", file=sys.stderr)
@@ -76,7 +76,7 @@ def get_available_dates():
 def get_random_date_and_ticker(count=1):
     """Generate random dates and tickers for fine-tuning"""
     # Load all available tickers
-    all_tickers, company_names = load_sp500_tickers()
+    all_tickers, company_names = load_kospi_tickers()
 
     # Exclude specified tickers
     excluded_tickers = {'SW', 'GEV', 'SOLV', 'VLTO', 'KVUE', 'GEHC', 'CEG'}

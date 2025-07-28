@@ -6,14 +6,13 @@ type Vec = number[];
 export interface CompanyRow { ticker: string; name: string; industry: string; vec: Vec; }
 export interface IndustryRow {
   industry_ko: string;
-  sp500_industry: string;
   vec: Vec;
 }
 export interface PersonaRow { persona: string; vec: Vec; }
 interface CacheFile { companies: CompanyRow[]; industries: IndustryRow[]; personas: PersonaRow[]; }
 
 /* ──────────── 상수 ──────────── */
-const CACHE = path.join(process.cwd(), '.cache', 'sp500_vectors.json');
+const CACHE = path.join(process.cwd(), '.cache', 'kospi_vectors.json');
 
 /* ──────────── 벡터 유틸 ──────────── */
 export const dot = (a: Vec, b: Vec) => a.reduce((s, x, i) => s + x * b[i], 0);

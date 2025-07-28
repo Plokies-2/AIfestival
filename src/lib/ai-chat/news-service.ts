@@ -110,7 +110,7 @@ export class ClovaStudioRAGExecutor {
               properties: {
                 refined_query: {
                   type: "string",
-                  description: "투자 동향 뉴스 검색에 최적화된 정제된 검색어. 투자, 주식, 기업, 산업, 기술 등 투자 관련 핵심 키워드 중심으로 작성하세요. 예: 'AI 인공지능 투자 동향', '반도체 주식 시장 전망', '미국 기술주 투자'"
+                  description: "투자 동향 뉴스 검색에 최적화된 정제된 검색어. 투자, 주식, 기업, 산업, 기술 등 투자 관련 핵심 키워드 중심으로 작성하세요. 예: 'AI 인공지능 투자 동향', '반도체 주식 시장 전망', '국내 기술주 투자'"
                 },
                 search_intent: {
                   type: "string",

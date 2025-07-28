@@ -433,7 +433,7 @@ def load_and_prepare_data(ticker):
                         ref_date_found = True
 
                 except (FileNotFoundError, KeyError) as e:
-                    print(f"Failed to load data for ticker '{ticker}' from 'sp500_{col_name}_3y.csv'. Details: {e}", file=sys.stderr)
+                    print(f"Failed to load data for ticker '{ticker}' from 'kospi_{col_name}_3y.csv'. Details: {e}", file=sys.stderr)
                     sys.exit(1)
 
         # Log data loading results

@@ -8,7 +8,7 @@
  * - Company name translation and formatting
  */
 
-import { QUICK_ENRICHED_FINAL as DATA } from '@/data/sp500_enriched_final';
+import { KOSPI_ENRICHED_FINAL as DATA } from '@/data/kospi_enriched_final';
 import { RandomRecommendation, CompanyRecommendation, CompanyData } from './types';
 import { PATTERNS } from './config';
 import { getAllAvailableIndustries } from './rag-service';

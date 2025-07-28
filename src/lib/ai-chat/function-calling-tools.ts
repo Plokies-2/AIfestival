@@ -122,7 +122,6 @@ export const INVESTMENT_STRATEGY_TOOL = {
             type: "object",
             properties: {
               industry_ko: { type: "string" },
-              sp500_industry: { type: "string" },
               score: { type: "number" },
               companies: {
                 type: "array",
@@ -335,7 +334,6 @@ export class FunctionCallingExecutor {
     company_news?: { [companyName: string]: NewsSearchResult };
     selected_industries: Array<{
       industry_ko: string;
-      sp500_industry: string;
       score: number;
       companies: Array<{
         ticker: string;

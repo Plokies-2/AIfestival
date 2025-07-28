@@ -111,7 +111,7 @@ def fetch_comprehensive_data(symbol):
             print(f"❌ No data found for {symbol}", file=sys.stderr)
             return None
 
-        # S&P 500 지수 데이터 (CAPM용)
+        # KOSPI 지수 데이터 (CAPM용)
         sp500_obj = yf.Ticker("^GSPC")
         sp500_hist = sp500_obj.history(start=start_date, end=end_date)
 
