@@ -444,6 +444,16 @@ async function handleChartConfirmation(context: PipelineContext): Promise<StageH
       reply += `\n`;
     }
 
+    // 전략 비교 분석
+    console.log(`🔧 [Pipeline] strategyComparison 확인:`, {
+      exists: !!analysisResult.strategyComparison,
+      content: analysisResult.strategyComparison?.substring(0, 100) + '...'
+    });
+
+    if (analysisResult.strategyComparison) {
+      reply += `## ⚖️ 전략 비교 분석\n${analysisResult.strategyComparison}\n\n`;
+    }
+
     // 최신 동향 뉴스 요약 (상위 3개만)
     if (analysisResult.trendNews.length > 0) {
       reply += `## 📰 관련 최신 동향\n`;
@@ -452,8 +462,6 @@ async function handleChartConfirmation(context: PipelineContext): Promise<StageH
       });
       reply += `\n`;
     }
-
-    reply += `💡 더 자세한 분석이 필요하시면 언제든 말씀해 주세요!`;
 
     console.log(`✅ [Chart Confirmation] 검색 기반 투자 분석 완료`);
 

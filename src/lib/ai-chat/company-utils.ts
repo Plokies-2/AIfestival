@@ -122,7 +122,7 @@ export function formatCompanyDisplay(ticker: string, includeIndustry: boolean = 
  * Creates a formatted company list for display
  */
 export function formatCompanyList(
-  tickers: string[], 
+  tickers: string[],
   numbered: boolean = true,
   includeIndustry: boolean = false
 ): string {
@@ -134,246 +134,18 @@ export function formatCompanyList(
     .join('\n');
 }
 
-/**
- * 단순화된 기업 설명 포맷팅 (번역 제거)
- */
-export function formatCompanyDescriptions(
-  companies: CompanyRecommendation[]
-): string {
-  return companies
-    .map(company => {
-      // 영어 설명을 그대로 사용 (번역 제거)
-      return `${company.name} (${company.ticker}): ${company.description}`;
-    })
-    .join('\n\n');
-}
-
 // ============================================================================
-// Industry Statistics and Analysis
+// Industry Statistics and Analysis (사용되지 않는 함수들 제거됨)
 // ============================================================================
-
-/**
- * Gets industry statistics
- */
-export function getIndustryStats(): Record<string, number> {
-  const industryCount: Record<string, number> = {};
-  
-  for (const company of Object.values(DATA)) {
-    const comp = company as any;
-    industryCount[comp.industry] = (industryCount[comp.industry] || 0) + 1;
-  }
-  
-  return industryCount;
-}
-
-/**
- * Gets top industries by company count
- */
-export function getTopIndustries(limit: number = 10): Array<{industry: string, count: number}> {
-  const stats = getIndustryStats();
-  
-  return Object.entries(stats)
-    .map(([industry, count]) => ({ industry, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, limit);
-}
-
-/**
- * Gets companies with longest descriptions (potentially most detailed)
- */
-export function getCompaniesWithDetailedDescriptions(limit: number = 10): Array<{
-  ticker: string;
-  name: string;
-  industry: string;
-  descriptionLength: number;
-}> {
-  const companies = Object.entries(DATA)
-    .map(([ticker, company]) => {
-      const comp = company as any;
-      return {
-        ticker,
-        name: comp.name,
-        industry: comp.industry,
-        descriptionLength: comp.description.length
-      };
-    })
-    .sort((a, b) => b.descriptionLength - a.descriptionLength)
-    .slice(0, limit);
-    
-  return companies;
-}
 
 // ============================================================================
 // Search and Filtering Utilities
 // ============================================================================
 
-/**
- * Searches companies by partial name match
- */
-export function searchCompaniesByName(query: string, limit: number = 10): Array<{
-  ticker: string;
-  name: string;
-  industry: string;
-  relevanceScore: number;
-}> {
-  const normalizedQuery = query.toLowerCase().trim();
-  const results: Array<{
-    ticker: string;
-    name: string;
-    industry: string;
-    relevanceScore: number;
-  }> = [];
-  
-  for (const [ticker, company] of Object.entries(DATA)) {
-    const comp = company as any;
-    const normalizedName = comp.name.toLowerCase();
-    
-    let relevanceScore = 0;
-    
-    // Exact match gets highest score
-    if (normalizedName === normalizedQuery) {
-      relevanceScore = 100;
-    }
-    // Starts with query gets high score
-    else if (normalizedName.startsWith(normalizedQuery)) {
-      relevanceScore = 80;
-    }
-    // Contains query gets medium score
-    else if (normalizedName.includes(normalizedQuery)) {
-      relevanceScore = 60;
-    }
-    // Word match gets lower score
-    else {
-      const nameWords = normalizedName.split(' ');
-      const queryWords = normalizedQuery.split(' ');
-      
-      for (const queryWord of queryWords) {
-        for (const nameWord of nameWords) {
-          if (nameWord.includes(queryWord) && queryWord.length > 2) {
-            relevanceScore = Math.max(relevanceScore, 40);
-          }
-        }
-      }
-    }
-    
-    if (relevanceScore > 0) {
-      results.push({
-        ticker,
-        name: comp.name,
-        industry: comp.industry,
-        relevanceScore
-      });
-    }
-  }
-  
-  return results
-    .sort((a, b) => b.relevanceScore - a.relevanceScore)
-    .slice(0, limit);
-}
-
-/**
- * Filters companies by industry and optional name query
- */
-export function filterCompanies(
-  industry?: string,
-  nameQuery?: string,
-  limit: number = 50
-): Array<{ticker: string, data: CompanyData}> {
-  let companies = Object.entries(DATA).map(([ticker, company]) => {
-    const comp = company as any;
-    return {
-      ticker,
-      data: {
-        name: comp.name,
-        industry: comp.industry,
-        description: comp.description
-      }
-    };
-  });
-  
-  // Filter by industry if specified
-  if (industry) {
-    companies = companies.filter(({ data }) => data.industry === industry);
-  }
-  
-  // Filter by name query if specified
-  if (nameQuery) {
-    const normalizedQuery = nameQuery.toLowerCase().trim();
-    companies = companies.filter(({ data }) => 
-      data.name.toLowerCase().includes(normalizedQuery)
-    );
-  }
-  
-  return companies.slice(0, limit);
-}
-
 // ============================================================================
-// Data Validation Utilities
+// Search and Filtering Utilities (사용되지 않는 함수들 제거됨)
 // ============================================================================
 
-/**
- * Validates company data integrity
- */
-export function validateCompanyData(): {
-  totalCompanies: number;
-  validCompanies: number;
-  invalidCompanies: string[];
-  missingFields: Record<string, string[]>;
-} {
-  const totalCompanies = Object.keys(DATA).length;
-  let validCompanies = 0;
-  const invalidCompanies: string[] = [];
-  const missingFields: Record<string, string[]> = {};
-  
-  for (const [ticker, company] of Object.entries(DATA)) {
-    const comp = company as any;
-    const missing: string[] = [];
-    
-    if (!comp.name || comp.name.trim() === '') missing.push('name');
-    if (!comp.industry || comp.industry.trim() === '') missing.push('industry');
-    if (!comp.description || comp.description.trim() === '') missing.push('description');
-    
-    if (missing.length > 0) {
-      invalidCompanies.push(ticker);
-      missingFields[ticker] = missing;
-    } else {
-      validCompanies++;
-    }
-  }
-  
-  return {
-    totalCompanies,
-    validCompanies,
-    invalidCompanies,
-    missingFields
-  };
-}
-
-/**
- * Gets dataset statistics
- */
-export function getDatasetStats(): {
-  totalCompanies: number;
-  totalIndustries: number;
-  averageDescriptionLength: number;
-  longestCompanyName: string;
-  shortestCompanyName: string;
-} {
-  const companies = Object.values(DATA) as any[];
-  const industries = new Set(companies.map(c => c.industry));
-  
-  const descriptionLengths = companies.map(c => c.description.length);
-  const averageDescriptionLength = descriptionLengths.reduce((a, b) => a + b, 0) / descriptionLengths.length;
-  
-  const companyNames = companies.map(c => c.name);
-  const longestCompanyName = companyNames.reduce((a, b) => a.length > b.length ? a : b);
-  const shortestCompanyName = companyNames.reduce((a, b) => a.length < b.length ? a : b);
-  
-  return {
-    totalCompanies: companies.length,
-    totalIndustries: industries.size,
-    averageDescriptionLength: Math.round(averageDescriptionLength),
-    longestCompanyName,
-    shortestCompanyName
-  };
-}
+// ============================================================================
+// Data Validation Utilities (사용되지 않는 함수들 제거됨)
+// ============================================================================

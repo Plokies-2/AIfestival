@@ -458,6 +458,7 @@ export interface EnhancedInvestmentAnalysisResult {
     reason: string;
   }>;
   analysisReasoning: string;
+  strategyComparison: string;
   trendNews: NewsItem[];
   companyNews: { [companyName: string]: NewsItem[] };
   searchSummary: string;
@@ -487,8 +488,16 @@ export async function generateEnhancedInvestmentAnalysis(
       throw new Error('투자 동향 뉴스 검색 실패');
     }
 
+    // 🚨 중요: 필터링된 뉴스가 없으면 폴백 처리
+    if (!trendSearchResult.news_items || trendSearchResult.news_items.length === 0) {
+      console.log(`⚠️ [New Pipeline] 필터링된 뉴스가 0개 - 폴백 모드로 전환`);
+      throw new Error('최근 3일 내 관련 뉴스가 없어 폴백 모드로 전환합니다.');
+    }
+
     // 2단계: 뉴스 기반 기업 6개 추출 (정통한 3개 + 창의적 3개)
     console.log(`💡 [New Pipeline] 2단계: 뉴스 기반 기업 추출 (6개)`);
+    console.log(`🔧 [New Pipeline] 사용할 뉴스 개수: ${trendSearchResult.news_items.length}개`);
+
     const extractedCompanies = await functionExecutor.executeExtractCompaniesFromNews({
       user_message: input.userMessage,
       trend_news: trendSearchResult.news_items,
@@ -506,9 +515,9 @@ export async function generateEnhancedInvestmentAnalysis(
 
     for (const company of allExtractedCompanies) {
       try {
-        const companyResult = await newsSearchSystem.searchCompanyNews(company.name, 6);
+        const companyResult = await newsSearchSystem.searchCompanyNews(company.name, 10);
         companySearchResults[company.name] = companyResult;
-        console.log(`   ✅ ${company.name}: ${companyResult.success ? companyResult.news_items.length : 0}개 뉴스 (목표: 6개)`);
+        console.log(`   ✅ ${company.name}: ${companyResult.success ? companyResult.news_items.length : 0}개 뉴스 (목표: 10개)`);
       } catch (error) {
         console.error(`   ❌ ${company.name} 검색 실패:`, error);
       }
@@ -531,9 +540,10 @@ export async function generateEnhancedInvestmentAnalysis(
       traditionalStrategy: extractedCompanies.traditional_companies,
       creativeStrategy: extractedCompanies.creative_companies,
       analysisReasoning: extractedCompanies.market_analysis,
+      strategyComparison: extractedCompanies.strategy_comparison,
       trendNews: trendSearchResult.news_items,
       companyNews,
-      searchSummary: `투자 동향 뉴스 ${trendSearchResult.news_items.length}개 분석, 추출된 기업 ${allExtractedCompanies.length}개 개별 검색 완료 (기업당 최대 6개 뉴스)`
+      searchSummary: `투자 동향 뉴스와, 개별 기업들의 뉴스를 분석하였습니다.`
     };
 
     const overallTime = Date.now() - overallStartTime;
@@ -562,6 +572,7 @@ export async function generateEnhancedInvestmentAnalysis(
       traditionalStrategy: fallbackResult.traditionalStrategy,
       creativeStrategy: fallbackResult.creativeStrategy,
       analysisReasoning: fallbackResult.analysisReasoning,
+      strategyComparison: '폴백 모드에서는 전략 비교 분석을 제공하지 않습니다.',
       trendNews: [],
       companyNews: {},
       searchSummary: '폴백 모드: 기존 분석 방식 사용'

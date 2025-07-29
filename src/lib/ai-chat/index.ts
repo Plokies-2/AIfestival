@@ -151,15 +151,7 @@ export {
   getAllTickers,
   getCompaniesByIndustry,
   formatCompanyDisplay,
-  formatCompanyList,
-  formatCompanyDescriptions,
-  getIndustryStats,
-  getTopIndustries,
-  getCompaniesWithDetailedDescriptions,
-  searchCompaniesByName,
-  filterCompanies,
-  validateCompanyData,
-  getDatasetStats
+  formatCompanyList
 } from './company-utils';
 
 // ============================================================================
@@ -211,15 +203,7 @@ export function validateSystemConfiguration(): {
     errors.push('OPENAI_API_KEY environment variable is not set');
   }
   
-  // Check data availability
-  try {
-    const { QUICK_ENRICHED_FINAL } = require('@/data/KOSPI_enriched_final');
-    if (!QUICK_ENRICHED_FINAL || Object.keys(QUICK_ENRICHED_FINAL).length === 0) {
-      errors.push('S&P 500 data is not available or empty');
-    }
-  } catch (error) {
-    errors.push('Failed to load S&P 500 data');
-  }
+  // KOSPI 데이터 검증은 필요할 때 수행됨
   
   // 임베딩 시스템 검증 제거 - 필요할 때 로드되며 적절한 에러 메시지 제공
   

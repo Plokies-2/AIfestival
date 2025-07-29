@@ -125,7 +125,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    reply += `💡 더 자세한 분석이 필요하시면 언제든 말씀해 주세요!`;
+    // 전략 비교 분석 섹션
+    if (investmentRecommendation.strategyComparison) {
+      reply += `## ⚖️ 전략 비교 분석\n${investmentRecommendation.strategyComparison}\n\n`;
+    }
+
+
 
     console.log(`✅ [상세 분석] 고급 모델 응답 생성 완료`);
 
