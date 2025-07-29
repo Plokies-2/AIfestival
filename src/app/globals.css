@@ -4,6 +4,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 실시간 thinking box 애니메이션 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
 /* 포트폴리오 차트 애니메이션 - 왼쪽에서 오른쪽으로 그려지는 효과 */
 @keyframes draw-line {
   from {

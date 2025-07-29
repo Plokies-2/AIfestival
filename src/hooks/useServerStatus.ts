@@ -38,23 +38,13 @@ export function useServerStatus(options: UseServerStatusOptions = {}) {
 
       const status: ServerStatus = await response.json();
 
-      // 서버가 재시작된 경우
-      if (status.restarted && status.shouldClearPortfolios) {
-        console.log('🔄 [Server Status] 서버 재시작 감지됨');
+      // 서버가 재시작된 경우 (포트폴리오는 유지)
+      if (status.restarted) {
+        console.log('🔄 [Server Status] 서버 재시작 감지됨, 포트폴리오는 유지됩니다');
 
-        // 개발 환경에서는 포트폴리오 자동 삭제 비활성화
-        const isDevelopment = process.env.NODE_ENV === 'development' ||
-                             typeof window !== 'undefined' && window.location.hostname === 'localhost';
-
-        if (!isDevelopment) {
-          // 프로덕션 환경에서만 포트폴리오 삭제
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('ai_portfolios');
-            console.log('✅ [Server Status] 포트폴리오 삭제 완료 (프로덕션 환경)');
-          }
-        } else {
-          console.log('🔧 [Server Status] 개발 환경에서는 포트폴리오 자동 삭제 건너뜀');
-        }
+        // 포트폴리오 삭제 로직 제거 - 사용자가 생성한 포트폴리오는 유지
+        // localStorage에서 포트폴리오를 삭제하지 않음
+        console.log('✅ [Server Status] 포트폴리오 유지 완료');
 
         // 콜백 실행
         onServerRestart?.();

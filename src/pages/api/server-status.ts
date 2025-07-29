@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getServerStatus, isServerRestarted } from '../../lib/server-session';
+import { getServerStatus, isServerRestarted, shouldClearPortfolios } from '../../lib/server-session';
 
 /**
  * 서버 상태 확인 API
@@ -20,7 +20,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     res.status(200).json({
       ...serverStatus,
       restarted,
-      shouldClearPortfolios: restarted // 재시작된 경우 포트폴리오 삭제 필요
+      shouldClearPortfolios: shouldClearPortfolios() // 서버 시작 후 첫 번째 요청에서만 true
     });
   } catch (error) {
     console.error('❌ [Server Status] API 오류:', error);

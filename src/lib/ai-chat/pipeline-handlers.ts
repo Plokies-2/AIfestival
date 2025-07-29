@@ -244,13 +244,12 @@ async function handleInvestmentQuery(
       }
     }
 
-    // 1단계: hcx-dash-002로 빠른 산업 적합성 메시지 생성
-    let quickReply;
-    if (displayIndustries.length === 1) {
-      quickReply = `🎯 사용자님의 투자 전략을 생각해봤을 때, **${displayIndustries[0].industry_ko}** 산업이 가장 적합해 보입니다! 💡\n\n잠시만 기다려주세요, AI가 더 자세한 투자 전략을 구상하고 있어요... ⚡️`;
-    } else {
-      quickReply = `🎯 사용자님의 투자 전략을 생각해봤을 때, **${displayIndustries[0].industry_ko}**와 **${displayIndustries[1].industry_ko}** 산업이 가장 적합해 보입니다! 💡\n\n잠시만 기다려주세요, AI가 더 자세한 투자 전략을 구상하고 있어요... ⚡️`;
-    }
+    // 1단계: HCX-002-dash로 자율적인 산업 적합성 메시지 생성
+    const industryNames = displayIndustries.map(industry => industry.industry_ko);
+    const quickReply = await generateDynamicResponse(
+      `사용자가 "${userInput}"라고 투자 질문을 했고, AI 분석 결과 ${industryNames.join('과 ')} 산업이 적합하다고 판단되었습니다. 이 산업들을 언급하면서 친근하고 자연스럽게 응답해주세요. 이모티콘을 사용하고, 더 자세한 분석이 진행 중임을 알려주세요.`,
+      'investment_query'
+    );
 
     // 세션에 상세 분석용 데이터 저장
     const detailedAnalysisData = {

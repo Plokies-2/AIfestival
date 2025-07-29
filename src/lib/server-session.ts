@@ -5,6 +5,8 @@
 
 // 서버 시작 시간을 저장하는 전역 변수
 let serverStartTime: number = Date.now();
+// 포트폴리오 삭제가 필요한지 추적하는 변수 (서버 시작 시에만 true)
+let shouldClearPortfoliosOnFirstRequest: boolean = true;
 
 /**
  * 서버 시작 시간 반환
@@ -21,8 +23,17 @@ export function isServerRestarted(clientLastKnownStartTime?: number): boolean {
   if (!clientLastKnownStartTime) {
     return true; // 클라이언트가 서버 시작 시간을 모르면 재시작으로 간주
   }
-  
+
   return clientLastKnownStartTime !== serverStartTime;
+}
+
+/**
+ * 포트폴리오 삭제가 필요한지 확인 (서버 시작 후 첫 번째 요청에서만 true)
+ */
+export function shouldClearPortfolios(): boolean {
+  const shouldClear = shouldClearPortfoliosOnFirstRequest;
+  shouldClearPortfoliosOnFirstRequest = false; // 한 번 호출되면 false로 설정
+  return shouldClear;
 }
 
 /**
@@ -41,6 +52,7 @@ export function getServerStatus() {
  */
 export function initializeServerSession() {
   serverStartTime = Date.now();
+  shouldClearPortfoliosOnFirstRequest = true; // 서버 시작 시 포트폴리오 삭제 플래그 설정
   console.log(`🚀 [Server Session] 서버 시작됨: ${new Date(serverStartTime).toISOString()}`);
 }
 

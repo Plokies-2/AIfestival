@@ -90,8 +90,7 @@ def backtest_portfolio(tickers, weights, start_date, end_date, period):
     """포트폴리오 백테스팅 실행"""
 
     try:
-        # 주가 데이터 다운로드
-        print(f"Downloading data for tickers: {tickers}", file=sys.stderr)
+        # 주가 데이터 다운로드 (로그 제거)
 
         # 모든 종목 데이터를 한 번에 다운로드
         try:
@@ -159,7 +158,7 @@ def backtest_portfolio(tickers, weights, start_date, end_date, period):
                 'dailyReturns': daily_returns_data
             }
 
-            print(f"Backtest completed successfully", file=sys.stderr)
+            # 백테스팅 완료 (로그 제거)
             return result
 
         except Exception as download_error:
@@ -183,10 +182,7 @@ def main():
         end_date = data['end_date']
         period = data['period']
         
-        print(f"Starting backtest for period {period}", file=sys.stderr)
-        print(f"Tickers: {tickers}", file=sys.stderr)
-        print(f"Weights: {weights}", file=sys.stderr)
-        print(f"Date range: {start_date} to {end_date}", file=sys.stderr)
+        # 백테스팅 시작 (상세 로그 제거)
         
         # 백테스팅 실행
         result = backtest_portfolio(tickers, weights, start_date, end_date, period)

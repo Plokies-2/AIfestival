@@ -42,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Portfolio and period are required' });
     }
 
-    console.log(`🔍 [Backtest] 백테스팅 시작: ${portfolio.name} (${period})`);
+    // 백테스팅 시작 (로그 간소화)
 
     // 기간별 일수 계산
     const periodDays = {
@@ -128,7 +128,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             dailyReturns: pythonResult.dailyReturns
           };
 
-          console.log(`✅ [Backtest] 백테스팅 완료:`, result);
+          // 백테스팅 완료 (상세 로그 제거)
           resolve(result);
         } catch (parseError) {
           console.error(`❌ [Backtest] 결과 파싱 실패:`, parseError);

@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import ReportModal from './ReportModal';
-import ThinkingStatusBox from './ThinkingStatusBox';
+import RealTimeThinkingBox from './RealTimeThinkingBox';
 
 interface AIChatProps {
   onSymbolSubmit?: (symbol: string) => void;
@@ -40,6 +40,14 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
   const [reportContent, setReportContent] = useState('');
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [isThinking, setIsThinking] = useState(false); // 추론 과정 상태
+  const [thinkingMessages, setThinkingMessages] = useState<Array<{
+    id: string;
+    text: string;
+    detail?: string;
+    type: 'search' | 'analyze' | 'extract' | 'generate' | 'complete';
+    timestamp: number;
+  }>>([]);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollDiv = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
@@ -95,6 +103,15 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
     const timer = setTimeout(scrollToBottom, 100);
     return () => clearTimeout(timer);
   }, [history, hasChart]);
+
+  /* 컴포넌트 언마운트 시 polling 정리 */
+  useEffect(() => {
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [pollingInterval]);
 
   /* 컨테이너 크기 변경 감지 및 스크롤 재조정 */
   useEffect(() => {
@@ -232,6 +249,83 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
   const detectCompanyList = useCallback((text: string): boolean =>
     DETECTION_PATTERNS.companyList.some(pattern => pattern.test(text)), [DETECTION_PATTERNS]);
 
+  // 분석 진행 상황 polling 함수
+  const pollAnalysisProgress = useCallback(async () => {
+    try {
+      const response = await fetch('/api/analysis-progress?sessionId=global-session');
+      const data = await response.json();
+
+      if (data.success && data.currentProgress) {
+        const progress = data.currentProgress;
+
+        // 타입 매핑
+        const getProgressType = (step: string) => {
+          if (step.includes('search') || step.includes('검색')) return 'search';
+          if (step.includes('analyze') || step.includes('분석')) return 'analyze';
+          if (step.includes('extract') || step.includes('추출')) return 'extract';
+          if (step.includes('generate') || step.includes('생성')) return 'generate';
+          if (step.includes('complete') || step.includes('완료')) return 'complete';
+          return 'analyze';
+        };
+
+        const thinkingMessage = {
+          id: `progress_${progress.timestamp}`,
+          text: progress.message,
+          detail: progress.detail,
+          type: getProgressType(progress.step),
+          timestamp: progress.timestamp
+        };
+
+        setThinkingMessages([thinkingMessage]);
+
+        // 분석 완료 시 polling 중단
+        if (!data.isAnalyzing || progress.completed) {
+          if (pollingInterval) {
+            clearInterval(pollingInterval);
+            setPollingInterval(null);
+          }
+
+          // 완료 메시지 표시 후 thinking box 숨김 (3초로 연장)
+          setTimeout(() => {
+            setThinkingMessages([]);
+          }, 3000);
+        }
+      }
+    } catch (error) {
+      // 개발 환경에서만 상세 에러 로깅
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ [Progress Polling] 오류:', error);
+      }
+    }
+  }, [pollingInterval]);
+
+  // polling 시작 함수
+  const startProgressPolling = useCallback(() => {
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+    }
+
+    const interval = setInterval(pollAnalysisProgress, 1000); // 1초마다 polling
+    setPollingInterval(interval);
+
+    // 개발 환경에서만 로깅
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔄 [Progress Polling] 시작');
+    }
+  }, [pollAnalysisProgress, pollingInterval]);
+
+  // polling 중단 함수
+  const stopProgressPolling = useCallback(() => {
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      setPollingInterval(null);
+      // 개발 환경에서만 로깅
+      if (process.env.NODE_ENV === 'development') {
+        console.log('⏹️ [Progress Polling] 중단');
+      }
+    }
+  }, [pollingInterval]);
+
   // 상세 분석 API 호출 함수 (개선된 에러 핸들링)
   const fetchDetailedAnalysis = useCallback(async (retryCount = 0) => {
     const maxRetries = 3; // 재시도 횟수 증가
@@ -247,12 +341,15 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('❌ 상세 분석 API 오류:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData.error || '알 수 없는 오류',
-          retryCount: retryCount + 1
-        });
+        // 개발 환경에서만 상세 에러 로깅
+        if (process.env.NODE_ENV === 'development') {
+          console.error('❌ 상세 분석 API 오류:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData.error || '알 수 없는 오류',
+            retryCount: retryCount + 1
+          });
+        }
 
         // 400 에러 (세션 데이터 없음)인 경우 재시도 - 지연 시간 증가
         if (response.status === 400 && retryCount < maxRetries) {
@@ -273,7 +370,8 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
         try {
           const { traditionalStrategy, creativeStrategy, selectedIndustries, userMessage, refinedQuery } = data.portfolioData;
           const portfolios = [];
-          const portfolioName = refinedQuery || selectedIndustries[0]?.industry_ko || userMessage || '투자';
+          // 정제된 쿼리를 우선 사용하고, 없으면 사용자 메시지 사용
+          const portfolioName = refinedQuery || userMessage || selectedIndustries[0]?.industry_ko || '투자';
           const timestamp = new Date().toISOString();
           const groupId = `group_${Date.now()}`; // 하나의 답변당 하나의 그룹 ID
 
@@ -326,11 +424,16 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
 
       return data.reply;
     } catch (error) {
-      console.error('❌ 상세 분석 오류:', error);
+      // 개발 환경에서만 상세 에러 로깅
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ 상세 분석 오류:', error);
+      }
 
       if (retryCount < maxRetries) {
         const delayMs = (retryCount + 1) * 500;
-        console.log(`⏳ 네트워크 오류 재시도... (${retryCount + 1}/${maxRetries}, ${delayMs}ms 대기)`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`⏳ 네트워크 오류 재시도... (${retryCount + 1}/${maxRetries}, ${delayMs}ms 대기)`);
+        }
         await new Promise(resolve => setTimeout(resolve, delayMs));
         return fetchDetailedAnalysis(retryCount + 1);
       }
@@ -352,6 +455,9 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
     if (res.needsDetailedAnalysis) {
       console.log('🤖 상세 분석 시작...');
 
+      // thinking 메시지 초기화
+      setThinkingMessages([]);
+
       // 2차 분석 추론 과정 표시
       setHistory(h => [...h, {
         from: 'bot',
@@ -360,11 +466,17 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
       }]);
       setIsThinking(true);
 
+      // 실시간 진행 상황 polling 시작
+      startProgressPolling();
+
       // 세션 업데이트 완료를 위한 짧은 지연
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // 상세 분석 요청 (재시도 로직 포함)
       const detailedReply = await fetchDetailedAnalysis();
+
+      // polling 중단
+      stopProgressPolling();
 
       // 추론 과정을 상세 분석 결과로 교체
       setIsThinking(false);
@@ -504,7 +616,10 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
       setReportContent(result.report);
 
     } catch (error) {
-      console.error('Error generating report:', error);
+      // 개발 환경에서만 상세 에러 로깅
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error generating report:', error);
+      }
       setReportContent('보고서 생성 중 오류가 발생했습니다. 다시 시도해 주세요.');
     } finally {
       setIsGeneratingReport(false);
@@ -534,7 +649,10 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
       setHistory(h => [...h, { from: 'bot', text: res.reply }]);
       await handleApiResponse(res);
     } catch (error) {
-      console.error('Chat error:', error);
+      // 개발 환경에서만 상세 에러 로깅
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Chat error:', error);
+      }
       setHistory(h => [...h, { from: 'bot', text: '죄송합니다. 일시적인 오류가 발생했습니다.' }]);
       onSymbolError?.();
       onShowingCompanyList?.(false);
@@ -617,8 +735,9 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
                 {/* 메시지 버블 */}
                 <div className="space-y-2">
                   {m.isThinking ? (
-                    <ThinkingStatusBox
+                    <RealTimeThinkingBox
                       isVisible={true}
+                      realTimeMessages={thinkingMessages}
                       onComplete={() => {
                         // 추론 완료 후 처리 (필요시)
                       }}

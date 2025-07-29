@@ -286,17 +286,15 @@ export class FunctionCallingExecutor {
 
     console.log(`📊 [Function Call] ${functionName} 실행 시작 - 뉴스 기반 기업 추출`);
 
-    // 🚨 중요: 뉴스 개수에 따라 추출할 기업 수 동적 조정
+    // 🚨 중요: 각 전략마다 항상 3개 기업으로 포트폴리오 구성
     const newsCount = args.trend_news?.length || 0;
-    let traditionalCount = 3;
-    let creativeCount = 3;
+    const traditionalCount = 3; // 항상 3개 고정
+    const creativeCount = 3; // 항상 3개 고정
 
-    if (newsCount < 6) {
-      // 뉴스가 6개 미만이면 기업 수를 줄임
-      traditionalCount = Math.max(1, Math.floor(newsCount / 2));
-      creativeCount = Math.max(1, newsCount - traditionalCount);
-
-      console.log(`⚠️ [Function Call] 뉴스 부족 (${newsCount}개) - 기업 수 조정: 정통한 ${traditionalCount}개, 창의적 ${creativeCount}개`);
+    if (newsCount === 0) {
+      console.log(`⚠️ [Function Call] 뉴스 없음 - 산업 정보 기반으로 기업 추출: 정통한 ${traditionalCount}개, 창의적 ${creativeCount}개`);
+    } else {
+      console.log(`✅ [Function Call] 뉴스 ${newsCount}개 활용 - 기업 추출: 정통한 ${traditionalCount}개, 창의적 ${creativeCount}개`);
     }
 
     console.log(`🔧 [Function Call] 최종 설정: 뉴스 ${newsCount}개 → 정통한 ${traditionalCount}개 + 창의적 ${creativeCount}개 기업`);
@@ -314,6 +312,8 @@ export class FunctionCallingExecutor {
         });
 
         enhancedUserMessage += `**⚠️ 중요: 위 뉴스들은 뉴스1, 뉴스2, 뉴스3... 형태로 구분됩니다. 절대 같은 뉴스를 반복 사용하지 마세요!**\n`;
+      } else {
+        enhancedUserMessage += '\n\n**📰 최신 뉴스 정보:**\n관련 최신 뉴스를 찾을 수 없어 산업 정보와 일반적인 시장 동향을 바탕으로 기업을 추출합니다.\n\n';
       }
 
       // 산업 정보 추가
@@ -325,95 +325,62 @@ export class FunctionCallingExecutor {
         enhancedUserMessage += `**${industry.industry_ko}** (매칭 점수: ${industry.score.toFixed(3)})\n기업들: ${companiesText}\n\n`;
       });
 
-      // 뉴스 개수에 따른 동적 지침 생성
-      const getInstructions = (newsCount: number, traditionalCount: number, creativeCount: number) => {
-        if (newsCount === 1) {
-          return `위 최신 뉴스를 바탕으로 투자 가치가 높은 기업 ${traditionalCount + creativeCount}개를 추출해주세요.
+      // 간소화된 기업 추출 지침 생성
+      const getInstructions = (traditionalCount: number, creativeCount: number) => {
+        return `위 최신 뉴스를 바탕으로 투자 가치가 높은 기업 ${traditionalCount + creativeCount}개를 추출해주세요.
 
-**절대 준수 사항:**
-1. **뉴스1만 사용 가능하므로 모든 기업에서 뉴스1을 활용하세요**
-2. **각 기업마다 뉴스1의 서로 다른 측면을 강조하여 차별화하세요**
-3. **시장 분석에서도 뉴스1을 기반으로 작성하세요**
+**목표:**
+- 정통한 투자 전략: ${traditionalCount}개 기업 (안정성 중심)
+- 창의적 투자 전략: ${creativeCount}개 기업 (성장성 중심)
 
-**예시 형식:**
-"뉴스1에 따르면, [기업명]은 [특정 측면]에서 강점을 보입니다..."`;
-        } else if (newsCount === 2) {
-          return `위 최신 뉴스를 바탕으로 투자 가치가 높은 기업 ${traditionalCount + creativeCount}개를 추출해주세요.
+**추출 방식:**
+- 기업명과 티커 심볼을 정확히 식별
+- 해당 기업이 속한 산업 분야나 특징을 간단히 기술
+- 상세한 투자 근거는 다음 단계에서 생성됩니다
 
-**절대 준수 사항:**
-1. **뉴스1과 뉴스2를 골고루 활용하세요**
-2. **각 기업마다 가능한 한 두 뉴스를 모두 언급하세요**
-3. **시장 분석에서는 뉴스1과 뉴스2를 모두 활용하세요**
-
-**예시 형식:**
-"뉴스1에 따르면, [기업명]은 [사실1]입니다. 또한 뉴스2에서는 [사실2]가 보도되었습니다..."`;
-        } else {
-          return `위 최신 뉴스를 바탕으로 투자 가치가 높은 기업 ${traditionalCount + creativeCount}개를 추출해주세요.
-
-**절대 준수 사항:**
-1. **각 기업마다 반드시 서로 다른 2개 이상의 뉴스를 인용하세요 (예: 뉴스1과 뉴스5 사용)**
-2. **절대 같은 뉴스를 여러 기업에서 반복 사용하지 마세요**
-3. **시장 분석에서는 최소 3개의 서로 다른 뉴스를 언급하세요**
-4. 뉴스 번호를 명시하여 "뉴스3에 따르면..." 형식으로 작성하세요
-
-**예시 형식:**
-"뉴스1에 따르면, [기업명]은 [사실1]입니다. 또한 뉴스7에서는 [사실2]가 보도되었습니다..."`;
-        }
+**예시:**
+- reason: "AI/반도체 기업"
+- reason: "바이오/제약 기업"
+- reason: "전기차/배터리 기업"`;
       };
 
-      enhancedUserMessage += getInstructions(newsCount, traditionalCount, creativeCount);
+      enhancedUserMessage += getInstructions(traditionalCount, creativeCount);
 
-      enhancedUserMessage += `\n\n**📋 사용 가능한 뉴스 목록: 총 ${newsCount}개**\n`;
-      enhancedUserMessage += `뉴스1부터 뉴스${newsCount}까지 사용 가능합니다. 각각 다른 뉴스이므로 다양하게 활용하세요.\n`;
+      // 간소화된 시스템 메시지 생성
+      const getSystemMessage = (traditionalCount: number, creativeCount: number, hasNews: boolean) => {
+        const baseMessage = `당신은 투자 가치가 높은 기업을 추출하는 전문가입니다.
 
-      // 뉴스 개수에 따른 동적 시스템 메시지 생성
-      const getSystemMessage = (newsCount: number, traditionalCount: number, creativeCount: number) => {
-        if (newsCount === 1) {
-          return `당신은 최신 뉴스를 분석하여 투자 가치가 높은 기업을 추출하는 전문가입니다.
+**역할:**
+- 제공된 정보를 바탕으로 투자 가치가 높은 기업들을 식별
+- 정통한 전략 ${traditionalCount}개, 창의적 전략 ${creativeCount}개 기업을 추출
+- 각 기업의 산업 분야나 특징을 간단히 분류
 
-**현재 상황:** 사용 가능한 뉴스가 1개뿐입니다.
+**중요사항:**
+- 이 단계에서는 기업 추출에만 집중하세요
+- 상세한 투자 근거와 분석은 다음 단계에서 처리됩니다
+- reason 필드에는 "AI/반도체 기업", "바이오/제약 기업" 등 간단한 분류만 기입하세요
 
-**절대 준수 사항:**
-1. **뉴스1만 사용 가능하므로 모든 기업에서 뉴스1을 활용하세요**
-2. **각 기업마다 뉴스1의 서로 다른 측면을 강조하여 차별화하세요**
-3. **정통한 전략 ${traditionalCount}개, 창의적 전략 ${creativeCount}개 기업을 추출하세요**
+**출력 형식:**
+- ticker: 정확한 기업 티커 심볼
+- name: 정확한 기업명
+- reason: 간단한 산업 분야 또는 특징`;
 
-**응답 형식:**
-"뉴스1에 따르면, [기업명]은 [특정 측면]에서 강점을 보입니다. 이처럼 [분석]하므로 [투자 강점]합니다."`;
-        } else if (newsCount === 2) {
-          return `당신은 최신 뉴스를 분석하여 투자 가치가 높은 기업을 추출하는 전문가입니다.
+        if (!hasNews) {
+          return baseMessage + `
 
-**현재 상황:** 사용 가능한 뉴스가 2개입니다.
-
-**절대 준수 사항:**
-1. **뉴스1과 뉴스2를 골고루 활용하세요**
-2. **각 기업마다 가능한 한 두 뉴스를 모두 언급하세요**
-3. **정통한 전략 ${traditionalCount}개, 창의적 전략 ${creativeCount}개 기업을 추출하세요**
-
-**응답 형식:**
-"뉴스1에 따르면, [기업명]은 [사실1]입니다. 또한 뉴스2에서는 [사실2]가 보도되었습니다."`;
-        } else {
-          return `당신은 최신 뉴스를 분석하여 투자 가치가 높은 기업을 추출하는 전문가입니다.
-
-**절대 준수 사항:**
-1. **각 기업마다 가능한 경우 서로 다른 2개 이상의 뉴스를 인용하세요**
-2. **절대 같은 뉴스를 여러 기업에서 반복 사용하지 마세요**
-3. **뉴스 번호를 명시하세요 (예: "뉴스1에 따르면...", "뉴스5에서는...")**
-4. **시장 분석에서는 최소 3개의 서로 다른 뉴스를 언급하세요**
-5. **정통한 전략 ${traditionalCount}개, 창의적 전략 ${creativeCount}개 기업을 추출하세요**
-
-**응답 형식:**
-"뉴스3에 따르면, [기업명]은 [구체적 사실]입니다. 또한 뉴스8에서는 [추가 사실]이 보도되었습니다. 이처럼 [분석]하므로 [투자 강점]합니다."
-
-**⚠️ 경고:** 뉴스 다양성을 반드시 확보하세요. 같은 뉴스 반복 사용 시 분석이 무효화됩니다.`;
+**특별 지침:**
+- 최신 뉴스가 없으므로 산업 정보와 일반적인 시장 동향을 바탕으로 기업을 추출하고, 중요한 최신 뉴스가 없음을 알리세요.
+- 해당 산업에서 대표적이고 투자 가치가 높은 기업들을 선택하세요`;
         }
+
+        return baseMessage;
       };
 
       // HCX-005 Function Calling API 호출
       const messages = [
         {
           role: 'system' as const,
-          content: getSystemMessage(newsCount, traditionalCount, creativeCount)
+          content: getSystemMessage(traditionalCount, creativeCount, newsCount > 0)
         },
         {
           role: 'user' as const,
@@ -421,15 +388,9 @@ export class FunctionCallingExecutor {
         }
       ];
 
-      // 뉴스 개수에 따른 동적 reason 설명 생성
-      const getReasonDescription = (newsCount: number) => {
-        if (newsCount === 1) {
-          return '뉴스1을 기반으로 투자 근거를 설명 (형식: "뉴스1에 따르면, [기업명]은 [사실]입니다. 이처럼 [분석]하므로 [투자 강점]합니다.")';
-        } else if (newsCount === 2) {
-          return '뉴스1과 뉴스2를 모두 활용하여 투자 근거를 설명 (형식: "뉴스1에 따르면, [기업명]은 [사실1]입니다. 또한 뉴스2에서는 [사실2]가 보도되었습니다.")';
-        } else {
-          return '반드시 서로 다른 2개 이상의 뉴스를 번호로 인용 (형식: "뉴스3에 따르면, [기업명]은 [사실1]입니다. 또한 뉴스8에서는 [사실2]가 보도되었습니다.") - 절대 같은 뉴스 반복 금지';
-        }
+      // 간단한 기업 카테고리 설명 생성 (상세한 근거는 다음 단계에서 처리)
+      const getReasonDescription = () => {
+        return '해당 기업이 속한 산업 분야나 간단한 특징 (예: "AI/반도체 기업", "바이오/제약 기업", "전기차/배터리 기업" 등)';
       };
 
       const getMarketAnalysisDescription = (newsCount: number) => {
@@ -447,7 +408,7 @@ export class FunctionCallingExecutor {
           type: 'function',
           function: {
             name: 'extract_companies_from_news',
-            description: `최신 뉴스 분석을 통해 투자 가치가 높은 기업 ${traditionalCount + creativeCount}개를 추출합니다.`,
+            description: `최신 뉴스 분석을 통해 투자 가치가 높은 기업 ${traditionalCount + creativeCount}개를 추출합니다. 이 단계에서는 기업 식별에만 집중하며, 상세한 투자 근거는 다음 단계에서 생성됩니다.`,
             parameters: {
               type: 'object',
               properties: {
@@ -458,7 +419,7 @@ export class FunctionCallingExecutor {
                     properties: {
                       ticker: { type: 'string', description: '기업 티커 심볼' },
                       name: { type: 'string', description: '기업명' },
-                      reason: { type: 'string', description: getReasonDescription(newsCount) }
+                      reason: { type: 'string', description: getReasonDescription() }
                     },
                     required: ['ticker', 'name', 'reason']
                   },
@@ -471,7 +432,7 @@ export class FunctionCallingExecutor {
                     properties: {
                       ticker: { type: 'string', description: '기업 티커 심볼' },
                       name: { type: 'string', description: '기업명' },
-                      reason: { type: 'string', description: getReasonDescription(newsCount) }
+                      reason: { type: 'string', description: getReasonDescription() }
                     },
                     required: ['ticker', 'name', 'reason']
                   },
@@ -601,6 +562,10 @@ export class FunctionCallingExecutor {
         industry: string;
       }>;
     }>;
+    extracted_companies?: {
+      traditional_companies: Array<{ ticker: string; name: string; reason: string }>;
+      creative_companies: Array<{ ticker: string; name: string; reason: string }>;
+    };
     rag_accuracy: number;
   }): Promise<InvestmentRecommendationResult> {
     const startTime = Date.now();
@@ -649,18 +614,36 @@ export class FunctionCallingExecutor {
 
       enhancedUserMessage += `**RAG 매칭 정확도:** ${args.rag_accuracy.toFixed(3)}\n\n`;
 
+      // 추출된 기업 정보 추가 (1단계에서 추출된 기업들)
+      if (args.extracted_companies) {
+        enhancedUserMessage += '\n\n**1단계에서 추출된 투자 대상 기업:**\n';
+        enhancedUserMessage += '**정통한 전략 기업:**\n';
+        args.extracted_companies.traditional_companies.forEach((company, index) => {
+          enhancedUserMessage += `${index + 1}. ${company.ticker} (${company.name}) - ${company.reason}\n`;
+        });
+        enhancedUserMessage += '\n**창의적 전략 기업:**\n';
+        args.extracted_companies.creative_companies.forEach((company, index) => {
+          enhancedUserMessage += `${index + 1}. ${company.ticker} (${company.name}) - ${company.reason}\n`;
+        });
+        enhancedUserMessage += '\n**중요:** 위 기업들에 대해 제공된 뉴스를 바탕으로 구체적인 투자 전략과 근거를 생성해주세요.\n\n';
+      }
+
       // 핵심 지시사항 강화
       enhancedUserMessage += `\n\n**🚨 절대 준수 사항:**
-1. **각 기업마다 반드시 서로 다른 2개 이상의 뉴스를 인용하세요**
-2. **절대 같은 뉴스를 여러 기업에서 반복 사용하지 마세요**
-3. **뉴스 번호를 명시하세요 (예: "뉴스3에 따르면...", "뉴스15에서는...")**
-4. **시장 분석에서는 최소 3개의 서로 다른 뉴스를 언급하세요**
+1. **동향 뉴스 분석 시 특정 기업명 절대 언급 금지! 산업 전반의 트렌드만 언급하세요**
+2. **동향 뉴스에서 "AI 반도체 시장의 급성장", "글로벌 파트너십 확산" 등 종합적 인사이트 추출하세요**
+3. **각 기업마다 반드시 서로 다른 2개 이상의 뉴스를 인용하세요**
+4. **절대 같은 뉴스를 여러 기업에서 반복 사용하지 마세요**
+5. **뉴스 번호를 명시하세요 (예: "뉴스3에 따르면...", "뉴스15에서는...")**
 
 **📋 사용 가능한 뉴스: 총 ${totalNewsCount}개**
 뉴스1부터 뉴스${totalNewsCount}까지 모두 다른 뉴스입니다. 다양하게 활용하세요.
 
-**예시 형식:**
-"뉴스5에 따르면, 삼성전자는 AI 반도체 투자를 확대한다고 발표했습니다. 또한 뉴스12에서는 글로벌 파트너십 체결 소식이 전해졌습니다. 이처럼 다각적인 성장 전략으로 투자 매력도가 높습니다."`;
+**동향 분석 올바른 예시:**
+"최근 뉴스들을 종합하면, AI 반도체 시장에서 글로벌 파트너십이 확산되고 있으며, 맞춤형 AI 인프라 개발이 가속화되고 있습니다."
+
+**동향 분석 잘못된 예시 (절대 금지):**
+"뉴스1에 따르면, 리벨리온과 마벨은..." (특정 기업명 언급 금지!)`;
 
       // 간소화된 뉴스 요약
       if (args.trend_news && args.trend_news.length > 0) {
@@ -678,15 +661,21 @@ export class FunctionCallingExecutor {
       const messages = [
         {
           role: 'system' as const,
-          content: `당신은 제공된 동향 뉴스와 기업별 뉴스를 모두 활용하여 투자 분석을 수행하는 전문가입니다.
+          content: `당신은 1단계에서 추출된 기업들에 대해 제공된 뉴스를 바탕으로 구체적인 투자 전략과 근거를 생성하는 전문가입니다.
+
+**역할:**
+- 1단계에서 추출된 기업들에 대해 상세한 투자 분석 수행
+- 동향 뉴스와 기업별 개별 뉴스를 종합하여 투자 근거 생성
+- 각 기업의 투자 매력도와 리스크를 구체적으로 분석
 
 **🚨 절대 준수 사항:**
-1. **각 기업마다 반드시 서로 다른 2개 이상의 뉴스를 인용하세요**
-2. **동향 뉴스와 기업별 뉴스를 모두 적극 활용하세요**
-3. **절대 같은 뉴스를 여러 기업에서 반복 사용하지 마세요**
-4. **뉴스 번호를 명시하세요 (예: "뉴스3에 따르면...", "뉴스15에서는...")**
-5. **시장 동향 분석에서는 최소 3개의 서로 다른 뉴스를 언급하세요**
-6. **기업별 투자 근거에는 해당 기업의 개별 뉴스를 우선 활용하세요**
+1. **정통한 전략 3개, 창의적 전략 3개 기업을 반드시 생성하세요**
+2. **동향 뉴스 분석 시 특정 기업명 언급 절대 금지! 산업 전반의 트렌드, 기술 발전, 시장 변화만 언급하세요**
+3. **동향 뉴스에서 종합적인 산업 인사이트를 추출하여 "AI 반도체 시장의 성장", "글로벌 파트너십 확산" 등으로 표현하세요**
+4. **각 기업마다 반드시 서로 다른 2개 이상의 뉴스를 인용하세요**
+5. **해당 기업의 개별 뉴스를 우선 활용하고, 동향 뉴스로 보완하세요**
+6. **절대 같은 뉴스를 여러 기업에서 반복 사용하지 마세요**
+7. **뉴스 번호를 명시하세요 (예: "뉴스3에 따르면...", "뉴스15에서는...")**
 
 **⚠️ 경고:** 뉴스 다양성을 반드시 확보하세요. 같은 뉴스 반복 사용 시 분석이 무효화됩니다.`
         },
@@ -701,7 +690,7 @@ export class FunctionCallingExecutor {
           type: 'function',
           function: {
             name: 'generate_investment_strategies',
-            description: '검색된 최신 동향 뉴스와 기업별 개별 뉴스를 모두 적극 활용하여 근거 있는 투자 전략을 생성합니다. 각 기업의 개별 뉴스를 우선 활용하고, 동향 뉴스로 시장 분석을 보완하여 투자 근거를 제시합니다.',
+            description: '1단계에서 추출된 기업들에 대해 검색된 뉴스를 바탕으로 구체적인 투자 전략과 근거를 생성합니다. 각 기업의 개별 뉴스를 우선 활용하고, 동향 뉴스로 시장 분석을 보완하여 상세한 투자 근거를 제시합니다.',
             parameters: {
               type: 'object',
               properties: {
@@ -720,12 +709,12 @@ export class FunctionCallingExecutor {
                       },
                       reason: {
                         type: 'string',
-                        description: '반드시 해당 기업의 개별 뉴스 2개 이상을 우선 인용하고, 필요시 동향 뉴스로 보완하여 투자 근거 제시. 형식: "뉴스15에 따르면, 삼성전자는 AI 투자를 확대한다고 발표했습니다. 또한 뉴스23에서는 글로벌 파트너십 체결이 보도되었습니다. 이처럼 다각적 성장으로 투자 매력도가 높습니다."'
+                        description: '1단계에서 추출된 해당 기업에 대해 개별 뉴스 2개 이상을 우선 인용하고, 필요시 동향 뉴스로 보완하여 구체적인 투자 근거 제시. 형식: "뉴스15에 따르면, 삼성전자는 AI 투자를 확대한다고 발표했습니다. 또한 뉴스23에서는 글로벌 파트너십 체결이 보도되었습니다. 이처럼 다각적 성장 전략으로 투자 매력도가 높습니다."'
                       }
                     },
                     required: ['ticker', 'name', 'reason']
                   },
-                  description: '안정성과 신뢰성을 중시하는 정통한 투자 전략 3개 기업. 각 기업마다 관련 뉴스의 핵심 내용을 구체적으로 언급'
+                  description: '안정성과 신뢰성을 중시하는 정통한 투자 전략 3개 기업. 각 기업마다 관련 뉴스의 핵심 내용을 구체적으로 언급하여 포트폴리오 구성'
                 },
                 creative_strategies: {
                   type: 'array',
@@ -742,16 +731,16 @@ export class FunctionCallingExecutor {
                       },
                       reason: {
                         type: 'string',
-                        description: '반드시 해당 기업의 개별 뉴스 2개 이상을 우선 인용하고, 필요시 동향 뉴스로 보완하여 투자 근거 제시. 형식: "뉴스25에 따르면, 네이버는 클라우드 매출이 30% 증가했다고 발표했습니다. 또한 뉴스31에서는 AI 서비스 확장 계획이 공개되었습니다. 이처럼 성장 모멘텀이 지속되어 투자 가치가 높습니다."'
+                        description: '1단계에서 추출된 해당 기업에 대해 개별 뉴스 2개 이상을 우선 인용하고, 필요시 동향 뉴스로 보완하여 구체적인 투자 근거 제시. 형식: "뉴스25에 따르면, 네이버는 클라우드 매출이 30% 증가했다고 발표했습니다. 또한 뉴스31에서는 AI 서비스 확장 계획이 공개되었습니다. 이처럼 성장 모멘텀이 지속되어 투자 가치가 높습니다."'
                       }
                     },
                     required: ['ticker', 'name', 'reason']
                   },
-                  description: '성장 가능성과 혁신성을 중시하는 창의적 투자 전략 3개 기업. 각 기업마다 관련 뉴스의 핵심 내용을 구체적으로 언급'
+                  description: '성장 가능성과 혁신성을 중시하는 창의적 투자 전략 3개 기업. 각 기업마다 관련 뉴스의 핵심 내용을 구체적으로 언급하여 포트폴리오 구성'
                 },
                 analysis_reasoning: {
                   type: 'string',
-                  description: '동향 뉴스와 기업별 뉴스를 종합하여 시장 분석 제시. 최소 3개 이상의 서로 다른 뉴스를 인용하고, 각 뉴스 번호를 명시하여 풍부한 분석을 제공.'
+                  description: '동향 뉴스에서 종합적인 산업 인사이트를 추출하여 시장 분석 제시. 동향 뉴스 분석 시 특정 기업명 절대 언급 금지! "AI 반도체 시장의 급성장", "글로벌 파트너십 확산", "기술 혁신 가속화" 등 산업 전반의 트렌드와 변화만 언급. 이후 기업별 뉴스를 활용하여 구체적 분석. 최소 3개 이상의 서로 다른 뉴스를 인용하고, 각 뉴스 번호를 명시하여 풍부한 분석을 제공.'
                 },
                 strategy_comparison: {
                   type: 'string',

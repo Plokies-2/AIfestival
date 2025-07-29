@@ -96,7 +96,9 @@ export class ClovaStudioRAGExecutor {
     const requestData = {
       messages: [
         {
-          content: userQuery,
+          content: `다음 사용자 질문을 투자 동향 뉴스 검색에 최적화된 검색어로 정제해주세요. 특히 정부 정책, 국제 정세, 규제 변화에 초점을 맞춰 검색어를 생성해주세요.
+
+사용자 질문: ${userQuery}`,
           role: "user"
         }
       ],
@@ -110,7 +112,7 @@ export class ClovaStudioRAGExecutor {
               properties: {
                 refined_query: {
                   type: "string",
-                  description: "투자 동향 뉴스 검색에 최적화된 정제된 검색어. 투자, 주식, 기업, 산업, 기술 등 투자 관련 핵심 키워드 중심으로 작성하세요. 예: 'AI 인공지능 투자 동향', '반도체 주식 시장 전망', '국내 기술주 투자'"
+                  description: "뉴스 검색에 효과적인 간단하고 일반적인 검색어. 너무 구체적이지 않고 최근 뉴스를 찾을 수 있는 키워드 중심으로 작성하세요. 예: '휴대폰 제조업 이슈', 'AI 반도체', '전기차 배터리', '바이오 제약', '게임 엔터테인먼트'"
                 },
                 search_intent: {
                   type: "string",
@@ -170,13 +172,21 @@ export class ClovaStudioRAGExecutor {
             thinking_content: thinkingContent
           };
         } else {
-          console.log(`⚠️ [RAG Reasoning] Tool call 없음, 투자 관련 기본 검색어 사용 (${processingTime}ms)`);
-          // 투자 관련 기본 검색어로 폴백
-          const fallbackQuery = userQuery.includes('AI') || userQuery.includes('인공지능')
-            ? 'AI 인공지능 투자 동향'
+          console.log(`⚠️ [RAG Reasoning] Tool call 없음, 간단한 기본 검색어 사용 (${processingTime}ms)`);
+          // 간단하고 효과적인 기본 검색어로 폴백
+          const fallbackQuery = userQuery.includes('휴대폰') || userQuery.includes('스마트폰')
+            ? '휴대폰 제조업 이슈'
+            : userQuery.includes('AI') || userQuery.includes('인공지능')
+            ? 'AI 반도체'
             : userQuery.includes('반도체')
-            ? '반도체 주식 투자 전망'
-            : '투자 시장 동향';
+            ? '반도체 이슈'
+            : userQuery.includes('전기차') || userQuery.includes('배터리')
+            ? '전기차 배터리'
+            : userQuery.includes('바이오') || userQuery.includes('제약')
+            ? '바이오 제약'
+            : userQuery.includes('게임') || userQuery.includes('엔터')
+            ? '게임 엔터테인먼트'
+            : '주식 시장';
 
           return {
             success: true,
@@ -457,23 +467,30 @@ export class RAGNewsSearchSystem {
     const overallTime = Date.now() - overallStartTime;
 
     if (searchResult.success) {
-      // 최근 3일 뉴스만 필터링
-      let recentItems = this.newsSearcher.filterRecentNews(searchResult.items, 3);
-      let dayRange = 3;
+      // 최근 7일 뉴스부터 시작 (정부 정책, 국제 정세 중심)
+      let recentItems = this.newsSearcher.filterRecentNews(searchResult.items, 7);
+      let dayRange = 7;
 
-      // 최근 3일 뉴스가 부족하면 점진적으로 범위 확대
-      if (recentItems.length < 5) {
-        console.log(`⚠️ [Investment Trend Search] 최근 3일 뉴스 ${recentItems.length}개 부족 - 범위 확대`);
+      // 최근 7일 뉴스가 부족하면 점진적으로 범위 확대
+      if (recentItems.length === 0) {
+        console.log(`⚠️ [Investment Trend Search] 최근 7일 뉴스 ${recentItems.length}개 부족 - 범위 확대`);
 
-        // 7일로 확대
-        recentItems = this.newsSearcher.filterRecentNews(searchResult.items, 7);
-        dayRange = 7;
+        // 14일로 확대
+        recentItems = this.newsSearcher.filterRecentNews(searchResult.items, 14);
+        dayRange = 14;
 
-        if (recentItems.length < 5) {
-          console.log(`⚠️ [Investment Trend Search] 최근 7일 뉴스 ${recentItems.length}개 부족 - 14일로 확대`);
-          // 14일로 확대
-          recentItems = this.newsSearcher.filterRecentNews(searchResult.items, 14);
-          dayRange = 14;
+        if (recentItems.length === 0) {
+          console.log(`⚠️ [Investment Trend Search] 최근 14일 뉴스 ${recentItems.length}개 부족 - 30일로 확대`);
+          // 30일로 확대
+          recentItems = this.newsSearcher.filterRecentNews(searchResult.items, 30);
+          dayRange = 30;
+
+          if (recentItems.length === 0) {
+            console.log(`⚠️ [Investment Trend Search] 최근 30일 뉴스도 없음 - 모든 뉴스 사용`);
+            // 모든 뉴스 사용
+            recentItems = searchResult.items.map(item => this.newsSearcher.formatNewsItem(item));
+            dayRange = 999;
+          }
         }
       }
 

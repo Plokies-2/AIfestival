@@ -40,6 +40,18 @@ export interface LSTMData {
 export type Stage = 'START' | 'SHOW_INDUSTRY' | 'ASK_CHART';
 
 /**
+ * Analysis progress tracking for real-time thinking box
+ */
+export interface AnalysisProgress {
+  step: string;
+  message: string;
+  icon?: string;
+  detail?: string;
+  timestamp: number;
+  completed: boolean;
+}
+
+/**
  * Session state structure for maintaining conversation context
  */
 export interface SessionState {
@@ -53,8 +65,12 @@ export interface SessionState {
     intent: string;
     timestamp: number;
   }>;
-  lastActivity: number; // For session cleanup optimization
+  lastActivity: number;
+  lastLogTime?: number; // 로깅 제한을 위한 마지막 로그 시간 // For session cleanup optimization
   pendingDetailedAnalysis?: any; // 상세 분석 대기 데이터
+  analysisProgress?: AnalysisProgress[]; // 분석 진행 상황 히스토리
+  currentProgress?: AnalysisProgress; // 현재 진행 상황
+  isAnalyzing?: boolean; // 분석 진행 중 여부
 }
 
 // ============================================================================

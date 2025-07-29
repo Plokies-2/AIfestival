@@ -82,11 +82,19 @@ export function getSession(_sessionId?: string): SessionState {
   // Update last activity
   GLOBAL_SESSION_STATE.lastActivity = Date.now();
 
-  console.log(`🔍 [세션 상태] 현재:`, {
-    stage: GLOBAL_SESSION_STATE.stage,
-    industry: GLOBAL_SESSION_STATE.selectedIndustry,
-    companies: GLOBAL_SESSION_STATE.industryCompanies.length
-  });
+  // 개발 환경에서만 세션 상태 로깅 (polling으로 인한 과도한 로그 방지)
+  if (process.env.NODE_ENV === 'development') {
+    // 마지막 로그 시간을 추적하여 1초마다만 로깅
+    const now = Date.now();
+    if (!GLOBAL_SESSION_STATE.lastLogTime || now - GLOBAL_SESSION_STATE.lastLogTime > 1000) {
+      console.log(`🔍 [세션 상태] 현재:`, {
+        stage: GLOBAL_SESSION_STATE.stage,
+        industry: GLOBAL_SESSION_STATE.selectedIndustry,
+        companies: GLOBAL_SESSION_STATE.industryCompanies.length
+      });
+      GLOBAL_SESSION_STATE.lastLogTime = now;
+    }
+  }
 
   return GLOBAL_SESSION_STATE;
 }
@@ -366,6 +374,92 @@ export function resetSessionToStart(sessionId: string): SessionState {
 }
 
 // 더보기 기능 완전 제거됨 - 산업군 캐시 관련 모든 함수 제거
+
+// ============================================================================
+// Analysis Progress Management
+// ============================================================================
+
+/**
+ * 분석 진행 상황 업데이트
+ */
+export function updateAnalysisProgress(
+  sessionId: string,
+  step: string,
+  message: string,
+  icon?: string,
+  detail?: string
+): void {
+  const session = getSession(sessionId);
+
+  const progress: import('./types').AnalysisProgress = {
+    step,
+    message,
+    icon,
+    detail,
+    timestamp: Date.now(),
+    completed: false
+  };
+
+  // 진행 상황 히스토리에 추가
+  if (!session.analysisProgress) {
+    session.analysisProgress = [];
+  }
+  session.analysisProgress.push(progress);
+
+  // 현재 진행 상황 업데이트
+  session.currentProgress = progress;
+  session.isAnalyzing = true;
+
+  // 개발 환경에서만 상세 로깅
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`📊 [Progress] ${step}: ${message}${detail ? ` (${detail})` : ''}`);
+  }
+}
+
+/**
+ * 분석 완료 처리
+ */
+export function completeAnalysis(sessionId: string): void {
+  const session = getSession(sessionId);
+
+  if (session.currentProgress) {
+    session.currentProgress.completed = true;
+  }
+
+  session.isAnalyzing = false;
+
+  console.log(`✅ [Progress] 분석 완료`);
+}
+
+/**
+ * 현재 분석 진행 상황 조회
+ */
+export function getAnalysisProgress(sessionId: string): {
+  isAnalyzing: boolean;
+  currentProgress?: import('./types').AnalysisProgress;
+  progressHistory: import('./types').AnalysisProgress[];
+} {
+  const session = getSession(sessionId);
+
+  return {
+    isAnalyzing: session.isAnalyzing || false,
+    currentProgress: session.currentProgress,
+    progressHistory: session.analysisProgress || []
+  };
+}
+
+/**
+ * 분석 진행 상황 초기화
+ */
+export function clearAnalysisProgress(sessionId: string): void {
+  const session = getSession(sessionId);
+
+  session.analysisProgress = [];
+  session.currentProgress = undefined;
+  session.isAnalyzing = false;
+
+  console.log(`🧹 [Progress] 분석 진행 상황 초기화`);
+}
 
 // Auto-initialize when module is imported
 initializeSessionManager();
