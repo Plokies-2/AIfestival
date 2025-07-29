@@ -162,9 +162,9 @@ export class FunctionCallingExecutor {
 4. 분석 근거 제시
 
 **변환 예시:**
-- "요즘 방위산업이 엄청 뜬다고 하는데 투자하고 싶어" → "방위산업 포트폴리오 추천"
+- "요즘 방위산업이 엄청 뜬다고 하는데 투자하고 싶어" → "방위산업 동향"
 - "AI가 핫하다던데 어디에 투자할까" → "인공지능 AI 투자 전략"
-- "전기차 관련해서 뭔가 투자하고 싶은데" → "전기차 배터리 투자 포트폴리오"`
+- "전기차 관련해서 뭔가 투자하고 싶은데" → "전기차 배터리 투자"`
         },
         {
           role: 'user' as const,
@@ -185,7 +185,7 @@ export class FunctionCallingExecutor {
               properties: {
                 refined_query: {
                   type: 'string',
-                  description: '검색에 최적화된 구체적인 투자 쿼리 (예: "방위산업 포트폴리오 추천", "AI 인공지능 투자 전략")'
+                  description: '검색에 최적화된 구체적인 투자 쿼리 (예: "방위산업 동향", "AI 인공지능 산업 정책")'
                 },
                 investment_intent: {
                   type: 'string',
@@ -286,7 +286,7 @@ export class FunctionCallingExecutor {
 
     console.log(`📊 [Function Call] ${functionName} 실행 시작 - 뉴스 기반 기업 추출`);
 
-    // 🚨 중요: 각 전략마다 항상 3개 기업으로 포트폴리오 구성
+    // 중요: 각 전략마다 항상 3개 기업으로 포트폴리오 구성
     const newsCount = args.trend_news?.length || 0;
     const traditionalCount = 3; // 항상 3개 고정
     const creativeCount = 3; // 항상 3개 고정
@@ -334,9 +334,14 @@ export class FunctionCallingExecutor {
 - 창의적 투자 전략: ${creativeCount}개 기업 (성장성 중심)
 
 **추출 방식:**
-- 기업명과 티커 심볼을 정확히 식별
+- **반드시 제공된 기업 리스트(KOSPI_ENRICHED_FINAL)에서만 기업명과 티커 심볼을 선택**
 - 해당 기업이 속한 산업 분야나 특징을 간단히 기술
 - 상세한 투자 근거는 다음 단계에서 생성됩니다
+
+**⚠️ 필수 준수사항:**
+- 제공된 산업별 기업 목록에 없는 기업은 절대 추천하지 마세요
+- 비상장 기업이나 해외 기업은 제외하세요
+- 백테스팅과 실제 투자가 가능한 기업만 선택하세요
 
 **예시:**
 - reason: "AI/반도체 기업"
@@ -355,22 +360,28 @@ export class FunctionCallingExecutor {
 - 정통한 전략 ${traditionalCount}개, 창의적 전략 ${creativeCount}개 기업을 추출
 - 각 기업의 산업 분야나 특징을 간단히 분류
 
+**⚠️ 중요한 제약 조건:**
+- **반드시 제공된 기업 리스트(KOSPI_ENRICHED_FINAL 데이터)에 포함된 기업들만 선택하세요**
+- 비상장 기업이나 데이터에 없는 기업은 절대 추천하지 마세요
+- 제공된 산업별 기업 목록에서만 선택하여 백테스팅과 투자가 가능하도록 하세요
+
 **중요사항:**
 - 이 단계에서는 기업 추출에만 집중하세요
 - 상세한 투자 근거와 분석은 다음 단계에서 처리됩니다
 - reason 필드에는 "AI/반도체 기업", "바이오/제약 기업" 등 간단한 분류만 기입하세요
 
 **출력 형식:**
-- ticker: 정확한 기업 티커 심볼
-- name: 정확한 기업명
+- ticker: 정확한 기업 티커 심볼 (제공된 리스트에서만)
+- name: 정확한 기업명 (제공된 리스트에서만)
 - reason: 간단한 산업 분야 또는 특징`;
 
         if (!hasNews) {
           return baseMessage + `
 
 **특별 지침:**
-- 최신 뉴스가 없으므로 산업 정보와 일반적인 시장 동향을 바탕으로 기업을 추출하고, 중요한 최신 뉴스가 없음을 알리세요.
-- 해당 산업에서 대표적이고 투자 가치가 높은 기업들을 선택하세요`;
+- 최신 뉴스가 없으므로 산업 정보와 일반적인 시장 동향을 바탕으로 기업을 추출하고, 중요한 최신 뉴스를 찾을 수수 없음을 알리세요.
+- 해당 산업에서 대표적이고 투자 가치가 높은 기업들을 선택하세요
+- **반드시 제공된 기업 리스트에서만 선택하세요**`;
         }
 
         return baseMessage;
@@ -408,7 +419,7 @@ export class FunctionCallingExecutor {
           type: 'function',
           function: {
             name: 'extract_companies_from_news',
-            description: `최신 뉴스 분석을 통해 투자 가치가 높은 기업 ${traditionalCount + creativeCount}개를 추출합니다. 이 단계에서는 기업 식별에만 집중하며, 상세한 투자 근거는 다음 단계에서 생성됩니다.`,
+            description: `최신 뉴스 분석을 통해 투자 가치가 높은 기업 ${traditionalCount + creativeCount}개를 추출합니다. 반드시 제공된 KOSPI_ENRICHED_FINAL 데이터에 포함된 기업들만 선택하세요. 이 단계에서는 기업 식별에만 집중하며, 상세한 투자 근거는 다음 단계에서 생성됩니다.`,
             parameters: {
               type: 'object',
               properties: {
@@ -417,8 +428,8 @@ export class FunctionCallingExecutor {
                   items: {
                     type: 'object',
                     properties: {
-                      ticker: { type: 'string', description: '기업 티커 심볼' },
-                      name: { type: 'string', description: '기업명' },
+                      ticker: { type: 'string', description: '기업 티커 심볼 (제공된 KOSPI_ENRICHED_FINAL 리스트에서만)' },
+                      name: { type: 'string', description: '기업명 (제공된 KOSPI_ENRICHED_FINAL 리스트에서만)' },
                       reason: { type: 'string', description: getReasonDescription() }
                     },
                     required: ['ticker', 'name', 'reason']
@@ -430,8 +441,8 @@ export class FunctionCallingExecutor {
                   items: {
                     type: 'object',
                     properties: {
-                      ticker: { type: 'string', description: '기업 티커 심볼' },
-                      name: { type: 'string', description: '기업명' },
+                      ticker: { type: 'string', description: '기업 티커 심볼 (제공된 KOSPI_ENRICHED_FINAL 리스트에서만)' },
+                      name: { type: 'string', description: '기업명 (제공된 KOSPI_ENRICHED_FINAL 리스트에서만)' },
                       reason: { type: 'string', description: getReasonDescription() }
                     },
                     required: ['ticker', 'name', 'reason']
@@ -532,7 +543,7 @@ export class FunctionCallingExecutor {
           console.log(`📝 [Function Call] 응답 내용:`, messageContent?.substring(0, 200) + '...');
 
           // 뉴스가 부족하거나 관련성이 낮을 때 발생하는 상황으로 판단
-          throw new Error('LLM이 제공된 뉴스에서 적절한 기업을 추출하지 못했습니다. 뉴스 품질이나 관련성이 부족할 수 있습니다.');
+          throw new Error('1차 분류 오류로 답변을 생성하지 못했습니다. 관련 내용을 관리자에게 알려주시기 바랍니다.');
         }
       }
 
@@ -668,10 +679,10 @@ export class FunctionCallingExecutor {
 - 동향 뉴스와 기업별 개별 뉴스를 종합하여 투자 근거 생성
 - 각 기업의 투자 매력도와 리스크를 구체적으로 분석
 
-**🚨 절대 준수 사항:**
+**절대 준수 사항:**
 1. **정통한 전략 3개, 창의적 전략 3개 기업을 반드시 생성하세요**
 2. **동향 뉴스 분석 시 특정 기업명 언급 절대 금지! 산업 전반의 트렌드, 기술 발전, 시장 변화만 언급하세요**
-3. **동향 뉴스에서 종합적인 산업 인사이트를 추출하여 "AI 반도체 시장의 성장", "글로벌 파트너십 확산" 등으로 표현하세요**
+3. **동향 뉴스에서 종합적인 산업 인사이트를 추출하여 "AI 반도체 시장의 성장", "글로벌 파트너십 확산" 등의 종합적 인사이트를 표현하세요**
 4. **각 기업마다 반드시 서로 다른 2개 이상의 뉴스를 인용하세요**
 5. **해당 기업의 개별 뉴스를 우선 활용하고, 동향 뉴스로 보완하세요**
 6. **절대 같은 뉴스를 여러 기업에서 반복 사용하지 마세요**

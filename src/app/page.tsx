@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import FinancialChart from '@/components/FinancialChart';
 import AIChat, { AIChatRef } from '@/components/AIChat';
 import SpeedTraffic from '@/components/SpeedTraffic';
+import LandingPage from '@/components/LandingPage';
 import { useServerStatus } from '@/hooks/useServerStatus';
 
 export default function DashboardPage() {
@@ -12,6 +13,7 @@ export default function DashboardPage() {
   const [currentSymbol, setCurrentSymbol] = useState<string | undefined>(undefined);
   const [showingCompanyList, setShowingCompanyList] = useState(false);
   const [analysisData, setAnalysisData] = useState<any>(null);
+  const [showLanding, setShowLanding] = useState(true);
 
   const [isChartExpanded, setIsChartExpanded] = useState(false); // 차트 확장 상태
   const aiChatRef = useRef<AIChatRef>(null);
@@ -34,39 +36,43 @@ export default function DashboardPage() {
     setAnalysisData(results);
   };
 
-  // 홈으로 돌아가기 (세션 정리 + 완전한 페이지 새로고침)
+  // 홈으로 돌아가기 (시작 페이지로 이동)
   const handleHomeClick = async () => {
-    console.log('🏠 Home button clicked - triggering session cleanup and page reload');
+    console.log('🏠 Home button clicked - returning to landing page');
 
     try {
-      // 1. 먼저 세션 정리 트리거
-      try {
-        await fetch('/api/ai_chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: '__RESET_SESSION__' })
-        });
-        console.log('✅ Session cleanup triggered');
-      } catch (sessionError) {
-        console.warn('⚠️ Session cleanup failed, proceeding with page reload:', sessionError);
+      // 1. 시작 페이지로 돌아가기
+      setShowLanding(true);
+
+      // 2. UI 상태 초기화
+      setCurrentSymbol(undefined);
+      setShowingCompanyList(false);
+      setAnalysisData(null);
+      setIsChartExpanded(false);
+
+      // 3. AI 채팅 초기화
+      if (aiChatRef.current) {
+        aiChatRef.current.resetChat();
       }
 
-      // 2. 완전한 페이지 새로고침을 위해 window.location을 사용
-      // 이는 "처음부터 다시 접속"한 것과 동일한 효과를 제공
-      // 모든 세션 데이터, 캐시, 상태가 완전히 초기화됨
+      // 4. 세션 정리 트리거 (백그라운드에서 실행)
+      fetch('/api/ai_chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: '__RESET_SESSION__' })
+      }).then(() => {
+        console.log('✅ Session cleanup completed');
+      }).catch((error) => {
+        console.warn('⚠️ Session cleanup failed:', error);
+      });
 
-      // 안전한 새로고침을 위해 setTimeout으로 비동기 실행
-      setTimeout(() => {
-        if (typeof window !== 'undefined') {
-          // 현재 URL로 완전 새로고침 (캐시 무시)
-          window.location.href = window.location.href;
-        }
-      }, 100);
+      console.log('✅ Complete reset completed - returned to landing page');
 
     } catch (error) {
-      console.error('❌ Page reload failed, falling back to router refresh:', error);
+      console.error('❌ Reset failed:', error);
 
-      // 오류 발생 시 fallback으로 기존 방식 사용
+      // 오류 발생 시에도 기본 초기화는 수행
+      setShowLanding(true);
       setCurrentSymbol(undefined);
       setShowingCompanyList(false);
       setAnalysisData(null);
@@ -75,8 +81,6 @@ export default function DashboardPage() {
       if (aiChatRef.current) {
         aiChatRef.current.resetChat();
       }
-
-      router.refresh();
     }
   };
 
@@ -92,6 +96,15 @@ export default function DashboardPage() {
 
     console.log('✅ Chart expand toggle completed');
   };
+
+  // 시작 페이지 표시
+  if (showLanding) {
+    return (
+      <LandingPage
+        onStartChat={() => setShowLanding(false)}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-50">

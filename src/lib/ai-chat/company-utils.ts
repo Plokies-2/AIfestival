@@ -9,9 +9,8 @@
  */
 
 import { KOSPI_ENRICHED_FINAL as DATA } from '@/data/kospi_enriched_final';
-import { RandomRecommendation, CompanyRecommendation, CompanyData } from './types';
+import { CompanyData } from './types';
 import { PATTERNS } from './config';
-import { getAllAvailableIndustries } from './rag-service';
 
 // ============================================================================
 // Pattern Matching Utilities
@@ -31,14 +30,7 @@ export function isNegative(text: string): boolean {
   return PATTERNS.negative.test(text.trim());
 }
 
-/**
- * Determines response type based on user input
- */
-export function getResponseType(text: string): 'positive' | 'negative' | 'neutral' {
-  if (isPositive(text)) return 'positive';
-  if (isNegative(text)) return 'negative';
-  return 'neutral';
-}
+
 
 // ============================================================================
 // Company Data Access Functions

@@ -80,14 +80,7 @@ async function handleConversationalIntent(
   };
 }
 
-// 제거된 기능: handleInvestmentRecommendation - investment_recommendation 의도 처리 제거됨
 
-/**
- * Handles direct company queries - 주석처리: company direct match 제거
- */
-// async function handleDirectCompanyQuery(context: PipelineContext): Promise<StageHandlerResult> {
-//   const { userInput, state } = context;
-//
 //   const directCompany = findCompanyInAllData(userInput);
 //   if (directCompany) {
 //     // Company name directly entered - go straight to chart confirmation stage
@@ -247,7 +240,11 @@ async function handleInvestmentQuery(
     // 1단계: HCX-002-dash로 자율적인 산업 적합성 메시지 생성
     const industryNames = displayIndustries.map(industry => industry.industry_ko);
     const quickReply = await generateDynamicResponse(
-      `사용자가 "${userInput}"라고 투자 질문을 했고, AI 분석 결과 ${industryNames.join('과 ')} 산업이 적합하다고 판단되었습니다. 이 산업들을 언급하면서 친근하고 자연스럽게 응답해주세요. 이모티콘을 사용하고, 더 자세한 분석이 진행 중임을 알려주세요.`,
+      `사용자가 "${userInput}"라고 투자 질문을 했습니다. AI 분석 결과 ${industryNames.join('과 ')} 산업이 적합하다고 판단되었습니다.
+
+핵심 메시지: "사용자님의 투자 전략을 판단해볼 때, ${industryNames[0]} 산업이 가장 적합해 보입니다!"
+
+이 핵심 메시지를 중심으로 간결하고 자연스럽게 응답해주세요. 이모티콘을 사용하고, 더 자세한 분석이 진행 중임을 간단히 알려주세요. 불필요한 부가 설명이나 일반적인 안내 문구는 피해주세요.`,
       'investment_query'
     );
 
@@ -373,7 +370,7 @@ export async function handleAskChartStage(context: PipelineContext): Promise<Sta
  * Handles positive chart confirmation - 이제 검색 기능이 통합된 투자 분석 실행
  */
 async function handleChartConfirmation(context: PipelineContext): Promise<StageHandlerResult> {
-  const { state, userInput } = context;
+  const { state } = context;
 
   console.log(`🚀 [Chart Confirmation] 검색 기능이 통합된 투자 분석 시작`);
   console.log(`🔧 [Chart Confirmation] handleChartConfirmation 함수 호출됨!`);

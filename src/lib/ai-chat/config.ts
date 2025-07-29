@@ -5,7 +5,7 @@
  * and constants used throughout the AI chat pipeline.
  */
 
-import { RAGThresholds, PatternConfig, KoreanCompanyMapping } from './types';
+import { RAGThresholds, PatternConfig } from './types';
 
 // ============================================================================
 // RAG Configuration
@@ -17,7 +17,7 @@ import { RAGThresholds, PatternConfig, KoreanCompanyMapping } from './types';
  */
 export const RAG_THRESHOLDS: RAGThresholds = {
   // 1차 의도 분류 (findBestIndustries에서 사용)
-  CASUAL_CONVERSATION_THRESHOLD: 0.22,  // 이 점수 미만 = greeting 분류 (1차 의도 분류 임계값)
+  CASUAL_CONVERSATION_THRESHOLD: 0.25,  // 이 점수 미만 = greeting 분류 (1차 의도 분류 임계값)
 
   // 페르소나 분류 (findBestPersona에서 사용)
   PERSONA_MIN_SCORE: 0.3,         // 페르소나 매칭 최소 점수
@@ -36,11 +36,11 @@ export const RAG_THRESHOLDS: RAGThresholds = {
 
 /**
  * Pattern matching for positive and negative responses
- * 한글 긍정 응답 패턴을 강화하여 더 다양한 표현 지원
+ * 한국어 입력만 지원하도록 패턴 최적화
  */
 export const PATTERNS: PatternConfig = {
-  positive: /^(네|예|응|좋아|맞아|그래|맞습니다|좋습니다|그렇습니다|알겠습니다|시작|분석|확인|yes|y|ok|okay|sure)/i,
-  negative: /^(아니|아니요|아뇨|싫어|안돼|안됩니다|싫습니다|아닙니다|취소|중단|no|n|nope|ㄴㄴ|ㄴ|노|안해|싫|패스|pass|cancel|stop)/i
+  positive: /^(네|예|응|좋아|맞아|그래|맞습니다|좋습니다|그렇습니다|알겠습니다|시작|분석|확인)/i,
+  negative: /^(아니|아니요|아뇨|싫어|안돼|안됩니다|싫습니다|아닙니다|취소|중단|ㄴㄴ|ㄴ|노|안해|싫|패스)/i
 };
 
 // ============================================================================
@@ -98,82 +98,7 @@ export const PERFORMANCE_CONFIG = {
 // Korean-English Company Name Mapping
 // ============================================================================
 
-/**
- * Korean to English company name mapping for better user experience
- * This allows users to input Korean company names and get matched to English names
- */
-export const KOREAN_COMPANY_MAPPING: KoreanCompanyMapping = {
-  // Major Technology Companies
-  '인텔': ['intel', 'intel corporation'],
-  '애플': ['apple'],
-  '마이크로소프트': ['microsoft'],
-  '구글': ['alphabet', 'google'],
-  '알파벳': ['alphabet'],
-  '테슬라': ['tesla'],
-  '아마존': ['amazon'],
-  '메타': ['meta'],
-  '페이스북': ['meta'],
-  '넷플릭스': ['netflix'],
-  '엔비디아': ['nvidia'],
-  '삼성': ['samsung'],
-  '어도비': ['adobe'],
-  '오라클': ['oracle'],
-  '세일즈포스': ['salesforce'],
-  '시스코': ['cisco'],
 
-  // Semiconductor Companies
-  '퀄컴': ['qualcomm'],
-  '브로드컴': ['broadcom'],
-  'amd': ['advanced micro devices', 'amd'],
-  '에이엠디': ['advanced micro devices', 'amd'],
-  '어드밴스드': ['advanced micro devices'],
-  '마이크론': ['micron'],
-  '텍사스': ['texas instruments'],
-  '어플라이드': ['applied materials'],
-  '아날로그': ['analog devices'],
-  '램리서치': ['lam research'],
-  '케이엘에이': ['kla'],
-  '테라다인': ['teradyne'],
-  '마이크로칩': ['microchip'],
-  '온세미': ['on semiconductor'],
-  '스카이웍스': ['skyworks'],
-  '엔엑스피': ['nxp'],
-  '모놀리식': ['monolithic power'],
-
-  // Financial Companies
-  '골드만삭스': ['goldman sachs'],
-  '모건스탠리': ['morgan stanley'],
-  '뱅크오브아메리카': ['bank of america'],
-  '씨티그룹': ['citigroup'],
-  '웰스파고': ['wells fargo'],
-  '제이피모간': ['jpmorgan'],
-
-  // Consumer Companies
-  '코카콜라': ['coca-cola'],
-  '펩시': ['pepsico'],
-  '맥도날드': ['mcdonald'],
-  '스타벅스': ['starbucks'],
-  '나이키': ['nike'],
-  '디즈니': ['disney'],
-
-  // Healthcare Companies
-  '존슨앤존슨': ['johnson & johnson'],
-  '화이자': ['pfizer'],
-  '머크': ['merck'],
-  '애브비': ['abbvie'],
-
-  // Energy Companies
-  '엑손모빌': ['exxon mobil'],
-  '셰브론': ['chevron'],
-
-  // Telecommunications
-  '버라이즌': ['verizon'],
-  '에이티앤티': ['at&t'],
-
-  // Aerospace
-  '보잉': ['boeing'],
-  '록히드마틴': ['lockheed martin']
-};
 
 
 
@@ -273,8 +198,15 @@ export const GREETING_SYSTEM_PROMPT = `당신은 '사용자 맞춤형 투자지�
  */
 export const DEFAULT_SYSTEM_PROMPT = `당신은 '사용자 맞춤형 투자지원 AI'입니다. 당신은 2025년 7월에 탄생했으며,
 사용자가 국내 코스피 투자를 성공하도록 돕는 역할을 부여받았습니다.
+
+**투자 질의 응답 시 중요 지침:**
+- 사용자의 투자 전략을 판단해볼 때, 해당 산업이 가장 적합하다는 핵심 메시지를 먼저 전달하세요
+- 간결하고 명확한 응답을 우선하며, 불필요한 부가 설명은 피하세요
+- "필요한 정보나 추가 질문이 있으면 언제든지 말씀해 주세요" 같은 일반적인 안내 문구는 사용하지 마세요
+- 핵심 내용에 집중하여 간결하게 응답하세요
+
 답변할 때엔 존댓말을 유지하며 최대한 친절하게 답합니다.
-이모티콘을 최대 3개까지 사용할 수 있으며, 최소 1개는 사용해야 합니다.
+이모티콘을 최대 2개까지 사용할 수 있으며, 최소 1개는 사용해야 합니다.
 주의: 특수문자 * 를 절대 사용하지 말 것.` as const;
 
 // ============================================================================

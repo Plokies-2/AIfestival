@@ -125,46 +125,8 @@ const RealTimeThinkingBox: React.FC<RealTimeThinkingBoxProps> = ({ isVisible, on
       return;
     }
 
-    const simulatedSteps = [
-      { text: '검색어 정제 및 분석', detail: '사용자 입력 분석 및 투자 의도 파악', type: 'analyze', delay: 1000 },
-      { text: '투자 동향 뉴스 검색', detail: '관련 산업 뉴스 대량 수집', type: 'search', delay: 2500 },
-      { text: '투자 대상 기업 추출', detail: '정통한 전략 3개, 창의적 전략 3개', type: 'extract', delay: 4500 },
-      { text: '개별 기업 뉴스 수집', detail: '선정된 기업들의 최신 뉴스 분석', type: 'search', delay: 6500 },
-      { text: '투자 전략 및 포트폴리오 생성', detail: '종합 분석 및 투자 전략 수립', type: 'generate', delay: 8500 },
-      { text: '분석 마무리 중', detail: '투자 추천 보고서 생성 완료', type: 'complete', delay: 10000 }
-    ];
-
-    let timeouts: NodeJS.Timeout[] = [];
-
-    simulatedSteps.forEach((step, index) => {
-      const timeout = setTimeout(() => {
-        const message: ThinkingMessage = {
-          id: `sim_${Date.now()}_${index}`,
-          text: step.text,
-          detail: step.detail,
-          type: step.type as any,
-          timestamp: Date.now()
-        };
-
-        setCurrentMessage(message);
-        setMessageHistory(prev => [...prev, message]);
-
-        if (index === simulatedSteps.length - 1) {
-          setIsCompleted(true);
-          // 완료 메시지를 더 오래 표시 (3초)
-          setTimeout(() => {
-            setCurrentMessage(null); // 완료 후 박스 숨김
-            onComplete?.();
-          }, 3000);
-        }
-      }, step.delay);
-
-      timeouts.push(timeout);
-    });
-
-    return () => {
-      timeouts.forEach(timeout => clearTimeout(timeout));
-    };
+    // 시뮬레이션 코드는 실제 백엔드 데이터를 사용하므로 더 이상 필요하지 않음
+    // 실시간 메시지만 사용
   }, [isVisible, onComplete, realTimeMessages]);
 
   if (!isVisible || !currentMessage) return null;

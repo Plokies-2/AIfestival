@@ -158,17 +158,39 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
     }
   }, []);
 
-  // 컴포넌트 마운트 시 채팅 초기화 및 환영 메시지 표시
+  // 컴포넌트 마운트 시 채팅 기록 복원 또는 초기화
   useEffect(() => {
     const initializeChat = async () => {
-      // 새로고침 시 항상 채팅 초기화
+      // 저장된 채팅 기록 확인 (포트폴리오에서 돌아온 경우)
+      const savedHistory = localStorage.getItem('ai_chat_history');
+      const savedTimestamp = localStorage.getItem('ai_chat_timestamp');
+
+      // 5분 이내의 기록만 복원 (너무 오래된 기록은 무시)
+      const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+
+      if (savedHistory && savedTimestamp && parseInt(savedTimestamp) > fiveMinutesAgo) {
+        try {
+          const parsedHistory = JSON.parse(savedHistory);
+          if (parsedHistory.length > 0) {
+            console.log('🔄 채팅 기록 복원됨');
+            setHistory(parsedHistory);
+            // 질문 예시는 기록이 있으면 숨김
+            setSuggestedQuestions([]);
+            return;
+          }
+        } catch (error) {
+          console.error('채팅 기록 복원 실패:', error);
+        }
+      }
+
+      // 저장된 기록이 없거나 오래된 경우 새로 초기화
       setHistory([]);
-      
+
       // 질문 예시 생성
       const questions = generateSuggestedQuestions();
       console.log('Generated suggested questions:', questions);
       setSuggestedQuestions(questions);
-      
+
       // API에서 환영 메시지 가져오기
       try {
         const welcomeMessage = await fetchWelcomeMessage();
@@ -176,9 +198,9 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
         console.log('✅ Chat initialized with welcome message');
       } catch (error) {
         console.error('Failed to initialize chat:', error);
-        setHistory([{ 
-          from: 'bot', 
-          text: '안녕하세요! 금융 분석 어시스턴트입니다.\n어떤 주식이나 산업에 대해 알고 싶으신가요?' 
+        setHistory([{
+          from: 'bot',
+          text: '안녕하세요! 금융 분석 어시스턴트입니다.\n어떤 주식이나 산업에 대해 알고 싶으신가요?'
         }]);
       }
     };
@@ -222,6 +244,10 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
       console.log('🔄 Resetting AI chat');
       setHistory([]);
       setIsHidingSuggestions(false);
+
+      // localStorage에서 채팅 기록 삭제 (완전 초기화)
+      localStorage.removeItem('ai_chat_history');
+      localStorage.removeItem('ai_chat_timestamp');
 
       // 환영 메시지 다시 표시
       setTimeout(() => {
@@ -632,8 +658,13 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
     const text = inputRef.current?.value.trim();
     if (!text) return;
 
-    setHistory(h => [...h, { from: 'user', text }]);
+    const newHistory = [...history, { from: 'user', text }];
+    setHistory(newHistory);
     inputRef.current!.value = '';
+
+    // 채팅 기록을 localStorage에 즉시 저장
+    localStorage.setItem('ai_chat_history', JSON.stringify(newHistory));
+    localStorage.setItem('ai_chat_timestamp', Date.now().toString());
 
     // 질문 예시 버튼 숨기기
     if (suggestedQuestions.length > 0) {
@@ -646,14 +677,26 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
 
     try {
       const res = await send({ message: text, history });
-      setHistory(h => [...h, { from: 'bot', text: res.reply }]);
+      const updatedHistory = [...newHistory, { from: 'bot', text: res.reply }];
+      setHistory(updatedHistory);
+
+      // 봇 응답도 localStorage에 저장
+      localStorage.setItem('ai_chat_history', JSON.stringify(updatedHistory));
+      localStorage.setItem('ai_chat_timestamp', Date.now().toString());
+
       await handleApiResponse(res);
     } catch (error) {
       // 개발 환경에서만 상세 에러 로깅
       if (process.env.NODE_ENV === 'development') {
         console.error('Chat error:', error);
       }
-      setHistory(h => [...h, { from: 'bot', text: '죄송합니다. 일시적인 오류가 발생했습니다.' }]);
+      const errorHistory = [...newHistory, { from: 'bot', text: '죄송합니다. 일시적인 오류가 발생했습니다.' }];
+      setHistory(errorHistory);
+
+      // 에러 메시지도 localStorage에 저장
+      localStorage.setItem('ai_chat_history', JSON.stringify(errorHistory));
+      localStorage.setItem('ai_chat_timestamp', Date.now().toString());
+
       onSymbolError?.();
       onShowingCompanyList?.(false);
     }

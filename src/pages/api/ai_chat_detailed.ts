@@ -3,10 +3,7 @@ import {
   generateEnhancedInvestmentAnalysis,
   InvestmentRecommendationInput
 } from '@/lib/ai-chat/ai-service';
-// LSTM 서비스 비활성화
-// import {
-//   enhanceResponseWithLSTMData
-// } from '@/lib/ai-chat/lstm-service';
+
 import {
   getSession,
   updateSession,

@@ -31,10 +31,27 @@ export default function RootLayout({
     <html lang="ko" className="dark">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {children}
-        {/* 페이지 새로고침 시 세션 정리 트리거 */}
+        {/* 페이지 로드/새로고침 시 세션 정리 */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
+              // 페이지 로드 시 세션 정리 트리거
+              window.addEventListener('load', function() {
+                try {
+                  fetch('/api/ai_chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: '__RESET_SESSION__' })
+                  }).then(() => {
+                    console.log('✅ Session reset on page load');
+                  }).catch((error) => {
+                    console.warn('⚠️ Session reset failed on page load:', error);
+                  });
+                } catch (error) {
+                  console.warn('Session cleanup on page load failed:', error);
+                }
+              });
+
               // 페이지 언로드 시 세션 정리 트리거
               window.addEventListener('beforeunload', function() {
                 try {

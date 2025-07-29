@@ -77,7 +77,7 @@ export function handleSpecialCommands(userInput: string, sessionId: string): Cha
     return { reply: '새로운 검색을 시작하세요.' };
   }
 
-  // 더보기 기능 제거됨 - 특별 명령 처리 불필요
+
 
   return null;
 }

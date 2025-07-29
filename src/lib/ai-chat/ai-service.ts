@@ -152,17 +152,20 @@ export async function generateDynamicResponse(userInput: string, intent: string)
       systemMessage = DEFAULT_SYSTEM_PROMPT;
   }
 
-  // Intent별 차별화된 max_tokens 설정
+  // Intent별 차별화된 max_tokens 설정 (2배로 증가)
   let maxTokens: number;
   switch (intent) {
     case 'greeting':
-      maxTokens = 180; // 인사말은 조금 더 길게 (투자 관심사 질문 포함)
+      maxTokens = 360; // 인사말은 조금 더 길게 (투자 관심사 질문 포함) - 2배
       break;
     case 'about_ai':
-      maxTokens = 200; // AI 정체성/능력 설명은 가장 길게
+      maxTokens = 400; // AI 정체성/능력 설명은 가장 길게 - 2배
+      break;
+    case 'investment_query':
+      maxTokens = 300; // 1차 분류 응답 - 2배
       break;
     default:
-      maxTokens = 150; // 기타 상황은 적당한 길이
+      maxTokens = 300; // 기타 상황은 적당한 길이 - 2배
   }
 
   try {
@@ -203,19 +206,16 @@ export async function generateDynamicResponse(userInput: string, intent: string)
 }
 
 /**
- * GPT 실패 시
+ * LLM 실패 시 폴백 응답
  */
 function getSimpleFallbackResponse(intent: string): string {
   switch (intent) {
     case 'greeting':
-      return '호출 오류!';
-
+      return '안녕하세요! 투자 관련 질문을 해주세요.';
     case 'about_ai':
-      return '호출 오류!';
-
-
+      return '저는 투자 분석을 도와드리는 AI입니다.';
     default:
-      return '호출 오류!';
+      return '죄송합니다. 일시적인 오류가 발생했습니다.';
   }
 }
 

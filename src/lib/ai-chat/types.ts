@@ -161,12 +161,7 @@ export interface RandomRecommendation {
   companies: CompanyRecommendation[];
 }
 
-/**
- * Korean to English company name mapping
- */
-export interface KoreanCompanyMapping {
-  [koreanName: string]: string[];
-}
+
 
 // ============================================================================
 // Request/Response Types

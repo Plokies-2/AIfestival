@@ -31,7 +31,6 @@ export type {
   // IndustryMatchResult 제거됨 - 사용되지 않는 타입
   CompanyRecommendation,
   RandomRecommendation,
-  KoreanCompanyMapping,
   ParsedRequest,
   ChatResponse,
   PipelineContext,
@@ -57,7 +56,6 @@ export {
   OPENAI_CONFIG,
   SESSION_CONFIG,
   PERFORMANCE_CONFIG,
-  KOREAN_COMPANY_MAPPING,
   WELCOME_MESSAGES,
   ENV_CONFIG
 } from './config';
@@ -107,15 +105,11 @@ export {
 // ============================================================================
 
 export {
-  findBestIndustry,
   findBestIndustries,
-  // findCompanyInAllData, // 주석처리: Company Direct Match 완전 제거
-  findTickerInText,
   getIndustryCompanies,
   getCompanyName,
   getCompanyData,
   getAllAvailableIndustries
-  // testRAGThresholds 제거됨 - 디버깅용 함수로 프로덕션에서 사용되지 않음
 } from './rag-service';
 
 // ============================================================================
@@ -144,13 +138,11 @@ export {
 export {
   isPositive,
   isNegative,
-  getResponseType,
   getCompanyName as getCompanyNameUtil,
   getCompanyData as getCompanyDataUtil,
   isValidTicker,
   getAllTickers,
   getCompaniesByIndustry,
-  formatCompanyDisplay,
   formatCompanyList
 } from './company-utils';
 

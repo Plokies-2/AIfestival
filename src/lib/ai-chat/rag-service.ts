@@ -250,18 +250,7 @@ export async function findBestIndustries(userInput: string): Promise<Array<{indu
   return topIndustries;
 }
 
-/**
- * 기존 호환성을 위한 래퍼 함수 (단일 산업 반환)
- */
-export async function findBestIndustry(userInput: string): Promise<string | null> {
-  const topIndustries = await findBestIndustries(userInput);
-  if (!topIndustries || topIndustries.length === 0) {
-    return null;
-  }
 
-  // 첫 번째 산업의 sp500_industry 반환 (기존 로직과의 호환성)
-  return topIndustries[0].sp500_industry;
-}
 
 // ============================================================================
 // Company Finding Functions
@@ -328,91 +317,7 @@ export async function findBestIndustry(userInput: string): Promise<string | null
 //   return null;
 // }
 
-/**
- * Finds ticker in text from available tickers list
- */
-export function findTickerInText(text: string, availableTickers: string[]): string | null {
-  const normalizedInput = text.trim().toLowerCase();
-  const upperInput = text.trim().toUpperCase();
 
-  // 1. Direct ticker matching (case insensitive exact match)
-  const directTicker = availableTickers.find(ticker =>
-    ticker.toLowerCase() === normalizedInput ||
-    ticker === upperInput ||
-    normalizedInput.includes(ticker.toLowerCase()) ||
-    upperInput.includes(ticker)
-  );
-  if (directTicker) {
-    console.log(`✅ 티커 매칭 성공: "${text}" -> ${directTicker} (${getCompanyName(directTicker)})`);
-    return directTicker;
-  }
-
-  // 2. Korean company name matching - 주석처리: Korean Company Mapping 비활성화
-  // 2-1. Korean-English mapping table usage
-  // for (const [koreanName, englishNames] of Object.entries(KOREAN_COMPANY_MAPPING)) {
-  //   if (normalizedInput.includes(koreanName.toLowerCase())) {
-  //     for (const ticker of availableTickers) {
-  //       const company = (DATA as any)[ticker];
-  //       if (!company) continue;
-
-  //       const companyName = company.name.toLowerCase();
-  //       for (const englishName of englishNames) {
-  //         if (companyName.includes(englishName)) {
-  //           console.log(`Korean name match: "${koreanName}" -> ${ticker} (${company.name})`);
-  //           return ticker;
-  //         }
-  //       }
-  //     }
-  //   }
-  // }
-
-  // 2-2. Number matching (1, 2, 3 etc)
-  const numberMatch = normalizedInput.match(/^(\d+)$/);
-  if (numberMatch) {
-    const index = parseInt(numberMatch[1]) - 1;
-    if (index >= 0 && index < availableTickers.length) {
-      console.log(`Number match: ${numberMatch[1]} -> ${availableTickers[index]}`);
-      return availableTickers[index];
-    }
-  }
-
-  // 2-3. Direct English company name matching (partial match included)
-  for (const ticker of availableTickers) {
-    const company = (DATA as any)[ticker];
-    if (!company) continue;
-
-    const companyName = company.name.toLowerCase();
-    const tickerLower = ticker.toLowerCase();
-
-    // 1. Check if company name or ticker is included in input
-    const isCompanyInInput = normalizedInput.includes(companyName) || 
-                           companyName.includes(normalizedInput) ||
-                           upperInput.includes(ticker) ||
-                           normalizedInput.includes(tickerLower);
-    
-    // 2. Check if input is included in company name or ticker
-    const isInputInCompany = companyName.includes(normalizedInput) || 
-                           tickerLower.includes(normalizedInput);
-
-    if (isCompanyInInput || isInputInCompany) {
-      console.log(`✅ 티커 매칭 성공: "${text}" -> ${ticker} (${company.name})`);
-      return ticker;
-    }
-
-    // General partial matching (main words of English company names)
-    const companyWords = companyName.split(' ').filter((word: string) => word.length > 2);
-    for (const word of companyWords) {
-      if (normalizedInput.includes(word) && word.length > 3) { // Only match longer words
-        console.log(`✅ 티커 매칭 성공: "${text}" -> ${ticker} (${company.name})`);
-        return ticker;
-      }
-    }
-  }
-
-  // 매칭 실패 로그
-  console.log(`❌ 티커 매칭 실패: "${text}"`);
-  return null;
-}
 
 // ============================================================================
 // Industry and Company Utilities

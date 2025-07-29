@@ -45,7 +45,7 @@ if (!globalThis.__AI_CHAT_SESSION_STATE__) {
 
 let GLOBAL_SESSION_STATE: SessionState = globalThis.__AI_CHAT_SESSION_STATE__;
 
-// 더보기 기능 제거됨 - 산업군 캐시 불필요
+
 
 // ============================================================================
 // Session Management Functions
@@ -159,7 +159,7 @@ export function resetSession(_sessionId: string, preserveHistory: boolean = true
     lastActivity: Date.now()
   };
 
-  // 더보기 기능 제거됨 - 산업군 캐시 초기화 불필요
+
   console.log(`🔄 Reset global session state (preserve history: ${preserveHistory})`);
   return GLOBAL_SESSION_STATE;
 }
@@ -369,11 +369,8 @@ export function shutdownSessionManager(): void {
  */
 export function resetSessionToStart(sessionId: string): SessionState {
   console.log(`🔄 Resetting global session to START state`);
-  // 더보기 기능 제거됨 - 산업군 캐시 초기화 불필요
   return resetSession(sessionId, true); // Preserve conversation history
 }
-
-// 더보기 기능 완전 제거됨 - 산업군 캐시 관련 모든 함수 제거
 
 // ============================================================================
 // Analysis Progress Management
