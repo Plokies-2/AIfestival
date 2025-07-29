@@ -3,8 +3,8 @@
 산업군 포트폴리오(동일가중) ↔ 개별 종목 OLS 회귀, 신호등 JSON 출력
 ────────────────────────────────────────────────────────────────────────
 필수 파일 2개  ─ 위치 고정
-  1) sp500_enriched_final.ts  (티커 ↔ industry 매핑)
-  2) sp500_adj_close_3y.csv   (3년치 수정종가, Date 컬럼 포함)
+  1) kospi_enriched_final.ts  (티커 ↔ industry 매핑)
+  2) kospi_adj_close_3y.csv   (3년치 수정종가, Date 컬럼 포함)
 ────────────────────────────────────────────────────────────────────────
 """
 
@@ -13,6 +13,14 @@ from pathlib import Path
 import pandas as pd
 import statsmodels.api as sm
 from datetime import datetime, timedelta
+
+# yfinance 유틸리티 가져오기
+try:
+    from yfinance_utils import get_stock_data, validate_data_columns, clean_and_validate_data
+    YFINANCE_UTILS_AVAILABLE = True
+except ImportError:
+    YFINANCE_UTILS_AVAILABLE = False
+    print("Warning: yfinance_utils not available, falling back to direct yfinance", file=sys.stderr)
 
 # yfinance 가져오기 시도
 try:
@@ -36,41 +44,106 @@ def load_mapping() -> dict:
     {TICKER: industry} 딕셔너리를 만든다.
     따옴표·줄바꿈 모두 허용.
     """
-    if not MAP_FILE.exists():
-        raise FileNotFoundError(f"매핑 파일이 없습니다 → {MAP_FILE}")
+    map_file = MAP_FILE  # 지역 변수로 복사
+    print(f"📊 매핑 파일 경로: {map_file}", file=sys.stderr)
+    print(f"📊 매핑 파일 존재 여부: {map_file.exists()}", file=sys.stderr)
 
-    txt = MAP_FILE.read_text(encoding="utf-8", errors="ignore")
+    if not map_file.exists():
+        # 대안 경로들 시도
+        alt_paths = [
+            BASE_DIR.parent.parent / "src" / "data" / "kospi_enriched_final.ts",
+            Path.cwd() / "src" / "data" / "kospi_enriched_final.ts",
+            BASE_DIR / "kospi_enriched_final.ts"
+        ]
 
-    # ① "AAPL": { … industry: "Computer …" }  형식 캡처
-    #    - 1번 그룹: Ticker  (따옴표 O/X)
-    #    - 2번 그룹: Industry 문자열
-    pattern = re.compile(
-        r'["\']?([A-Z.\-]+)["\']?\s*:'      # Ticker
-        r'\s*\{[^{}]*?'                     # 시작 { … }
-        r'industry\s*:\s*["\']([^"\']+)["\']',  # industry 필드
-        flags=re.S
-    )
+        for alt_path in alt_paths:
+            print(f"📊 대안 경로 시도: {alt_path} (존재: {alt_path.exists()})", file=sys.stderr)
+            if alt_path.exists():
+                map_file = alt_path
+                break
+        else:
+            raise FileNotFoundError(f"매핑 파일을 찾을 수 없습니다. 시도한 경로들: {[str(p) for p in [map_file] + alt_paths]}")
 
-    mapping = {t.upper(): ind for t, ind in pattern.findall(txt)}
-    if not mapping:
-        raise ValueError(
-            "Ticker-industry 매핑을 추출하지 못했습니다. "
-            "파일 형식이 예상과 다른지 확인하십시오."
+    try:
+        txt = map_file.read_text(encoding="utf-8", errors="ignore")
+        print(f"📊 매핑 파일 로드 완료: {len(txt)} 문자", file=sys.stderr)
+
+        # ① "170900": { … "industry": "의약품 제조업" }  형식 캡처
+        #    실제 파일 형식에 맞춰 정규식 수정
+        pattern = re.compile(
+            r'"([A-Z0-9.\-]+)"\s*:\s*\{[^{}]*?'      # Ticker (따옴표 포함)
+            r'"industry"\s*:\s*"([^"]+)"',            # "industry": "..." 형식
+            flags=re.S | re.MULTILINE
         )
 
-    return mapping
+        matches = pattern.findall(txt)
+        print(f"📊 정규식 매칭 결과: {len(matches)}개 발견", file=sys.stderr)
+
+        # 매칭이 실패하면 다른 패턴 시도
+        if not matches:
+            print("📊 첫 번째 패턴 실패, 대안 패턴 시도...", file=sys.stderr)
+            # 더 유연한 패턴
+            alt_pattern = re.compile(
+                r'"([A-Z0-9.\-]+)"\s*:\s*\{[^{}]*?'
+                r'industry["\']?\s*:\s*["\']([^"\']+)["\']',
+                flags=re.S | re.MULTILINE
+            )
+            matches = alt_pattern.findall(txt)
+            print(f"📊 대안 정규식 매칭 결과: {len(matches)}개 발견", file=sys.stderr)
+
+        mapping = {t.upper(): ind for t, ind in matches}
+
+        if not mapping:
+            # 디버깅을 위해 파일의 일부 내용 출력
+            sample = txt[:500] if len(txt) > 500 else txt
+            print(f"❌ 매핑 추출 실패. 파일 샘플:\n{sample}", file=sys.stderr)
+            raise ValueError("Ticker-industry 매핑이 유효하지 않습니다")
+
+        print(f"✅ 매핑 로드 성공: {len(mapping)}개 항목", file=sys.stderr)
+
+        # 테스트 심볼들이 있는지 확인
+        test_symbols = ["170900", "023000"]
+        for symbol in test_symbols:
+            if symbol in mapping:
+                print(f"✅ {symbol}: {mapping[symbol]}", file=sys.stderr)
+            else:
+                print(f"❌ {symbol}: 매핑에서 찾을 수 없음", file=sys.stderr)
+
+        return mapping
+
+    except Exception as e:
+        print(f"❌ 매핑 파일 로드 오류: {e}", file=sys.stderr)
+        raise ValueError(f"매핑 파일 처리 실패: {e}")
 
 # ――― 가격 로드 / 수익률 ―――
 def load_realtime_data(symbol):
     """
-    Load realtime data using yfinance for a single symbol
-    Returns DataFrame with OHLCV data for the past 3 years
+    안전한 yfinance를 사용하여 데이터 로드 (429 오류 처리 포함)
     """
+    # 새로운 유틸리티 사용 시도
+    if YFINANCE_UTILS_AVAILABLE:
+        try:
+            print(f"🔄 안전한 yfinance로 {symbol} 데이터 로드 중...", file=sys.stderr)
+            hist = get_stock_data(symbol, years=3, max_retries=3)
+
+            if hist is not None and not hist.empty:
+                # 데이터 유효성 검사
+                if validate_data_columns(hist, ['Close']):
+                    cleaned_data = clean_and_validate_data(hist, min_rows=126)  # Industry 분석은 126일 필요
+                    if cleaned_data is not None:
+                        print(f"✅ {symbol} 데이터 로드 성공: {len(cleaned_data)}일", file=sys.stderr)
+                        return cleaned_data
+
+            print(f"❌ {symbol} 데이터 로드 실패 (유틸리티)", file=sys.stderr)
+        except Exception as e:
+            print(f"❌ {symbol} 유틸리티 오류: {e}", file=sys.stderr)
+
+    # 폴백: 기존 방식 사용
     if not YFINANCE_AVAILABLE:
         return None
 
     try:
-        print(f"🔄 Loading realtime data for {symbol} using yfinance...", file=sys.stderr)
+        print(f"🔄 기존 방식으로 {symbol} 데이터 로드 중...", file=sys.stderr)
 
         # 3년간의 데이터 가져오기
         end_date = datetime.now()
@@ -80,7 +153,7 @@ def load_realtime_data(symbol):
         hist = ticker_obj.history(start=start_date, end=end_date)
 
         if hist.empty:
-            print(f"❌ No realtime data found for {symbol}", file=sys.stderr)
+            print(f"❌ {symbol}에 대한 데이터가 없습니다", file=sys.stderr)
             return None
 
         # 컬럼명 표준화 및 Close 컬럼 생성
@@ -91,11 +164,11 @@ def load_realtime_data(symbol):
         if 'Close' not in hist.columns and 'AdjClose' in hist.columns:
             hist['Close'] = hist['AdjClose']
 
-        print(f"✅ Loaded {len(hist)} days of realtime data for {symbol}", file=sys.stderr)
+        print(f"✅ {symbol} 데이터 로드 성공: {len(hist)}일", file=sys.stderr)
         return hist
 
     except Exception as e:
-        print(f"❌ Error loading realtime data for {symbol}: {e}", file=sys.stderr)
+        print(f"❌ {symbol} 데이터 로드 오류: {e}", file=sys.stderr)
         return None
 
 def load_industry_portfolio_data(target_ticker):
@@ -104,8 +177,13 @@ def load_industry_portfolio_data(target_ticker):
     """
     try:
         # 매핑에서 타겟 티커의 산업 찾기
+        print(f"📊 {target_ticker} 매핑 로드 시도...", file=sys.stderr)
         mapping = load_mapping()
+        print(f"📊 매핑 로드 성공: {len(mapping)}개 항목", file=sys.stderr)
+
         if target_ticker not in mapping:
+            print(f"❌ {target_ticker}이 매핑에서 찾을 수 없음", file=sys.stderr)
+            print(f"📊 매핑에 있는 샘플 키들: {list(mapping.keys())[:10]}", file=sys.stderr)
             raise ValueError(f"Ticker {target_ticker} not found in mapping")
 
         target_industry = mapping[target_ticker]

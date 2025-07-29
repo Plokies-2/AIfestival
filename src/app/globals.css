@@ -33,7 +33,7 @@
 }
 
 .animate-draw-line {
-  animation: draw-line 1.5s ease-out forwards;
+  animation: draw-line 0.5s ease-out forwards;
 }
 
 /* 차트가 로드될 때 부드러운 페이드인 효과 */

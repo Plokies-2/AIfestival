@@ -64,7 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       industryResultsCount: analysisData.industryResults?.length || 0,
       industryResults: analysisData.industryResults?.map((industry: any) => ({
         industry_ko: industry.industry_ko,
-        sp500_industry: industry.sp500_industry,
+        kospi_industry: industry.kospi_industry,
         score: industry.score,
         companiesCount: industry.companies?.length || 0,
         companies: industry.companies || [] // 전체 기업 목록 로깅

@@ -1,8 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 
-// Staged execution API for SpeedTraffic component
-// Phase 1: Fast services (Technical, Industry, Market, Volatility)
-// Phase 2: LSTM service (Neural Network Prediction)
+// SpeedTraffic 단계별 실행 API
+// 6개 분석 서비스만 실행 (RSI, MFI, Bollinger, CAPM, GARCH, Industry)
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -15,16 +14,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Symbol is required' });
   }
 
-  if (!stage || (stage !== 'phase1' && stage !== 'phase2')) {
-    return res.status(400).json({ error: 'Stage must be either "phase1" or "phase2"' });
-  }
-
+  // stage 파라미터는 호환성을 위해 유지하지만 실제로는 phase1만 실행
   const ticker = symbol.toUpperCase();
 
   try {
-    // Delegate to the main API with stage parameter
+    // 새로운 speedtraffic_analysis API 호출
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    const response = await fetch(`${baseUrl}/api/lstm_prediction_simple?symbol=${ticker}&stage=${stage}`, {
+    const response = await fetch(`${baseUrl}/api/speedtraffic_analysis?symbol=${ticker}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -36,16 +32,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const result = await response.json();
-    res.status(200).json(result);
+
+    // 기존 형식과 호환되도록 phase 정보 추가
+    const compatibleResult = {
+      ...result,
+      phase: stage === 'phase2' ? 2 : 1
+    };
+
+    res.status(200).json(compatibleResult);
 
   } catch (error) {
-    // 로그 최적화: 에러만 출력
-    console.error(`[SPEEDTRAFFIC_STAGED] ${ticker} ${stage} failed:`, error instanceof Error ? error.message : error);
-    
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    console.error(`[SPEEDTRAFFIC_STAGED] ${ticker} 오류 (stage: ${stage}):`, error);
     res.status(500).json({
-      error: 'Staged prediction failed',
-      message: errorMessage,
+      error: '내부 서버 오류',
+      details: error instanceof Error ? error.message : String(error),
       stage: stage,
       timestamp: new Date().toISOString()
     });

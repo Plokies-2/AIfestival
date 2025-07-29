@@ -10,12 +10,14 @@ interface FinancialChartProps {
   onToggleExpand?: () => void; // 확장/축소 토글 콜백
 }
 
-const FinancialChart: React.FC<FinancialChartProps> = ({ symbol, isMinimized, isExpanded, onToggleExpand }) => {
+const FinancialChart: React.FC<FinancialChartProps> = memo(({ symbol, isMinimized, isExpanded, onToggleExpand }) => {
   const ref = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentSymbol, setCurrentSymbol] = useState<string | null>(null);
+  const [isChartInitialized, setIsChartInitialized] = useState(false);
 
 
 
@@ -41,12 +43,12 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ symbol, isMinimized, is
 
   // 확장 상태 변경 시 차트 크기만 조정 (재생성 방지로 채팅 상태 보존)
   useEffect(() => {
-    console.log('🔄 Chart expand state changed:', { isExpanded, hasChart: !!chartRef.current });
-
-    if (!chartRef.current) {
-      console.log('⚠️ No chart instance found, skipping resize');
+    // 차트가 초기화되지 않았거나 차트 인스턴스가 없으면 무시
+    if (!isChartInitialized || !chartRef.current) {
       return;
     }
+
+    console.log('🔄 Chart expand state changed:', { isExpanded, hasChart: !!chartRef.current });
 
     try {
       // 확장 상태에 따른 새로운 높이 계산
@@ -63,36 +65,30 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ symbol, isMinimized, is
     } catch (error) {
       console.error('❌ Chart resize failed:', error);
     }
-  }, [isExpanded]);
+  }, [isExpanded, isChartInitialized]);
 
-  // 차트 초기화 - symbol이 있을 때만 생성
+  // 차트 초기화 - 한 번만 생성하고 유지
   useEffect(() => {
-    console.log('🎯 Chart initialization effect triggered:', { symbol, hasChart: !!chartRef.current });
-
-    if (!ref.current || !symbol) {
-      console.log('🧹 Cleaning up chart (no symbol or ref)');
-      // symbol이 없으면 기존 차트 제거
-      if (chartRef.current) {
-        chartRef.current.remove();
-        chartRef.current = null;
-        seriesRef.current = null;
-        console.log('✅ Chart cleanup completed');
-      }
+    if (isChartInitialized || !ref.current) {
       return;
     }
 
-    // 이미 차트가 있다면 스킵 (중복 생성 방지)
+    // 이미 차트가 있으면 스킵 (재생성 방지)
+    if (chartRef.current && seriesRef.current) {
+      setIsChartInitialized(true);
+      return;
+    }
+
+    // 기존 차트가 있으면 제거 후 새로 생성
     if (chartRef.current) {
-      console.log('⏭️ Chart already exists, skipping initialization');
-      return;
+      chartRef.current.remove();
+      chartRef.current = null;
+      seriesRef.current = null;
     }
-
-    console.log('🏗️ Creating new chart instance');
 
     try {
       // 초기 차트 높이 설정
       const initialHeight = isExpanded ? Math.max(window.innerHeight - 150, 400) : 400;
-      console.log('📐 Initial chart height:', initialHeight);
 
       // 새로운 차트 생성
       chartRef.current = createChart(ref.current, {
@@ -149,14 +145,12 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ symbol, isMinimized, is
         priceLineVisible: true,
       });
 
-      console.log('✅ Chart instance created successfully');
+      setIsChartInitialized(true);
 
       // 윈도우 리사이즈 이벤트 리스너 추가
       const handleResize = () => {
-        console.log('🔄 Window resize detected');
         if (chartRef.current) {
           const newHeight = isExpanded ? Math.max(window.innerHeight - 150, 400) : 400;
-          console.log('📏 Applying new height on resize:', newHeight);
           chartRef.current.applyOptions({ height: newHeight });
           chartRef.current.timeScale().fitContent();
         }
@@ -165,25 +159,25 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ symbol, isMinimized, is
       window.addEventListener('resize', handleResize);
 
       return () => {
-        console.log('🧹 Cleaning up resize listener');
         window.removeEventListener('resize', handleResize);
       };
     } catch (error) {
-      console.error('❌ Chart initialization failed:', error);
+      console.error('Chart initialization failed:', error);
     }
-  }, [symbol]);
+  }, []); // 한 번만 실행
 
-  // 심볼이 변경될 때 데이터 로드
+  // 심볼이 실제로 변경될 때만 데이터 로드
   useEffect(() => {
-    console.log('📊 Data loading effect triggered:', { symbol, hasChart: !!chartRef.current, hasSeries: !!seriesRef.current });
-
     if (!symbol || !seriesRef.current || !chartRef.current) {
-      console.log('⏭️ Skipping data load - missing requirements');
+      return;
+    }
+
+    // 같은 심볼이면 데이터 로드 스킵
+    if (symbol === currentSymbol) {
       return;
     }
 
     const loadChartData = async () => {
-      console.log('🔄 Starting chart data load for symbol:', symbol);
       setIsLoading(true);
       setError(null);
 
@@ -193,13 +187,9 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ symbol, isMinimized, is
         const data = await res.json();
 
         if (data.error) {
-          console.error('❌ Realtime chart data API error:', data.error);
           setError(data.error);
           return;
         }
-
-        console.log(`📈 Processing realtime chart data, points count: ${data.data?.length || 0} (source: ${data.source})`);
-        console.log(`📅 Last update: ${data.lastUpdate}`);
 
         // 데이터를 lightweight-charts 형식으로 변환
         const chartData = data.data.map((point: any) => ({
@@ -213,22 +203,21 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ symbol, isMinimized, is
         // 차트를 데이터에 맞게 조정
         if (chartRef.current) {
           chartRef.current.timeScale().fitContent();
-          console.log('✅ Chart data loaded and fitted successfully');
         }
+
+        // 현재 심볼 업데이트
+        setCurrentSymbol(symbol);
       } catch (error) {
-        console.error('❌ Failed to load realtime chart data:', error);
+        console.error('Failed to load chart data:', error);
         setError('실시간 차트 데이터를 불러오는 중 오류가 발생했습니다.');
       } finally {
         setIsLoading(false);
-        console.log('🏁 Chart data loading completed');
       }
     };
 
     // 약간의 지연을 두고 데이터 로드 (차트 초기화 완료 후)
-    console.log('⏰ Scheduling data load with 200ms delay');
     const timer = setTimeout(loadChartData, 200);
     return () => {
-      console.log('🧹 Cleaning up data load timer');
       clearTimeout(timer);
     };
   }, [symbol]);
@@ -377,6 +366,6 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ symbol, isMinimized, is
       )}
     </div>
   );
-};
+});
 
-export default memo(FinancialChart);
+export default FinancialChart;

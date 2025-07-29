@@ -337,10 +337,8 @@ export async function performHealthCheck(): Promise<{
     const industries = getAllAvailableIndustries();
     checks.ragService = industries.length > 0;
     
-    // Check LSTM service
-    const { checkLSTMServiceHealth } = require('./lstm-service');
-    const lstmHealth = await checkLSTMServiceHealth();
-    checks.lstmService = lstmHealth.isAvailable;
+    // LSTM service 제거됨 - 더 이상 사용하지 않음
+    checks.lstmService = false;
     
   } catch (error) {
     console.error('Health check error:', error);

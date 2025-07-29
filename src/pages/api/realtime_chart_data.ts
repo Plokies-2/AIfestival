@@ -197,6 +197,8 @@ export default async function handler(
   }
 
   const symbolUpper = symbol.toUpperCase();
+  // 한국 주식의 경우 .KS 접미사 추가
+  const yahooSymbol = symbolUpper.includes('.') ? symbolUpper : `${symbolUpper}.KS`;
   const forceRefresh = force_refresh === 'true';
 
   try {
@@ -251,7 +253,7 @@ export default async function handler(
         // 캐싱 실패해도 계속 진행
       }
 
-      chartData = await fetchRealtimeData(symbolUpper);
+      chartData = await fetchRealtimeData(yahooSymbol);
       source = 'yfinance';
 
       // 데이터를 성공적으로 가져온 경우 캐시에 저장

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useRef, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import FinancialChart from '@/components/FinancialChart';
 import AIChat, { AIChatRef } from '@/components/AIChat';
 import SpeedTraffic from '@/components/SpeedTraffic';
@@ -10,13 +10,33 @@ import { useServerStatus } from '@/hooks/useServerStatus';
 
 export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [currentSymbol, setCurrentSymbol] = useState<string | undefined>(undefined);
   const [showingCompanyList, setShowingCompanyList] = useState(false);
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [showLanding, setShowLanding] = useState(true);
+  const [disableLSTM, setDisableLSTM] = useState(false); // LSTM 비활성화 상태
 
   const [isChartExpanded, setIsChartExpanded] = useState(false); // 차트 확장 상태
   const aiChatRef = useRef<AIChatRef>(null);
+
+  // URL 파라미터 처리
+  useEffect(() => {
+    if (!searchParams) return;
+
+    const symbol = searchParams.get('symbol');
+    const disableLSTMParam = searchParams.get('disableLSTM');
+
+    if (symbol) {
+      setCurrentSymbol(symbol);
+      setShowLanding(false);
+      setShowingCompanyList(false);
+    }
+
+    if (disableLSTMParam === 'true') {
+      setDisableLSTM(true);
+    }
+  }, [searchParams]);
 
   // 서버 재시작 감지 및 포트폴리오 자동 삭제
   useServerStatus({
@@ -218,9 +238,19 @@ export default function DashboardPage() {
         <aside className="hidden lg:block w-80 animate-fade-in">
           <div className="h-full bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <div className="mb-4">
-              <h2 className="text-lg font-semibold text-slate-900 mb-1">
-                {currentSymbol ? '투자 분석' : '시장 현황'}
-              </h2>
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {currentSymbol ? '투자 분석' : '시장 현황'}
+                </h2>
+                {currentSymbol && (
+                  <button
+                    onClick={() => router.push(`/speedtraffic?symbol=${currentSymbol}`)}
+                    className="px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white text-xs rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                  >
+                    전체 화면
+                  </button>
+                )}
+              </div>
               <p className="text-sm text-slate-500">
                 {currentSymbol ? 'AI 기반 투자 적격성 분석' : '실시간 시장 지표'}
               </p>
@@ -229,7 +259,25 @@ export default function DashboardPage() {
               symbol={currentSymbol}
               onPhaseMessage={handlePhaseMessage}
               onAnalysisComplete={handleAnalysisComplete}
+              disableLSTM={disableLSTM}
             />
+
+            {/* SpeedTraffic 전용 페이지 안내 */}
+            {currentSymbol && (
+              <div className="mt-4 p-3 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg">
+                <div className="text-center">
+                  <p className="text-xs text-slate-600 mb-2">
+                    더 자세한 분석을 원하시나요?
+                  </p>
+                  <button
+                    onClick={() => router.push(`/speedtraffic?symbol=${currentSymbol}`)}
+                    className="w-full py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white text-sm rounded-lg transition-all duration-200 font-medium"
+                  >
+                    🚦 SpeedTraffic 전용 화면으로 이동
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </aside>
 

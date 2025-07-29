@@ -11,6 +11,14 @@ except ImportError:
     CACHE_SERVICE_AVAILABLE = False
     print("Warning: data_cache_service not available, falling back to direct yfinance", file=sys.stderr)
 
+# yfinance 유틸리티 가져오기
+try:
+    from yfinance_utils import get_stock_data, validate_data_columns, clean_and_validate_data
+    YFINANCE_UTILS_AVAILABLE = True
+except ImportError:
+    YFINANCE_UTILS_AVAILABLE = False
+    print("Warning: yfinance_utils not available, falling back to direct yfinance", file=sys.stderr)
+
 # yfinance 가져오기 시도 (폴백용)
 try:
     import yfinance as yf
@@ -40,23 +48,45 @@ def load_cached_data(symbol):
 
 def load_realtime_data_direct(symbol):
     """
-    직접 yfinance를 사용하여 데이터 로드 (폴백용)
+    안전한 yfinance를 사용하여 데이터 로드 (429 오류 처리 포함)
     """
+    # 새로운 유틸리티 사용 시도
+    if YFINANCE_UTILS_AVAILABLE:
+        try:
+            print(f"🔄 안전한 yfinance로 {symbol} 데이터 로드 중...", file=sys.stderr)
+            hist = get_stock_data(symbol, years=3, max_retries=3)
+
+            if hist is not None and not hist.empty:
+                # 데이터 유효성 검사
+                if validate_data_columns(hist, ['Close']):
+                    cleaned_data = clean_and_validate_data(hist, min_rows=14)
+                    if cleaned_data is not None:
+                        print(f"✅ {symbol} 데이터 로드 성공: {len(cleaned_data)}일", file=sys.stderr)
+                        return cleaned_data
+
+            print(f"❌ {symbol} 데이터 로드 실패 (유틸리티)", file=sys.stderr)
+        except Exception as e:
+            print(f"❌ {symbol} 유틸리티 오류: {e}", file=sys.stderr)
+
+    # 폴백: 기존 방식 사용
     if not YFINANCE_AVAILABLE:
         return None
 
     try:
-        print(f"🔄 Loading realtime data for {symbol} using yfinance directly...", file=sys.stderr)
+        print(f"🔄 기존 방식으로 {symbol} 데이터 로드 중...", file=sys.stderr)
 
         # 3년간의 데이터 가져오기
         end_date = datetime.now()
         start_date = end_date - timedelta(days=3*365)
 
-        ticker_obj = yf.Ticker(symbol)
+        # 한국 주식의 경우 .KS 접미사 추가
+        yahoo_symbol = symbol if '.' in symbol else f"{symbol}.KS"
+
+        ticker_obj = yf.Ticker(yahoo_symbol)
         hist = ticker_obj.history(start=start_date, end=end_date)
 
         if hist.empty:
-            print(f"❌ No realtime data found for {symbol}", file=sys.stderr)
+            print(f"❌ {symbol}에 대한 데이터가 없습니다", file=sys.stderr)
             return None
 
         # 컬럼명 표준화 및 Close 컬럼 생성
@@ -67,11 +97,11 @@ def load_realtime_data_direct(symbol):
         if 'Close' not in hist.columns and 'AdjClose' in hist.columns:
             hist['Close'] = hist['AdjClose']
 
-        print(f"✅ Loaded {len(hist)} days of realtime data for {symbol}", file=sys.stderr)
+        print(f"✅ {symbol} 데이터 로드 성공: {len(hist)}일", file=sys.stderr)
         return hist
 
     except Exception as e:
-        print(f"❌ Error loading realtime data for {symbol}: {e}", file=sys.stderr)
+        print(f"❌ {symbol} 데이터 로드 오류: {e}", file=sys.stderr)
         return None
 
 def calculate_rsi(symbol, period: int = 14):

@@ -103,8 +103,11 @@ def fetch_comprehensive_data(symbol):
         end_date = datetime.now()
         start_date = end_date - timedelta(days=3*365)
 
+        # 한국 주식의 경우 .KS 접미사 추가
+        yahoo_symbol = symbol if '.' in symbol else f"{symbol}.KS"
+
         # 개별 티커 데이터
-        ticker_obj = yf.Ticker(symbol)
+        ticker_obj = yf.Ticker(yahoo_symbol)
         hist = ticker_obj.history(start=start_date, end=end_date)
 
         if hist.empty:
@@ -112,22 +115,22 @@ def fetch_comprehensive_data(symbol):
             return None
 
         # KOSPI 지수 데이터 (CAPM용)
-        sp500_obj = yf.Ticker("^GSPC")
-        sp500_hist = sp500_obj.history(start=start_date, end=end_date)
+        kospi_obj = yf.Ticker("^KS11")
+        kospi_hist = kospi_obj.history(start=start_date, end=end_date)
 
         # 데이터 정리 및 표준화
         hist.columns = [col.replace(' ', '').title() for col in hist.columns]
         hist.rename(columns={'Adjclose': 'AdjClose'}, inplace=True)
         
-        sp500_hist.columns = [col.replace(' ', '').title() for col in sp500_hist.columns]
-        sp500_hist.rename(columns={'Adjclose': 'AdjClose'}, inplace=True)
+        kospi_hist.columns = [col.replace(' ', '').title() for col in kospi_hist.columns]
+        kospi_hist.rename(columns={'Adjclose': 'AdjClose'}, inplace=True)
 
         # Close 컬럼이 없으면 AdjClose 사용
         if 'Close' not in hist.columns and 'AdjClose' in hist.columns:
             hist['Close'] = hist['AdjClose']
         
-        if 'Close' not in sp500_hist.columns and 'AdjClose' in sp500_hist.columns:
-            sp500_hist['Close'] = sp500_hist['AdjClose']
+        if 'Close' not in kospi_hist.columns and 'AdjClose' in kospi_hist.columns:
+            kospi_hist['Close'] = kospi_hist['AdjClose']
 
         # JSON 직렬화 가능한 형태로 변환
         data = {
@@ -141,9 +144,9 @@ def fetch_comprehensive_data(symbol):
                 'close': hist['Close'].fillna(0).tolist(),
                 'volume': hist['Volume'].fillna(0).tolist(),
             },
-            'sp500_data': {
-                'dates': sp500_hist.index.strftime('%Y-%m-%d').tolist(),
-                'close': sp500_hist['Close'].fillna(0).tolist(),
+            'kospi_data': {
+                'dates': kospi_hist.index.strftime('%Y-%m-%d').tolist(),
+                'close': kospi_hist['Close'].fillna(0).tolist(),
             }
         }
 
@@ -178,8 +181,8 @@ def convert_to_dataframe(cached_data, data_type='ticker'):
     try:
         if data_type == 'ticker':
             data_dict = cached_data['ticker_data']
-        elif data_type == 'sp500':
-            data_dict = cached_data['sp500_data']
+        elif data_type == 'kospi':
+            data_dict = cached_data['kospi_data']
         else:
             raise ValueError(f"Invalid data_type: {data_type}")
 

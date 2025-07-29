@@ -22,7 +22,6 @@ export {
 
 export type {
   // Core types
-  LSTMData,
   Stage,
   SessionState,
   IntentClassificationResult,
@@ -112,24 +111,7 @@ export {
   getAllAvailableIndustries
 } from './rag-service';
 
-// ============================================================================
-// LSTM Service Exports
-// ============================================================================
 
-export {
-  getLSTMDataForSymbol,
-  getAvailableLSTMSymbols,
-  enhanceResponseWithLSTMData,
-  getDetailedLSTMAnalysis,
-  isLSTMDataAvailable,
-  getBatchLSTMData,
-  formatLSTMDataForDisplay,
-  checkLSTMServiceHealth,
-  lstmSymbolCache,
-  getCachedAvailableLSTMSymbols,
-  shouldEnhanceWithLSTM,
-  getLSTMAvailabilitySummary
-} from './lstm-service';
 
 // ============================================================================
 // Company Utilities Exports
@@ -217,11 +199,10 @@ export function getSystemInfo(): {
 } {
   const modules = [
     'types',
-    'config', 
+    'config',
     'session-manager',
     'ai-service',
     'rag-service',
-    'lstm-service',
     'company-utils',
     'pipeline-handlers',
     'request-handler'

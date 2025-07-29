@@ -54,6 +54,15 @@ export default function PortfolioPage() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [hoveredMetric, setHoveredMetric] = useState<string | null>(null);
 
+  // 컨텍스트 메뉴 상태
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    ticker: string;
+    companyName: string;
+  } | null>(null);
+
   // 서버 재시작 감지 및 포트폴리오 자동 삭제
   useServerStatus({
     onServerRestart: () => {
@@ -144,8 +153,45 @@ export default function PortfolioPage() {
       setBacktestResults(null);
     } else {
       setExpandedGroup(groupId);
-      setSelectedPortfolio(null);
+
+      // 메인 포트폴리오 클릭 시 6개 기업 모두를 포함하는 통합 포트폴리오 생성
+      const group = portfolioGroups.find(g => g.groupId === groupId);
+      if (group && group.traditional && group.creative) {
+        // 정통한 전략과 창의적 전략의 모든 기업을 합쳐서 통합 포트폴리오 생성
+        const allCompanies = [
+          ...group.traditional.companies,
+          ...group.creative.companies
+        ];
+
+        // 중복 제거 및 가중치 평균화
+        const companyMap = new Map();
+        allCompanies.forEach(company => {
+          if (companyMap.has(company.ticker)) {
+            const existing = companyMap.get(company.ticker);
+            existing.weight = (existing.weight + company.weight) / 2; // 평균 가중치
+          } else {
+            companyMap.set(company.ticker, { ...company });
+          }
+        });
+
+        const mergedPortfolio: Portfolio = {
+          id: `${groupId}-merged`,
+          name: `${group.name} (통합 6개 기업)`,
+          strategy: 'traditional', // 기본값
+          companies: Array.from(companyMap.values()),
+          createdAt: group.createdAt,
+          industry: group.traditional.industry,
+          refinedQuery: group.traditional.refinedQuery,
+          groupId: groupId
+        };
+
+        setSelectedPortfolio(mergedPortfolio);
+      } else {
+        setSelectedPortfolio(null);
+      }
+
       setBacktestResults(null);
+      setIsAnimating(false);
     }
   };
 
@@ -203,6 +249,41 @@ export default function PortfolioPage() {
     };
     return tooltips[metric] || '';
   };
+
+  // 컨텍스트 메뉴 핸들러
+  const handleRightClick = (e: React.MouseEvent, ticker: string, companyName: string) => {
+    e.preventDefault();
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      ticker,
+      companyName
+    });
+  };
+
+
+
+  // speedtraffic 분석 시작
+  const handleStartAnalysis = (ticker: string) => {
+    setContextMenu(null);
+    // speedtraffic 전용 페이지로 이동
+    router.push(`/speedtraffic?symbol=${ticker}`);
+  };
+
+  // 전역 클릭 이벤트로 컨텍스트 메뉴 닫기
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (contextMenu) {
+        setContextMenu(null);
+      }
+    };
+
+    if (contextMenu) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [contextMenu]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-50">
@@ -376,19 +457,37 @@ export default function PortfolioPage() {
                     />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: '#ffffff',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                        backgroundColor: '#1e293b',
+                        border: 'none',
+                        borderRadius: '12px',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                        color: '#ffffff',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        padding: '12px 16px',
+                        backdropFilter: 'blur(8px)',
+                        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(51, 65, 85, 0.95) 100%)'
                       }}
                       formatter={(value: number) => [
-                        `${value.toFixed(2)}%`,
-                        '수익률'
+                        <span style={{ color: '#60a5fa', fontWeight: '600' }}>{`${value.toFixed(2)}%`}</span>,
+                        <span style={{ color: '#cbd5e1' }}>수익률</span>
                       ]}
                       labelFormatter={(label) => {
                         const date = new Date(label);
-                        return date.toLocaleDateString('ko-KR');
+                        return (
+                          <span style={{
+                            color: '#f1f5f9',
+                            fontWeight: '600',
+                            borderBottom: '1px solid rgba(148, 163, 184, 0.3)',
+                            paddingBottom: '4px',
+                            marginBottom: '4px',
+                            display: 'block'
+                          }}>
+                            {date.toLocaleDateString('ko-KR')}
+                          </span>
+                        );
                       }}
+                      cursor={{ stroke: '#3b82f6', strokeWidth: 2, strokeDasharray: '5 5' }}
                     />
                     <ReferenceLine
                       y={0}
@@ -446,9 +545,15 @@ export default function PortfolioPage() {
                   <div className="text-2xl font-bold text-slate-900">{formatPercentage(backtestResults.volatility)}</div>
                   <div className="text-sm text-slate-600">변동성</div>
                   {hoveredMetric === 'volatility' && (
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg shadow-lg z-10 w-64">
-                      {getMetricTooltip('volatility')}
-                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 px-4 py-3 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900 text-white text-sm rounded-xl shadow-2xl z-20 w-72 border border-slate-600/50 backdrop-blur-sm">
+                      <div className="flex items-start space-x-2">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 flex-shrink-0"></div>
+                        <div>
+                          <div className="font-semibold text-blue-100 mb-1">변동성 지표</div>
+                          <div className="text-slate-300 leading-relaxed">{getMetricTooltip('volatility')}</div>
+                        </div>
+                      </div>
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-transparent border-t-slate-800"></div>
                     </div>
                   )}
                 </div>
@@ -462,9 +567,15 @@ export default function PortfolioPage() {
                   </div>
                   <div className="text-sm text-slate-600">샤프 비율</div>
                   {hoveredMetric === 'sharpeRatio' && (
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg shadow-lg z-10 w-64">
-                      {getMetricTooltip('sharpeRatio')}
-                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 px-4 py-3 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900 text-white text-sm rounded-xl shadow-2xl z-20 w-72 border border-slate-600/50 backdrop-blur-sm">
+                      <div className="flex items-start space-x-2">
+                        <div className="w-2 h-2 bg-green-400 rounded-full mt-2 flex-shrink-0"></div>
+                        <div>
+                          <div className="font-semibold text-green-100 mb-1">샤프 비율</div>
+                          <div className="text-slate-300 leading-relaxed">{getMetricTooltip('sharpeRatio')}</div>
+                        </div>
+                      </div>
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-transparent border-t-slate-800"></div>
                     </div>
                   )}
                 </div>
@@ -476,9 +587,15 @@ export default function PortfolioPage() {
                   <div className="text-2xl font-bold text-red-600">{formatPercentage(backtestResults.maxDrawdown)}</div>
                   <div className="text-sm text-slate-600">최대 낙폭</div>
                   {hoveredMetric === 'maxDrawdown' && (
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg shadow-lg z-10 w-64">
-                      {getMetricTooltip('maxDrawdown')}
-                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 px-4 py-3 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900 text-white text-sm rounded-xl shadow-2xl z-20 w-72 border border-slate-600/50 backdrop-blur-sm">
+                      <div className="flex items-start space-x-2">
+                        <div className="w-2 h-2 bg-red-400 rounded-full mt-2 flex-shrink-0"></div>
+                        <div>
+                          <div className="font-semibold text-red-100 mb-1">최대 낙폭</div>
+                          <div className="text-slate-300 leading-relaxed">{getMetricTooltip('maxDrawdown')}</div>
+                        </div>
+                      </div>
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-transparent border-t-slate-800"></div>
                     </div>
                   )}
                 </div>
@@ -491,7 +608,24 @@ export default function PortfolioPage() {
             <>
               {/* 백테스팅 컨트롤 */}
               <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">백테스팅</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">백테스팅</h3>
+                  <div className="flex items-center space-x-2">
+                    {selectedPortfolio.id.includes('-merged') ? (
+                      <span className="px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-sm font-medium rounded-full">
+                        통합 포트폴리오 ({selectedPortfolio.companies.length}개 기업)
+                      </span>
+                    ) : (
+                      <span className={`px-3 py-1 text-sm font-medium rounded-full ${
+                        selectedPortfolio.strategy === 'traditional'
+                          ? 'bg-gradient-to-r from-green-400 to-green-500 text-white'
+                          : 'bg-gradient-to-r from-purple-400 to-purple-500 text-white'
+                      }`}>
+                        {selectedPortfolio.strategy === 'traditional' ? '정통한 전략' : '창의적 전략'} ({selectedPortfolio.companies.length}개 기업)
+                      </span>
+                    )}
+                  </div>
+                </div>
                 <div className="flex items-center space-x-4 mb-4">
                   <div className="flex space-x-2">
                     {(['3M', '6M', '1Y'] as const).map((period) => (
@@ -524,7 +658,11 @@ export default function PortfolioPage() {
                 <div className="space-y-3">
                   {selectedPortfolio.companies.map((company) => (
                     <div key={company.ticker} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                      <div className="flex-1">
+                      <div
+                        className="flex-1 cursor-pointer hover:bg-slate-100 p-2 rounded transition-colors"
+                        onContextMenu={(e) => handleRightClick(e, company.ticker, company.name)}
+                        title="우클릭하여 차트 분석 시작"
+                      >
                         <div className="font-medium text-slate-900">{company.name}</div>
                         <div className="text-sm text-slate-600">{company.ticker}</div>
                       </div>
@@ -571,6 +709,37 @@ export default function PortfolioPage() {
           )}
         </section>
       </main>
+
+      {/* 컨텍스트 메뉴 */}
+      {contextMenu && (
+        <div
+          className="fixed bg-white rounded-lg shadow-xl border border-slate-200 py-2 z-50 min-w-[200px]"
+          style={{
+            left: contextMenu.x,
+            top: contextMenu.y,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-4 py-2 border-b border-slate-100">
+            <div className="font-medium text-slate-900">{contextMenu.companyName}</div>
+            <div className="text-sm text-slate-600">{contextMenu.ticker}</div>
+          </div>
+          <button
+            onClick={() => handleStartAnalysis(contextMenu.ticker)}
+            className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors flex items-center space-x-3"
+          >
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <div>
+              <div className="font-medium text-slate-900">차트 분석 시작</div>
+              <div className="text-sm text-slate-600">SpeedTraffic™ 분석 진행</div>
+            </div>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

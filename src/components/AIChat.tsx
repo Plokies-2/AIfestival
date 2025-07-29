@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
-import ReportModal from './ReportModal';
 import RealTimeThinkingBox from './RealTimeThinkingBox';
 
 interface AIChatProps {
@@ -36,9 +35,6 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
   const [history, setHistory] = useState<ChatMessage[]>([]);
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
   const [isHidingSuggestions, setIsHidingSuggestions] = useState(false);
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [reportContent, setReportContent] = useState('');
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [isThinking, setIsThinking] = useState(false); // 추론 과정 상태
   const [thinkingMessages, setThinkingMessages] = useState<Array<{
     id: string;
@@ -573,84 +569,7 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
     }
   };
 
-  // 보고서 버튼 클릭 핸들러
-  const handleReportClick = async () => {
-    if (!currentSymbol || !analysisData) {
-      console.error('No symbol or analysis data available for report generation');
-      return;
-    }
-
-    setIsGeneratingReport(true);
-    setIsReportModalOpen(true);
-    setReportContent('');
-
-    try {
-      // Extract data from analysis results with default values for all required fields
-      const reportData = {
-        symbol: currentSymbol,
-        companyName: analysisData.companyName || currentSymbol,
-        rsi: {
-          value: analysisData.rsi?.rsi_14 || 0,
-          traffic_light: analysisData.rsi?.traffic_light || analysisData.traffic_lights?.technical || 'red'
-        },
-        bollinger: {
-          value: analysisData.bollinger?.percent_b || 0,
-          traffic_light: analysisData.bollinger?.traffic_light || analysisData.traffic_lights?.technical || 'red'
-        },
-        mfi: {
-          value: analysisData.mfi?.mfi_14 || 0,
-          traffic_light: analysisData.mfi?.traffic_light || analysisData.traffic_lights?.technical || 'red'
-        },
-        capm: {
-          beta: analysisData.capm?.beta_market || 0,
-          r2: analysisData.capm?.r2_market || 0,
-          tstat: analysisData.capm?.tstat_market || 0,
-          traffic_light: analysisData.traffic_lights?.market || 'red'
-        },
-        garch: {
-          volatility: analysisData.garch?.sigma_pct || 0,
-          var95: analysisData.garch?.var95_pct || 0,
-          traffic_light: analysisData.traffic_lights?.risk || 'red'
-        },
-        industry: {
-          beta: analysisData.industry?.beta || 0,
-          r2: analysisData.industry?.r2 || 0,
-          tstat: analysisData.industry?.tstat || 0,
-          industry_name: analysisData.industry?.industry || 'Unknown',
-          traffic_light: analysisData.traffic_lights?.industry || 'red'
-        },
-        lstm: {
-          accuracy: analysisData.lstm?.accuracy || 0,
-          pred_prob_up: analysisData.lstm?.pred_prob_up || 0,
-          traffic_light: analysisData.traffic_lights?.neural || 'red'
-        }
-      };
-
-      const response = await fetch('/api/generate_report', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(reportData),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      setReportContent(result.report);
-
-    } catch (error) {
-      // 개발 환경에서만 상세 에러 로깅
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Error generating report:', error);
-      }
-      setReportContent('보고서 생성 중 오류가 발생했습니다. 다시 시도해 주세요.');
-    } finally {
-      setIsGeneratingReport(false);
-    }
-  };
+  // 보고서 기능 제거됨 - 단순 완료 메시지만 표시
 
   // 최적화된 메인 제출 핸들러
   const onSubmit = async (e: React.FormEvent) => {
@@ -799,19 +718,7 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
                   )}
 
                   {/* 보고서 버튼 */}
-                  {m.hasReportButton && (
-                    <div className="flex justify-start">
-                      <button
-                        onClick={handleReportClick}
-                        className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg transition-colors duration-200 flex items-center space-x-1 shadow-sm"
-                      >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <span>보고서 출력</span>
-                      </button>
-                    </div>
-                  )}
+                  {/* 보고서 버튼 제거됨 */}
                 </div>
               </div>
             )}
@@ -870,15 +777,7 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
       </div>
     </div>
 
-    {/* Report Modal */}
-    <ReportModal
-      isOpen={isReportModalOpen}
-      onClose={() => setIsReportModalOpen(false)}
-      report={reportContent}
-      symbol={currentSymbol || ''}
-      companyName={analysisData?.companyName || currentSymbol || ''}
-      isLoading={isGeneratingReport}
-    />
+    {/* Report Modal 제거됨 */}
   </>
   );
 });

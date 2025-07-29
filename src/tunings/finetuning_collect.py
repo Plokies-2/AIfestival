@@ -36,8 +36,8 @@ def load_kospi_tickers():
         with open(ts_file, 'r', encoding='utf-8') as f:
             content = f.read()
 
-        # Extract ticker symbols and company names using regex
-        pattern = r'"([A-Z]+)":\s*{\s*name:\s*"([^"]+)"'
+        # Extract ticker symbols and company names using regex (숫자 티커 포함)
+        pattern = r'"([A-Z0-9]+)":\s*{\s*name:\s*"([^"]+)"'
         matches = re.findall(pattern, content)
 
         for ticker, name in matches:
@@ -52,7 +52,7 @@ def load_kospi_tickers():
 
 def get_available_dates():
     """Load available dates from the CSV file"""
-    csv_path = ROOT_SRC / "data" / "sp500_adj_close_3y.csv"
+    csv_path = ROOT_SRC / "data" / "kospi_adj_close_3y.csv"
 
     if not csv_path.exists():
         print(f"Error: {csv_path} not found", file=sys.stderr)

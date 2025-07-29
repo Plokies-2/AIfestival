@@ -7,28 +7,7 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 
-// ============================================================================
-// LSTM Data Types
-// ============================================================================
 
-/**
- * LSTM prediction data structure from the LSTM service
- */
-export interface LSTMData {
-  symbol: string;
-  timestamp: string;
-  prediction_data: {
-    shock_level: string;
-    shock_description: string;
-    last_prediction: number;
-    accuracy: number;
-    model_type: string;
-  };
-  analysis: {
-    ai_summary: string;
-    explanation: string;
-  };
-}
 
 // ============================================================================
 // Session Management Types
