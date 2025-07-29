@@ -6,7 +6,7 @@ interface ThinkingMessage {
   id: string;
   text: string;
   detail?: string; // 추가 세부 정보 (기업명, 검색 대상 등)
-  type: 'search' | 'analyze' | 'extract' | 'generate' | 'complete';
+  type: 'search' | 'analyze' | 'extract' | 'generate' | 'summarize' | 'complete';
   timestamp: number;
 }
 
@@ -28,6 +28,7 @@ const RealTimeThinkingBox: React.FC<RealTimeThinkingBoxProps> = ({ isVisible, on
       case 'analyze': return '📊';
       case 'extract': return '🎯';
       case 'generate': return '⚡';
+      case 'summarize': return '📝';
       case 'complete': return '✅';
       default: return '💭';
     }
@@ -63,6 +64,16 @@ const RealTimeThinkingBox: React.FC<RealTimeThinkingBoxProps> = ({ isVisible, on
         id: `extract_${timestamp}`,
         text: '투자 대상 기업 추출 중...',
         type: 'extract',
+        timestamp
+      };
+    }
+
+    // 뉴스 요약
+    if (logText.includes('뉴스 요약') || logText.includes('News Summary') || logText.includes('Summary API')) {
+      return {
+        id: `summarize_${timestamp}`,
+        text: '뉴스 데이터 요약 중...',
+        type: 'summarize',
         timestamp
       };
     }

@@ -5,6 +5,7 @@
 
 import { NewsSearchResult, NewsItem } from './news-service';
 import { InvestmentRecommendationResult } from './ai-service';
+import { NewsSummaryService } from './summary-service';
 
 import axios from 'axios';
 import { ENV_CONFIG } from './config';
@@ -124,10 +125,12 @@ function formatNewsDate(pubDate: string): string {
 export class FunctionCallingExecutor {
   private logger: FunctionCallLogger;
   private hcxClient: HCX005FunctionCallingClient;
+  private summaryService: NewsSummaryService;
 
   constructor() {
     this.logger = FunctionCallLogger.getInstance();
     this.hcxClient = new HCX005FunctionCallingClient();
+    this.summaryService = new NewsSummaryService();
     console.log('🔧 [Function Executor] Function Calling 실행기 초기화 완료');
   }
 
@@ -303,15 +306,39 @@ export class FunctionCallingExecutor {
       // 뉴스 내용을 포함한 사용자 메시지 구성
       let enhancedUserMessage = args.user_message;
 
-      // 최신 동향 뉴스 추가 (사전 필터링된 최근 3일 뉴스, 번호로 구분)
+      // 최신 동향 뉴스 추가 (요약 기능 적용)
       if (args.trend_news && args.trend_news.length > 0) {
-        enhancedUserMessage += '\n\n**최신 투자 동향 뉴스 (각 뉴스는 고유 번호로 구분됨):**\n';
-        args.trend_news.forEach((news, index) => {
-          const formattedDate = formatNewsDate(news.pub_date);
-          enhancedUserMessage += `📰 뉴스${index + 1}: [${formattedDate}] ${news.title}\n내용: ${news.description}\n\n`;
-        });
+        // 뉴스 요약 필요성 판단
+        if (this.summaryService.shouldSummarize(args.trend_news)) {
+          console.log(`📝 [News Summary] 뉴스 ${args.trend_news.length}개 요약 시작 - 토큰 절약을 위해 요약 적용`);
 
-        enhancedUserMessage += `**⚠️ 중요: 위 뉴스들은 뉴스1, 뉴스2, 뉴스3... 형태로 구분됩니다. 절대 같은 뉴스를 반복 사용하지 마세요!**\n`;
+          try {
+            const summarizedNews = await this.summaryService.summarize(args.trend_news);
+            enhancedUserMessage += '\n\n**📰 최신 투자 동향 뉴스 (요약됨):**\n';
+            enhancedUserMessage += summarizedNews + '\n\n';
+            enhancedUserMessage += `**💡 참고: 위 내용은 ${args.trend_news.length}개 뉴스를 요약한 것입니다.**\n`;
+
+            console.log(`✅ [News Summary] 뉴스 요약 완료 - 원본 ${args.trend_news.length}개 → 요약본 사용`);
+          } catch (error: any) {
+            console.error(`❌ [News Summary] 요약 실패, 원본 사용:`, error.message);
+            // 요약 실패 시 원본 사용 (fallback)
+            enhancedUserMessage += '\n\n**📰 최신 투자 동향 뉴스 (각 뉴스는 고유 번호로 구분됨):**\n';
+            args.trend_news.forEach((news, index) => {
+              const formattedDate = formatNewsDate(news.pub_date);
+              enhancedUserMessage += `📰 뉴스${index + 1}: [${formattedDate}] ${news.title}\n내용: ${news.description}\n\n`;
+            });
+            enhancedUserMessage += `**⚠️ 중요: 위 뉴스들은 뉴스1, 뉴스2, 뉴스3... 형태로 구분됩니다.**\n`;
+          }
+        } else {
+          // 요약 불필요 시 원본 사용
+          console.log(`📰 [News Summary] 뉴스 ${args.trend_news.length}개 - 요약 불필요, 원본 사용`);
+          enhancedUserMessage += '\n\n**📰 최신 투자 동향 뉴스 (각 뉴스는 고유 번호로 구분됨):**\n';
+          args.trend_news.forEach((news, index) => {
+            const formattedDate = formatNewsDate(news.pub_date);
+            enhancedUserMessage += `📰 뉴스${index + 1}: [${formattedDate}] ${news.title}\n내용: ${news.description}\n\n`;
+          });
+          enhancedUserMessage += `**⚠️ 중요: 위 뉴스들은 뉴스1, 뉴스2, 뉴스3... 형태로 구분됩니다.**\n`;
+        }
       } else {
         enhancedUserMessage += '\n\n**📰 최신 뉴스 정보:**\n관련 최신 뉴스를 찾을 수 없어 산업 정보와 일반적인 시장 동향을 바탕으로 기업을 추출합니다.\n\n';
       }
@@ -325,7 +352,7 @@ export class FunctionCallingExecutor {
         enhancedUserMessage += `**${industry.industry_ko}** (매칭 점수: ${industry.score.toFixed(3)})\n기업들: ${companiesText}\n\n`;
       });
 
-      // 간소화된 기업 추출 지침 생성
+      // 강화된 기업 추출 지침 생성
       const getInstructions = (traditionalCount: number, creativeCount: number) => {
         return `위 최신 뉴스를 바탕으로 투자 가치가 높은 기업 ${traditionalCount + creativeCount}개를 추출해주세요.
 
@@ -336,17 +363,19 @@ export class FunctionCallingExecutor {
 **추출 방식:**
 - **반드시 제공된 기업 리스트(KOSPI_ENRICHED_FINAL)에서만 기업명과 티커 심볼을 선택**
 - 해당 기업이 속한 산업 분야나 특징을 간단히 기술
+- **개별 기업의 최신 뉴스가 없더라도, 산업 동향과 시장 분석을 바탕으로 논리적인 선정 이유를 제시**
 - 상세한 투자 근거는 다음 단계에서 생성됩니다
 
 **⚠️ 필수 준수사항:**
 - 제공된 산업별 기업 목록에 없는 기업은 절대 추천하지 마세요
 - 비상장 기업이나 해외 기업은 제외하세요
 - 백테스팅과 실제 투자가 가능한 기업만 선택하세요
+- **개별 기업 뉴스가 부족한 경우, 산업 특성과 시장 포지션을 근거로 논리적 설명 필수**
 
-**예시:**
-- reason: "AI/반도체 기업"
-- reason: "바이오/제약 기업"
-- reason: "전기차/배터리 기업"`;
+**선정 근거 예시:**
+- reason: "AI/반도체 산업 대표 기업으로 기술력과 시장 점유율 우수"
+- reason: "바이오/제약 분야 선도 기업으로 신약 개발 파이프라인 보유"
+- reason: "전기차/배터리 산업 성장에 따른 핵심 부품 공급업체"`;
       };
 
       enhancedUserMessage += getInstructions(traditionalCount, creativeCount);
@@ -588,30 +617,78 @@ export class FunctionCallingExecutor {
       // 검색 결과를 포함한 확장된 사용자 메시지 구성
       let enhancedUserMessage = args.user_message;
 
-      // 최신 동향 뉴스 추가 (번호로 구분)
+      // 최신 동향 뉴스 추가 (요약 기능 적용)
       let totalNewsCount = 0;
       if (args.trend_news && args.trend_news.length > 0) {
-        enhancedUserMessage += '\n\n**📰 최신 동향 뉴스 (각 뉴스는 고유 번호로 구분):**\n';
-        args.trend_news.forEach((news, index) => {
-          const formattedDate = formatNewsDate(news.pub_date);
-          enhancedUserMessage += `뉴스${index + 1}: [${formattedDate}] ${news.title}\n내용: ${news.description}\n\n`;
-        });
+        // 뉴스 요약 필요성 판단
+        if (this.summaryService.shouldSummarize(args.trend_news)) {
+          console.log(`📝 [News Summary] 투자 전략 생성용 뉴스 ${args.trend_news.length}개 요약 시작`);
+
+          try {
+            const summarizedNews = await this.summaryService.summarize(args.trend_news);
+            enhancedUserMessage += '\n\n**📰 최신 동향 뉴스 (요약됨):**\n';
+            enhancedUserMessage += summarizedNews + '\n\n';
+            enhancedUserMessage += `**💡 참고: 위 내용은 ${args.trend_news.length}개 뉴스를 요약한 것입니다.**\n`;
+
+            console.log(`✅ [News Summary] 투자 전략용 뉴스 요약 완료`);
+          } catch (error: any) {
+            console.error(`❌ [News Summary] 요약 실패, 원본 사용:`, error.message);
+            // 요약 실패 시 원본 사용 (fallback)
+            enhancedUserMessage += '\n\n**📰 최신 동향 뉴스 (각 뉴스는 고유 번호로 구분):**\n';
+            args.trend_news.forEach((news, index) => {
+              const formattedDate = formatNewsDate(news.pub_date);
+              enhancedUserMessage += `뉴스${index + 1}: [${formattedDate}] ${news.title}\n내용: ${news.description}\n\n`;
+            });
+          }
+        } else {
+          // 요약 불필요 시 원본 사용
+          console.log(`📰 [News Summary] 투자 전략용 뉴스 ${args.trend_news.length}개 - 요약 불필요, 원본 사용`);
+          enhancedUserMessage += '\n\n**📰 최신 동향 뉴스 (각 뉴스는 고유 번호로 구분):**\n';
+          args.trend_news.forEach((news, index) => {
+            const formattedDate = formatNewsDate(news.pub_date);
+            enhancedUserMessage += `뉴스${index + 1}: [${formattedDate}] ${news.title}\n내용: ${news.description}\n\n`;
+          });
+        }
         totalNewsCount += args.trend_news.length;
       }
 
-      // 기업별 뉴스 추가 (연속 번호로 구분하여 동향 뉴스와 함께 활용)
+      // 기업별 뉴스 추가 (요약 기능 적용)
       if (args.company_news) {
-        enhancedUserMessage += '\n\n**🏢 기업별 뉴스 (연속 번호로 구분):**\n';
-        Object.entries(args.company_news).forEach(([companyName, newsResult]) => {
+        enhancedUserMessage += '\n\n**🏢 기업별 뉴스:**\n';
+
+        for (const [companyName, newsResult] of Object.entries(args.company_news)) {
           if (newsResult.success && newsResult.news_items.length > 0) {
-            enhancedUserMessage += `\n**${companyName} 관련 뉴스:**\n`;
-            newsResult.news_items.forEach((news) => {
-              const formattedDate = formatNewsDate(news.pub_date);
-              totalNewsCount++;
-              enhancedUserMessage += `뉴스${totalNewsCount}: [${formattedDate}] ${news.title}\n내용: ${news.description}\n\n`;
-            });
+            // 기업별 뉴스도 요약 적용
+            if (this.summaryService.shouldSummarize(newsResult.news_items)) {
+              console.log(`📝 [News Summary] ${companyName} 뉴스 ${newsResult.news_items.length}개 요약 시작`);
+
+              try {
+                const summarizedCompanyNews = await this.summaryService.summarize(newsResult.news_items);
+                enhancedUserMessage += `\n**${companyName} 관련 뉴스 (요약됨):**\n`;
+                enhancedUserMessage += summarizedCompanyNews + '\n\n';
+
+                console.log(`✅ [News Summary] ${companyName} 뉴스 요약 완료`);
+              } catch (error: any) {
+                console.error(`❌ [News Summary] ${companyName} 뉴스 요약 실패:`, error.message);
+                // 요약 실패 시 원본 사용
+                enhancedUserMessage += `\n**${companyName} 관련 뉴스:**\n`;
+                newsResult.news_items.forEach((news) => {
+                  const formattedDate = formatNewsDate(news.pub_date);
+                  totalNewsCount++;
+                  enhancedUserMessage += `뉴스${totalNewsCount}: [${formattedDate}] ${news.title}\n내용: ${news.description}\n\n`;
+                });
+              }
+            } else {
+              // 요약 불필요 시 원본 사용
+              enhancedUserMessage += `\n**${companyName} 관련 뉴스:**\n`;
+              newsResult.news_items.forEach((news) => {
+                const formattedDate = formatNewsDate(news.pub_date);
+                totalNewsCount++;
+                enhancedUserMessage += `뉴스${totalNewsCount}: [${formattedDate}] ${news.title}\n내용: ${news.description}\n\n`;
+              });
+            }
           }
-        });
+        }
       }
 
       // 산업 정보 추가
@@ -646,6 +723,11 @@ export class FunctionCallingExecutor {
 3. **각 기업마다 반드시 서로 다른 2개 이상의 뉴스를 인용하세요**
 4. **절대 같은 뉴스를 여러 기업에서 반복 사용하지 마세요**
 5. **뉴스 번호를 명시하세요 (예: "뉴스3에 따르면...", "뉴스15에서는...")**
+6. **🎯 개별 기업 뉴스 분석 시 반드시 투자에 직접적으로 관련된 뉴스만 엄선하여 사용하세요**
+   - 매출/실적 관련 뉴스 우선
+   - 신제품/신기술 개발 뉴스 우선
+   - 사업 확장/투자 계획 뉴스 우선
+   - 단순 인사/행사 뉴스는 제외
 
 **📋 사용 가능한 뉴스: 총 ${totalNewsCount}개**
 뉴스1부터 뉴스${totalNewsCount}까지 모두 다른 뉴스입니다. 다양하게 활용하세요.
@@ -654,7 +736,13 @@ export class FunctionCallingExecutor {
 "최근 뉴스들을 종합하면, AI 반도체 시장에서 글로벌 파트너십이 확산되고 있으며, 맞춤형 AI 인프라 개발이 가속화되고 있습니다."
 
 **동향 분석 잘못된 예시 (절대 금지):**
-"뉴스1에 따르면, 리벨리온과 마벨은..." (특정 기업명 언급 금지!)`;
+"뉴스1에 따르면, 리벨리온과 마벨은..." (특정 기업명 언급 금지!)
+
+**기업별 뉴스 분석 올바른 예시:**
+"뉴스5에 따르면, 삼성전자는 2분기 매출이 전년 대비 15% 증가했으며, 뉴스12에서는 차세대 반도체 기술 개발에 대규모 투자를 발표했습니다."
+
+**기업별 뉴스 분석 잘못된 예시 (사용 금지):**
+"뉴스8에 따르면, 삼성전자 임원이 행사에 참석했습니다." (투자와 무관한 뉴스)`;
 
       // 간소화된 뉴스 요약
       if (args.trend_news && args.trend_news.length > 0) {

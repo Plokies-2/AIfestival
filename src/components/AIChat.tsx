@@ -331,7 +331,7 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
       clearInterval(pollingInterval);
     }
 
-    const interval = setInterval(pollAnalysisProgress, 1000); // 1초마다 polling
+    const interval = setInterval(pollAnalysisProgress, 3000); // 3초마다 polling (호출 빈도 최적화)
     setPollingInterval(interval);
 
     // 개발 환경에서만 로깅
