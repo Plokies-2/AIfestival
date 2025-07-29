@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import ReportModal from './ReportModal';
+import ThinkingStatusBox from './ThinkingStatusBox';
 
 interface AIChatProps {
   onSymbolSubmit?: (symbol: string) => void;
@@ -23,6 +24,7 @@ interface ChatMessage {
   text: string;
   hasReportButton?: boolean;
   isLoading?: boolean; // 로딩 상태 표시용
+  isThinking?: boolean; // 추론 과정 표시용
 }
 
 interface ChatApiResponse {
@@ -37,6 +39,7 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportContent, setReportContent] = useState('');
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [isThinking, setIsThinking] = useState(false); // 추론 과정 상태
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollDiv = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
@@ -264,6 +267,63 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
 
       const data = await response.json();
       console.log('✅ 상세 분석 성공');
+
+      // 포트폴리오 데이터가 있으면 저장
+      if (data.portfolioData) {
+        try {
+          const { traditionalStrategy, creativeStrategy, selectedIndustries, userMessage, refinedQuery } = data.portfolioData;
+          const portfolios = [];
+          const portfolioName = refinedQuery || selectedIndustries[0]?.industry_ko || userMessage || '투자';
+          const timestamp = new Date().toISOString();
+          const groupId = `group_${Date.now()}`; // 하나의 답변당 하나의 그룹 ID
+
+          // 정통한 전략 포트폴리오
+          if (traditionalStrategy && traditionalStrategy.length > 0) {
+            portfolios.push({
+              id: `traditional_${Date.now()}`,
+              name: portfolioName,
+              strategy: 'traditional',
+              companies: traditionalStrategy.map((company: any) => ({
+                ticker: company.ticker,
+                name: company.name,
+                weight: 1000 // 기본 1000만원
+              })),
+              createdAt: timestamp,
+              industry: portfolioName,
+              refinedQuery: refinedQuery,
+              groupId: groupId
+            });
+          }
+
+          // 창의적 전략 포트폴리오
+          if (creativeStrategy && creativeStrategy.length > 0) {
+            portfolios.push({
+              id: `creative_${Date.now() + 1}`,
+              name: portfolioName,
+              strategy: 'creative',
+              companies: creativeStrategy.map((company: any) => ({
+                ticker: company.ticker,
+                name: company.name,
+                weight: 1000 // 기본 1000만원
+              })),
+              createdAt: timestamp,
+              industry: portfolioName,
+              refinedQuery: refinedQuery,
+              groupId: groupId
+            });
+          }
+
+          // localStorage에 저장
+          const existingPortfolios = JSON.parse(localStorage.getItem('ai_portfolios') || '[]');
+          const updatedPortfolios = [...existingPortfolios, ...portfolios];
+          localStorage.setItem('ai_portfolios', JSON.stringify(updatedPortfolios));
+
+          console.log(`✅ [Portfolio] ${portfolios.length}개 포트폴리오 저장 완료`);
+        } catch (error) {
+          console.error('❌ [Portfolio] 포트폴리오 저장 실패:', error);
+        }
+      }
+
       return data.reply;
     } catch (error) {
       console.error('❌ 상세 분석 오류:', error);
@@ -292,12 +352,13 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
     if (res.needsDetailedAnalysis) {
       console.log('🤖 상세 분석 시작...');
 
-      // 2차 분석 로딩 메시지를 독립적으로 추가
+      // 2차 분석 추론 과정 표시
       setHistory(h => [...h, {
         from: 'bot',
-        text: '더 자세한 분석을 진행하고 있습니다...',
-        isLoading: true
+        text: '', // 빈 텍스트 (ThinkingStatusBox가 표시됨)
+        isThinking: true
       }]);
+      setIsThinking(true);
 
       // 세션 업데이트 완료를 위한 짧은 지연
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -305,14 +366,15 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
       // 상세 분석 요청 (재시도 로직 포함)
       const detailedReply = await fetchDetailedAnalysis();
 
-      // 로딩 메시지를 상세 분석 결과로 교체
+      // 추론 과정을 상세 분석 결과로 교체
+      setIsThinking(false);
       setHistory(h => {
         const newHistory = [...h];
-        if (newHistory.length > 0 && newHistory[newHistory.length - 1].isLoading) {
+        if (newHistory.length > 0 && newHistory[newHistory.length - 1].isThinking) {
           newHistory[newHistory.length - 1] = {
             from: 'bot',
             text: detailedReply,
-            isLoading: false
+            isThinking: false
           };
         }
         return newHistory;
@@ -554,16 +616,25 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
 
                 {/* 메시지 버블 */}
                 <div className="space-y-2">
-                  <div className="px-3 py-2 rounded-xl shadow-sm whitespace-pre-line bg-white border border-slate-200 text-slate-900">
-                    {m.isLoading ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
-                        <p className="text-sm leading-relaxed text-slate-600">{m.text}</p>
-                      </div>
-                    ) : (
-                      <p className="text-sm leading-relaxed">{m.text}</p>
-                    )}
-                  </div>
+                  {m.isThinking ? (
+                    <ThinkingStatusBox
+                      isVisible={true}
+                      onComplete={() => {
+                        // 추론 완료 후 처리 (필요시)
+                      }}
+                    />
+                  ) : (
+                    <div className="px-3 py-2 rounded-xl shadow-sm whitespace-pre-line bg-white border border-slate-200 text-slate-900">
+                      {m.isLoading ? (
+                        <div className="flex items-center space-x-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+                          <p className="text-sm leading-relaxed text-slate-600">{m.text}</p>
+                        </div>
+                      ) : (
+                        <p className="text-sm leading-relaxed">{m.text}</p>
+                      )}
+                    </div>
+                  )}
 
                   {/* 보고서 버튼 */}
                   {m.hasReportButton && (

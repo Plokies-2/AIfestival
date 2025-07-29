@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import FinancialChart from '@/components/FinancialChart';
 import AIChat, { AIChatRef } from '@/components/AIChat';
 import SpeedTraffic from '@/components/SpeedTraffic';
+import { useServerStatus } from '@/hooks/useServerStatus';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -14,6 +15,14 @@ export default function DashboardPage() {
 
   const [isChartExpanded, setIsChartExpanded] = useState(false); // 차트 확장 상태
   const aiChatRef = useRef<AIChatRef>(null);
+
+  // 서버 재시작 감지 및 포트폴리오 자동 삭제
+  useServerStatus({
+    onServerRestart: () => {
+      console.log('🔄 [Main Page] 서버 재시작으로 인한 포트폴리오 삭제 완료');
+      // 필요시 추가 처리 (예: 사용자에게 알림)
+    }
+  });
 
   // Handle phase messages from SpeedTraffic
   const handlePhaseMessage = (message: string, hasReportButton?: boolean) => {
@@ -108,9 +117,20 @@ export default function DashboardPage() {
               </div>
             </button>
 
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span className="text-xs sm:text-sm text-slate-600">실시간</span>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => router.push('/portfolio')}
+                className="flex items-center space-x-2 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200 text-sm font-medium shadow-sm hover:shadow-md"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <span>내 포트폴리오</span>
+              </button>
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-xs sm:text-sm text-slate-600">실시간</span>
+              </div>
             </div>
           </div>
         </div>
@@ -174,7 +194,6 @@ export default function DashboardPage() {
                 }}
                 hasChart={!!currentSymbol}
                 showingCompanyList={showingCompanyList}
-                isChartExpanded={isChartExpanded} // 확장 상태 전달
                 currentSymbol={currentSymbol}
                 analysisData={analysisData}
               />

@@ -4,6 +4,38 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 포트폴리오 차트 애니메이션 - 왼쪽에서 오른쪽으로 그려지는 효과 */
+@keyframes draw-line {
+  from {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-draw-line {
+  animation: draw-line 1.5s ease-out forwards;
+}
+
+/* 차트가 로드될 때 부드러운 페이드인 효과 */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
 /* ───────── 모던 디자인 시스템 ───────── */
 @layer base {
   :root {

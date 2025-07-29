@@ -247,7 +247,10 @@ export class NaverNewsSearcher {
     error?: string;
   }> {
     const startTime = Date.now();
-    console.log(`📰 [Naver API] 뉴스 검색 시작: "${query}" (${display}개, ${sort} 정렬)`);
+    const requestedCount = display;
+    const actualRequestCount = Math.min(display, 100); // Naver API 최대 100개 제한
+
+    console.log(`📰 [Naver API] 뉴스 검색 시작: "${query}" (요청: ${requestedCount}개, 실제: ${actualRequestCount}개, ${sort} 정렬)`);
 
     const headers = {
       'X-Naver-Client-Id': this.clientId,
@@ -256,7 +259,7 @@ export class NaverNewsSearcher {
 
     const params = {
       query: query,
-      display: Math.min(display, 100),
+      display: actualRequestCount,
       start: 1,
       sort: ['sim', 'date'].includes(sort) ? sort : 'sim'
     };
@@ -272,7 +275,12 @@ export class NaverNewsSearcher {
       const total = response.data.total || 0;
       const items = response.data.items || [];
 
-      console.log(`✅ [Naver API] 검색 성공 (${processingTime}ms): 총 ${total}개 중 ${items.length}개 반환`);
+      // 요청한 개수와 실제 반환된 개수가 다른 경우 명시적으로 표시
+      if (requestedCount > 100) {
+        console.log(`✅ [Naver API] 검색 성공 (${processingTime}ms): 총 ${total}개 중 ${items.length}개 반환 (요청 ${requestedCount}개 → API 제한으로 ${actualRequestCount}개)`);
+      } else {
+        console.log(`✅ [Naver API] 검색 성공 (${processingTime}ms): 총 ${total}개 중 ${items.length}개 반환`);
+      }
 
       return {
         success: true,
@@ -372,7 +380,7 @@ export class RAGNewsSearchSystem {
     // 2단계: 최신 뉴스 우선 검색 (더 많은 결과를 가져온 후 필터링)
     const searchResult = await this.newsSearcher.searchNews(
       refinedQuery,
-      Math.min(maxResults * 3, 50), // 더 많은 결과를 가져와서 필터링
+      Math.min(maxResults * 3, 100), // API 최대 제한인 100개까지 가져와서 필터링
       'date' // 최신순 정렬
     );
 
@@ -439,10 +447,10 @@ export class RAGNewsSearchSystem {
     console.log(`   정제된 쿼리: "${refinedQuery}"`);
     console.log(`   검색 의도: ${searchIntent}`);
 
-    // 2단계: 최신 뉴스 우선 검색 (150개 가져와서 최근 3일 필터링)
+    // 2단계: 최신 뉴스 우선 검색 (API 최대 제한인 100개 가져와서 최근 3일 필터링)
     const searchResult = await this.newsSearcher.searchNews(
       refinedQuery,
-      150, // 150개 가져와서 필터링 (뉴스 다양성 확보)
+      100, // API 최대 제한인 100개로 수정 (Naver API 제한)
       'date' // 최신순 정렬
     );
 
@@ -509,25 +517,25 @@ export class RAGNewsSearchSystem {
   }
 
   /**
-   * 기업별 최신 동향 검색 (n개 가져와서 최근 5일 필터링)
+   * 기업별 최신 동향 검색 (더 많은 뉴스를 가져와서 최근 7일 필터링)
    */
   async searchCompanyNews(companyName: string, maxResults: number = 3): Promise<NewsSearchResult> {
     const startTime = Date.now();
     const fixedQuery = `${companyName}`;
     console.log(`🏢 [Company Search] 기업 뉴스 검색 시작: "${fixedQuery}"`);
 
-    // n개 가져와서 최근 5일 필터링 후 관련성 높은 뉴스 선택
+    // 더 많은 뉴스를 가져와서 최근 7일 필터링 후 관련성 높은 뉴스 선택
     const searchResult = await this.newsSearcher.searchNews(
       fixedQuery,
-      500, // n개 가져와서 필터링 (뉴스 다양성 확보)
+      100, // API 최대 제한인 100개 가져와서 필터링 (뉴스 다양성 확보)
       'date' // 최신순으로 변경
     );
 
     const processingTime = Date.now() - startTime;
 
     if (searchResult.success) {
-      // 최근 n일 뉴스만 필터링
-      const recentItems = this.newsSearcher.filterRecentNews(searchResult.items, 10);
+      // 최근 7일 뉴스만 필터링
+      const recentItems = this.newsSearcher.filterRecentNews(searchResult.items, 7);
 
       // 필요한 개수만큼 선택
       const selectedItems = recentItems.slice(0, maxResults);

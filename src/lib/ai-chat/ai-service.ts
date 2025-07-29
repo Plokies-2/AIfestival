@@ -252,192 +252,13 @@ export interface InvestmentRecommendationResult {
     reason: string;
   }>;
   analysisReasoning: string;
+  strategyComparison?: string;
 }
 
-/**
- * 고급 모델을 사용한 투자 분석 및 기업 추천
- * 사용자의 메시지와 선택된 산업, 기업들을 기반으로 정통한 전략과 창의적 전략으로 각각 3개씩 기업을 추천
- */
-export async function generateInvestmentRecommendations(
-  input: InvestmentRecommendationInput
-): Promise<InvestmentRecommendationResult> {
-  try {
-    if (!openai) {
-      throw new Error('OpenAI client not initialized - CLOVA_STUDIO_API_KEY is required');
-    }
 
-    // 산업별 기업 정보를 문자열로 포맷팅
-    const industriesInfo = input.selectedIndustries.map(industry => {
-      const companiesText = industry.companies.map(company =>
-        `${company.ticker} (${company.name})`
-      ).join(', ');
 
-      return `**${industry.industry_ko}** (매칭 점수: ${industry.score.toFixed(3)})\n기업들: ${companiesText}`;
-    }).join('\n\n');
 
-    // 시스템 메시지 구성 (config에서 가져옴)
-    const systemMessage = INVESTMENT_ANALYSIS_SYSTEM_PROMPT;
 
-    // 사용자 메시지 구성 (config 템플릿 사용)
-    const userMessage = INVESTMENT_ANALYSIS_USER_MESSAGE_TEMPLATE(
-      input.userMessage,
-      industriesInfo,
-      input.ragAccuracy
-    );
-
-    console.log(`🤖 [투자 분석] 고급 모델로 투자 추천 생성 시작`);
-    console.log(`📝 [투자 분석] 전달되는 사용자 메시지:`, userMessage);
-    console.log(`🏢 [투자 분석] 기업 데이터 확인:`, {
-      industriesCount: input.selectedIndustries.length,
-      totalCompanies: input.selectedIndustries.reduce((sum, industry) => sum + industry.companies.length, 0),
-      industriesInfo: industriesInfo.substring(0, 500) + '...'
-    });
-
-    const response = await openai.chat.completions.create({
-      model: OPENAI_CONFIG.investmentAnalysisModel, // 고급 모델 사용
-      messages: [
-        {
-          role: 'system',
-          content: systemMessage
-        },
-        {
-          role: 'user',
-          content: userMessage
-        }
-      ],
-      temperature: OPENAI_CONFIG.temperature.investmentAnalysis,
-      max_tokens: OPENAI_CONFIG.maxTokens.investmentAnalysis,
-    });
-
-    const aiResponse = response.choices[0].message.content?.trim();
-
-    if (!aiResponse) {
-      throw new Error('투자 분석 응답 생성 실패');
-    }
-
-    console.log(`✅ [투자 분석] 고급 모델 응답 생성 완료`);
-
-    // 응답을 파싱하여 구조화된 데이터로 변환
-    return parseInvestmentRecommendation(aiResponse);
-
-  } catch (error) {
-    console.error('❌ 투자 분석 실패:', error);
-    throw error;
-  }
-}
-
-/**
- * LLM 응답을 파싱하여 구조화된 투자 추천 결과로 변환
- */
-function parseInvestmentRecommendation(
-  aiResponse: string
-): InvestmentRecommendationResult {
-  console.log(`🔍 [응답 파싱] AI 응답 길이: ${aiResponse.length}자`);
-  console.log(`🔍 [응답 파싱] AI 응답 미리보기:`, aiResponse.substring(0, 300) + '...');
-
-  // 기본 결과 구조
-  const result: InvestmentRecommendationResult = {
-    traditionalStrategy: [],
-    creativeStrategy: [],
-    analysisReasoning: aiResponse // 전체 응답을 기본값으로 사용
-  };
-
-  try {
-    // 정통한 전략 섹션 추출
-    const traditionalMatch = aiResponse.match(/## 🎯 정통한 투자 전략[\s\S]*?(?=## 🚀|$)/);
-    if (traditionalMatch) {
-      const traditionalSection = traditionalMatch[0];
-      console.log(`🔍 [파싱] 정통한 전략 섹션:`, traditionalSection.substring(0, 200) + '...');
-
-      // 실제 AI 응답 형식에 맞는 정규식: **GM (General Motors)** - 설명
-      const traditionalItems = traditionalSection.match(/\d+\.\s*\*\*([^*]+)\*\*\s*-\s*([^\n]+)/g);
-      console.log(`🔍 [파싱] 정통한 전략 아이템 수:`, traditionalItems?.length || 0);
-
-      if (traditionalItems) {
-        traditionalItems.slice(0, 3).forEach((item, index) => {
-          console.log(`🔍 [파싱] 정통한 전략 아이템 ${index + 1}:`, item);
-          const match = item.match(/\d+\.\s*\*\*([^*]+)\*\*\s*-\s*(.+)/);
-          if (match) {
-            const [, companyInfo, reason] = match;
-            // 티커와 회사명 분리: "GM (General Motors)" -> ticker: "GM", name: "General Motors"
-            const companyMatch = companyInfo.trim().match(/^([A-Z]+)\s*\(([^)]+)\)$/) ||
-                                companyInfo.trim().match(/^([A-Z]+)\s+(.+)$/) ||
-                                [null, companyInfo.trim(), companyInfo.trim()];
-
-            if (companyMatch) {
-              const ticker = companyMatch[1]?.trim() || companyInfo.trim();
-              const name = companyMatch[2]?.trim() || companyInfo.trim();
-
-              result.traditionalStrategy.push({
-                ticker,
-                name,
-                reason: reason.trim()
-              });
-              console.log(`✅ [파싱] 정통한 전략 추가:`, { ticker, name, reason: reason.substring(0, 50) + '...' });
-            }
-          }
-        });
-      }
-    }
-
-    // 창의적 전략 섹션 추출
-    const creativeMatch = aiResponse.match(/## 🚀 창의적 투자 전략[\s\S]*?(?=## 📊|$)/);
-    if (creativeMatch) {
-      const creativeSection = creativeMatch[0];
-      console.log(`🔍 [파싱] 창의적 전략 섹션:`, creativeSection.substring(0, 200) + '...');
-
-      // 실제 AI 응답 형식에 맞는 정규식: **GM (General Motors)** - 설명
-      const creativeItems = creativeSection.match(/\d+\.\s*\*\*([^*]+)\*\*\s*-\s*([^\n]+)/g);
-      console.log(`🔍 [파싱] 창의적 전략 아이템 수:`, creativeItems?.length || 0);
-
-      if (creativeItems) {
-        creativeItems.slice(0, 3).forEach((item, index) => {
-          console.log(`🔍 [파싱] 창의적 전략 아이템 ${index + 1}:`, item);
-          const match = item.match(/\d+\.\s*\*\*([^*]+)\*\*\s*-\s*(.+)/);
-          if (match) {
-            const [, companyInfo, reason] = match;
-            // 티커와 회사명 분리: "GM (General Motors)" -> ticker: "GM", name: "General Motors"
-            const companyMatch = companyInfo.trim().match(/^([A-Z]+)\s*\(([^)]+)\)$/) ||
-                                companyInfo.trim().match(/^([A-Z]+)\s+(.+)$/) ||
-                                [null, companyInfo.trim(), companyInfo.trim()];
-
-            if (companyMatch) {
-              const ticker = companyMatch[1]?.trim() || companyInfo.trim();
-              const name = companyMatch[2]?.trim() || companyInfo.trim();
-
-              result.creativeStrategy.push({
-                ticker,
-                name,
-                reason: reason.trim()
-              });
-              console.log(`✅ [파싱] 창의적 전략 추가:`, { ticker, name, reason: reason.substring(0, 50) + '...' });
-            }
-          }
-        });
-      }
-    }
-
-    // 분석 근거 섹션 추출
-    const reasoningMatch = aiResponse.match(/## 📊 분석 근거[\s\S]*$/);
-    if (reasoningMatch) {
-      result.analysisReasoning = reasoningMatch[0].trim();
-    }
-
-  } catch (parseError) {
-    console.warn('⚠️ 투자 추천 파싱 실패, 원본 응답 반환:', parseError);
-    // 파싱 실패시 원본 응답을 그대로 사용
-  }
-
-  console.log(`✅ [응답 파싱] 파싱 결과:`, {
-    traditionalCount: result.traditionalStrategy.length,
-    creativeCount: result.creativeStrategy.length,
-    hasReasoning: !!result.analysisReasoning,
-    traditionalTickers: result.traditionalStrategy.map(s => s.ticker),
-    creativeTickers: result.creativeStrategy.map(s => s.ticker)
-  });
-
-  return result;
-}
 
 // ============================================================================
 // 검색 기능이 통합된 투자 분석 (새로운 기능)
@@ -480,9 +301,20 @@ export async function generateEnhancedInvestmentAnalysis(
   const newsSearchSystem = new RAGNewsSearchSystem();
 
   try {
-    // 1단계: RAG reasoning으로 투자 동향 뉴스 30개 검색
-    console.log(`💡 [New Pipeline] 1단계: 투자 동향 뉴스 대량 검색 (30개)`);
-    const trendSearchResult = await newsSearchSystem.searchInvestmentTrendNews(input.userMessage);
+    // 0단계: 사용자 입력 정제 (1차 분석)
+    console.log(`💡 [New Pipeline] 0단계: 사용자 입력 정제 및 분석`);
+    const refinedQueryResult = await functionExecutor.executeRefineUserQuery({
+      user_message: input.userMessage
+    });
+
+    console.log(`✅ [Function Call] 사용자 입력 정제 완료!`);
+    console.log(`   정제된 쿼리: "${refinedQueryResult.refined_query}"`);
+    console.log(`   투자 의도: ${refinedQueryResult.investment_intent}`);
+    console.log(`   대상 산업: ${refinedQueryResult.target_industries.join(', ')}`);
+
+    // 1단계: RAG reasoning으로 투자 동향 뉴스 검색 (정제된 쿼리 사용)
+    console.log(`💡 [New Pipeline] 1단계: 투자 동향 뉴스 대량 검색`);
+    const trendSearchResult = await newsSearchSystem.searchInvestmentTrendNews(refinedQueryResult.refined_query);
 
     if (!trendSearchResult.success) {
       throw new Error('투자 동향 뉴스 검색 실패');
@@ -499,7 +331,7 @@ export async function generateEnhancedInvestmentAnalysis(
     console.log(`🔧 [New Pipeline] 사용할 뉴스 개수: ${trendSearchResult.news_items.length}개`);
 
     const extractedCompanies = await functionExecutor.executeExtractCompaniesFromNews({
-      user_message: input.userMessage,
+      user_message: refinedQueryResult.refined_query, // 정제된 쿼리 사용
       trend_news: trendSearchResult.news_items,
       selected_industries: input.selectedIndustries
     });
@@ -523,8 +355,8 @@ export async function generateEnhancedInvestmentAnalysis(
       }
     }
 
-    // 4단계: 산업 동향 중심 최종 투자 전략 생성
-    console.log(`💡 [New Pipeline] 4단계: 산업 동향 중심 최종 분석`);
+    // 4단계: 산업 동향 중심 최종 투자 전략 생성 (기업 뉴스 포함)
+    console.log(`💡 [New Pipeline] 4단계: 동향 뉴스 + 기업 뉴스 통합 분석`);
 
     // 검색 결과 정리
     const companyNews: { [companyName: string]: NewsItem[] } = {};
@@ -534,25 +366,48 @@ export async function generateEnhancedInvestmentAnalysis(
       }
     });
 
-    // 최종 결과 구성 (새로운 답변 구조 적용)
-    // 현재는 간단히 추출된 기업 정보를 사용하고, 나중에 산업 동향 중심 분석 함수 추가 예정
+    // 기업 뉴스를 NewsSearchResult 형태로 변환
+    const companyNewsFormatted: { [companyName: string]: NewsSearchResult } = {};
+    Object.entries(companySearchResults).forEach(([company, result]) => {
+      companyNewsFormatted[company] = result;
+    });
+
+    // 동향 뉴스와 기업 뉴스를 모두 활용한 최종 투자 전략 생성
+    const finalInvestmentResult = await functionExecutor.executeGenerateInvestmentStrategies({
+      user_message: refinedQueryResult.refined_query, // 정제된 쿼리 사용
+      trend_news: trendSearchResult.news_items,
+      company_news: companyNewsFormatted,
+      selected_industries: input.selectedIndustries,
+      rag_accuracy: 0.95
+    });
+
+    console.log(`✅ [Function Call] 동향 뉴스 + 기업 뉴스 통합 분석 완료!`);
+
+    // 최종 결과 구성 (기업 뉴스 분석 결과 활용) - 안전한 접근
+    console.log(`🔧 [New Pipeline] finalInvestmentResult 필드 확인:`, {
+      traditionalStrategy: finalInvestmentResult?.traditionalStrategy?.length || 0,
+      creativeStrategy: finalInvestmentResult?.creativeStrategy?.length || 0,
+      analysisReasoning: !!finalInvestmentResult?.analysisReasoning,
+      strategyComparison: !!finalInvestmentResult?.strategyComparison
+    });
+
     const result: EnhancedInvestmentAnalysisResult = {
-      traditionalStrategy: extractedCompanies.traditional_companies,
-      creativeStrategy: extractedCompanies.creative_companies,
-      analysisReasoning: extractedCompanies.market_analysis,
-      strategyComparison: extractedCompanies.strategy_comparison,
+      traditionalStrategy: finalInvestmentResult?.traditionalStrategy || [],
+      creativeStrategy: finalInvestmentResult?.creativeStrategy || [],
+      analysisReasoning: finalInvestmentResult?.analysisReasoning || '분석 결과를 가져올 수 없습니다.',
+      strategyComparison: finalInvestmentResult?.strategyComparison || '전략 비교 분석을 가져올 수 없습니다.',
       trendNews: trendSearchResult.news_items,
       companyNews,
-      searchSummary: `투자 동향 뉴스와, 개별 기업들의 뉴스를 분석하였습니다.`
+      searchSummary: `투자 동향 뉴스 ${trendSearchResult.news_items.length}개와 기업별 뉴스를 종합 분석하였습니다.`
     };
 
     const overallTime = Date.now() - overallStartTime;
     console.log(`✅ [New Pipeline] 전체 분석 완료 (${overallTime}ms)`);
     console.log(`✅ [New Pipeline] API 사용량: 총 7회 (동향 1회 + 기업 6회)`);
     console.log(`✅ [New Pipeline] 결과 요약: {
-  traditionalCount: ${result.traditionalStrategy.length},
-  creativeCount: ${result.creativeStrategy.length},
-  trendNewsCount: ${result.trendNews.length},
+  traditionalCount: ${result.traditionalStrategy?.length || 0},
+  creativeCount: ${result.creativeStrategy?.length || 0},
+  trendNewsCount: ${result.trendNews?.length || 0},
   extractedCompaniesCount: ${allExtractedCompanies.length},
   companyNewsCount: ${Object.keys(result.companyNews).length}
 }`);
@@ -562,22 +417,71 @@ export async function generateEnhancedInvestmentAnalysis(
   } catch (error) {
     const overallTime = Date.now() - overallStartTime;
     console.error(`❌ [New Pipeline] 전체 분석 실패 (${overallTime}ms):`, error);
-
-    // 오류 발생 시 기존 방식으로 폴백
-    console.log(`🔄 [New Pipeline] 기존 방식으로 폴백 시도`);
-
-    // 기존 방식 결과를 새로운 형식으로 변환
-    const fallbackResult = await generateInvestmentRecommendations(input);
-    return {
-      traditionalStrategy: fallbackResult.traditionalStrategy,
-      creativeStrategy: fallbackResult.creativeStrategy,
-      analysisReasoning: fallbackResult.analysisReasoning,
-      strategyComparison: '폴백 모드에서는 전략 비교 분석을 제공하지 않습니다.',
-      trendNews: [],
-      companyNews: {},
-      searchSummary: '폴백 모드: 기존 분석 방식 사용'
-    };
+    throw error; // 오류를 상위로 전파
   }
 }
 
+/**
+ * AI 응답에서 포트폴리오 데이터를 추출하고 저장
+ */
+export function savePortfoliosFromAnalysis(
+  analysisResult: any,
+  userMessage: string,
+  selectedIndustries: Array<{ industry_ko: string; score: number }>
+) {
+  try {
+    const portfolios = [];
+    const industryName = selectedIndustries[0]?.industry_ko || '투자';
+    const timestamp = new Date().toISOString();
+
+    // 정통한 전략 포트폴리오
+    if (analysisResult.traditionalStrategy && analysisResult.traditionalStrategy.length > 0) {
+      const traditionalPortfolio = {
+        id: `traditional_${Date.now()}`,
+        name: `${industryName} 정통한 전략`,
+        strategy: 'traditional' as const,
+        companies: analysisResult.traditionalStrategy.map((company: any) => ({
+          ticker: company.ticker,
+          name: company.name,
+          weight: 1000 // 기본 1000만원
+        })),
+        createdAt: timestamp,
+        industry: industryName
+      };
+      portfolios.push(traditionalPortfolio);
+    }
+
+    // 창의적 전략 포트폴리오
+    if (analysisResult.creativeStrategy && analysisResult.creativeStrategy.length > 0) {
+      const creativePortfolio = {
+        id: `creative_${Date.now() + 1}`,
+        name: `${industryName} 창의적 전략`,
+        strategy: 'creative' as const,
+        companies: analysisResult.creativeStrategy.map((company: any) => ({
+          ticker: company.ticker,
+          name: company.name,
+          weight: 1000 // 기본 1000만원
+        })),
+        createdAt: timestamp,
+        industry: industryName
+      };
+      portfolios.push(creativePortfolio);
+    }
+
+    // 브라우저 환경에서만 localStorage 사용
+    if (typeof window !== 'undefined') {
+      const existingPortfolios = JSON.parse(localStorage.getItem('ai_portfolios') || '[]');
+      const updatedPortfolios = [...existingPortfolios, ...portfolios];
+      localStorage.setItem('ai_portfolios', JSON.stringify(updatedPortfolios));
+
+      console.log(`✅ [Portfolio] ${portfolios.length}개 포트폴리오 저장 완료`);
+      console.log(`📊 [Portfolio] 저장된 포트폴리오:`, portfolios.map(p => p.name));
+    }
+
+    return portfolios;
+  } catch (error) {
+    console.error('❌ [Portfolio] 포트폴리오 저장 실패:', error);
+    return [];
+  }
+}
 

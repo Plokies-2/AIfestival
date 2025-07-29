@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import {
   generateInvestmentRecommendations,
   generateEnhancedInvestmentAnalysis,
+  savePortfoliosFromAnalysis,
   InvestmentRecommendationInput
 } from '@/lib/ai-chat/ai-service';
 import { 
@@ -138,6 +139,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const primaryIndustryCompanies = analysisData.industryResults[0]?.companies || [];
     const enhancedReply = await enhanceResponseWithLSTMData(primaryIndustryCompanies, reply);
 
+    // 📊 포트폴리오 데이터 저장 (클라이언트에서 처리하도록 데이터 전달)
+    const portfolioData = {
+      traditionalStrategy: investmentRecommendation.traditionalStrategy,
+      creativeStrategy: investmentRecommendation.creativeStrategy,
+      selectedIndustries: investmentInput.selectedIndustries,
+      userMessage: investmentInput.userMessage,
+      refinedQuery: analysisData?.refinedQuery || investmentInput.userMessage
+    };
+
     // 세션에서 상세 분석 데이터 제거 (완료됨)
     updateSession(sessionId, {
       ...session,
@@ -147,6 +157,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(200).json({
       success: true,
       reply: enhancedReply,
+      portfolioData, // 포트폴리오 데이터 추가
       status: 'detailed_analysis_complete'
     });
 

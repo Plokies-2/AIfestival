@@ -4,7 +4,8 @@
  */
 
 import { NewsSearchResult, NewsItem } from './news-service';
-import { InvestmentRecommendationInput, InvestmentRecommendationResult } from './ai-service';
+import { InvestmentRecommendationResult } from './ai-service';
+
 import axios from 'axios';
 import { ENV_CONFIG } from './config';
 
@@ -133,7 +134,134 @@ export class FunctionCallingExecutor {
 
 
   /**
-   * 뉴스 기반 기업 추출 실행 - 새로운 파이프라인 1단계
+   * 1차 분석: 비정형 사용자 입력을 구체적인 투자 쿼리로 변환
+   */
+  async executeRefineUserQuery(args: {
+    user_message: string;
+  }): Promise<{
+    refined_query: string;
+    investment_intent: string;
+    target_industries: string[];
+    reasoning: string;
+  }> {
+    const startTime = Date.now();
+    const functionName = 'refine_user_query';
+
+    console.log(`🔍 [Function Call] ${functionName} 실행 시작 - 사용자 입력 정제`);
+
+    try {
+      const messages = [
+        {
+          role: 'system' as const,
+          content: `당신은 사용자의 비정형 투자 관련 입력을 분석하여 구체적이고 검색에 적합한 쿼리로 변환하는 전문가입니다.
+
+**목표:**
+1. 사용자의 모호한 표현을 명확한 투자 의도로 파악
+2. 검색에 최적화된 구체적인 쿼리 생성
+3. 관련 산업 분야 식별
+4. 분석 근거 제시
+
+**변환 예시:**
+- "요즘 방위산업이 엄청 뜬다고 하는데 투자하고 싶어" → "방위산업 포트폴리오 추천"
+- "AI가 핫하다던데 어디에 투자할까" → "인공지능 AI 투자 전략"
+- "전기차 관련해서 뭔가 투자하고 싶은데" → "전기차 배터리 투자 포트폴리오"`
+        },
+        {
+          role: 'user' as const,
+          content: `다음 사용자 입력을 분석하여 구체적인 투자 쿼리로 변환해주세요:
+
+"${args.user_message}"`
+        }
+      ];
+
+      const tools = [
+        {
+          type: 'function',
+          function: {
+            name: 'refine_user_query',
+            description: '사용자의 비정형 입력을 분석하여 구체적이고 검색에 적합한 투자 쿼리로 변환합니다.',
+            parameters: {
+              type: 'object',
+              properties: {
+                refined_query: {
+                  type: 'string',
+                  description: '검색에 최적화된 구체적인 투자 쿼리 (예: "방위산업 포트폴리오 추천", "AI 인공지능 투자 전략")'
+                },
+                investment_intent: {
+                  type: 'string',
+                  description: '사용자의 투자 의도 분석 (예: "방위산업 관련 종목 투자", "AI 기술 성장주 투자")'
+                },
+                target_industries: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: '관련 산업 분야 목록 (예: ["방위산업", "항공우주"], ["인공지능", "반도체"])'
+                },
+                reasoning: {
+                  type: 'string',
+                  description: '변환 근거와 분석 과정 설명'
+                }
+              },
+              required: ['refined_query', 'investment_intent', 'target_industries', 'reasoning']
+            }
+          }
+        }
+      ];
+
+      const response = await this.hcxClient.callFunctionCallingAPI(messages, tools, 'auto');
+
+      const executionTime = Date.now() - startTime;
+
+      if (response.status?.code === '20000' && response.result?.message) {
+        const toolCalls = response.result.message.toolCalls;
+        if (toolCalls && toolCalls.length > 0) {
+          const toolCall = toolCalls[0];
+          let functionArgs = toolCall.function?.arguments;
+
+          // arguments가 문자열인 경우 JSON 파싱
+          if (typeof functionArgs === 'string') {
+            try {
+              functionArgs = JSON.parse(functionArgs);
+            } catch (parseError) {
+              console.error(`❌ [Function Call] JSON 파싱 실패:`, parseError);
+              console.error(`❌ [Function Call] 원본 arguments:`, functionArgs);
+              // 파싱 실패 시 폴백 처리
+              return {
+                refined_query: args.user_message,
+                investment_intent: '일반 투자 상담',
+                target_industries: ['일반'],
+                reasoning: 'JSON 파싱 실패로 원본 메시지 사용'
+              };
+            }
+          }
+
+          if (functionArgs) {
+            console.log(`✅ [Function Call] ${functionName} 성공!`);
+            console.log(`   원본: "${args.user_message}"`);
+            console.log(`   변환: "${functionArgs.refined_query}"`);
+
+            return functionArgs;
+          }
+        }
+      }
+
+      throw new Error('Function call 응답에서 결과를 찾을 수 없습니다.');
+
+    } catch (error: any) {
+      const executionTime = Date.now() - startTime;
+      console.error(`❌ [Function Call] ${functionName} 실패:`, error.message);
+
+      // 폴백: 기본 변환
+      return {
+        refined_query: args.user_message,
+        investment_intent: '일반 투자 상담',
+        target_industries: ['일반'],
+        reasoning: '자동 변환 실패로 원본 메시지 사용'
+      };
+    }
+  }
+
+  /**
+   * 뉴스 기반 기업 추출 실행 - 새로운 파이프라인 2단계
    */
   async executeExtractCompaniesFromNews(args: {
     user_message: string;
@@ -268,7 +396,7 @@ export class FunctionCallingExecutor {
           return `당신은 최신 뉴스를 분석하여 투자 가치가 높은 기업을 추출하는 전문가입니다.
 
 **절대 준수 사항:**
-1. **각 기업마다 반드시 서로 다른 2개 이상의 뉴스를 인용하세요**
+1. **각 기업마다 가능한 경우 서로 다른 2개 이상의 뉴스를 인용하세요**
 2. **절대 같은 뉴스를 여러 기업에서 반복 사용하지 마세요**
 3. **뉴스 번호를 명시하세요 (예: "뉴스1에 따르면...", "뉴스5에서는...")**
 4. **시장 분석에서는 최소 3개의 서로 다른 뉴스를 언급하세요**
@@ -495,12 +623,12 @@ export class FunctionCallingExecutor {
         totalNewsCount += args.trend_news.length;
       }
 
-      // 기업별 뉴스 추가 (연속 번호로 구분)
+      // 기업별 뉴스 추가 (연속 번호로 구분하여 동향 뉴스와 함께 활용)
       if (args.company_news) {
         enhancedUserMessage += '\n\n**🏢 기업별 뉴스 (연속 번호로 구분):**\n';
         Object.entries(args.company_news).forEach(([companyName, newsResult]) => {
           if (newsResult.success && newsResult.news_items.length > 0) {
-            enhancedUserMessage += `\n**${companyName}:**\n`;
+            enhancedUserMessage += `\n**${companyName} 관련 뉴스:**\n`;
             newsResult.news_items.forEach((news) => {
               const formattedDate = formatNewsDate(news.pub_date);
               totalNewsCount++;
@@ -550,13 +678,15 @@ export class FunctionCallingExecutor {
       const messages = [
         {
           role: 'system' as const,
-          content: `당신은 제공된 뉴스 데이터를 활용하여 투자 분석을 수행하는 전문가입니다.
+          content: `당신은 제공된 동향 뉴스와 기업별 뉴스를 모두 활용하여 투자 분석을 수행하는 전문가입니다.
 
 **🚨 절대 준수 사항:**
 1. **각 기업마다 반드시 서로 다른 2개 이상의 뉴스를 인용하세요**
-2. **절대 같은 뉴스를 여러 기업에서 반복 사용하지 마세요**
-3. **뉴스 번호를 명시하세요 (예: "뉴스3에 따르면...", "뉴스15에서는...")**
-4. **시장 동향 분석에서는 최소 3개의 서로 다른 뉴스를 언급하세요**
+2. **동향 뉴스와 기업별 뉴스를 모두 적극 활용하세요**
+3. **절대 같은 뉴스를 여러 기업에서 반복 사용하지 마세요**
+4. **뉴스 번호를 명시하세요 (예: "뉴스3에 따르면...", "뉴스15에서는...")**
+5. **시장 동향 분석에서는 최소 3개의 서로 다른 뉴스를 언급하세요**
+6. **기업별 투자 근거에는 해당 기업의 개별 뉴스를 우선 활용하세요**
 
 **⚠️ 경고:** 뉴스 다양성을 반드시 확보하세요. 같은 뉴스 반복 사용 시 분석이 무효화됩니다.`
         },
@@ -571,7 +701,7 @@ export class FunctionCallingExecutor {
           type: 'function',
           function: {
             name: 'generate_investment_strategies',
-            description: '검색된 최신 뉴스 정보와 기업별 동향을 적극 활용하여 근거 있는 투자 전략을 생성합니다. 뉴스에서 언급된 구체적 사실과 전망을 인용하여 투자 근거를 제시합니다.',
+            description: '검색된 최신 동향 뉴스와 기업별 개별 뉴스를 모두 적극 활용하여 근거 있는 투자 전략을 생성합니다. 각 기업의 개별 뉴스를 우선 활용하고, 동향 뉴스로 시장 분석을 보완하여 투자 근거를 제시합니다.',
             parameters: {
               type: 'object',
               properties: {
@@ -590,7 +720,7 @@ export class FunctionCallingExecutor {
                       },
                       reason: {
                         type: 'string',
-                        description: '반드시 2개 이상의 뉴스를 인용하여 투자 근거 제시. 형식: "어제 15시 뉴스에 따르면, 삼성전자는 AI 투자를 확대한다고 발표했습니다. 또한 오늘 9시 뉴스에서는 글로벌 파트너십 체결이 보도되었습니다. 이처럼 다각적 성장으로 투자 매력도가 높습니다."'
+                        description: '반드시 해당 기업의 개별 뉴스 2개 이상을 우선 인용하고, 필요시 동향 뉴스로 보완하여 투자 근거 제시. 형식: "뉴스15에 따르면, 삼성전자는 AI 투자를 확대한다고 발표했습니다. 또한 뉴스23에서는 글로벌 파트너십 체결이 보도되었습니다. 이처럼 다각적 성장으로 투자 매력도가 높습니다."'
                       }
                     },
                     required: ['ticker', 'name', 'reason']
@@ -612,7 +742,7 @@ export class FunctionCallingExecutor {
                       },
                       reason: {
                         type: 'string',
-                        description: '반드시 2개 이상의 뉴스를 인용하여 투자 근거 제시. 형식: "어제 10시 뉴스에 따르면, 네이버는 클라우드 매출이 30% 증가했다고 발표했습니다. 또한 오늘 14시 뉴스에서는 AI 서비스 확장 계획이 공개되었습니다. 이처럼 성장 모멘텀이 지속되어 투자 가치가 높습니다."'
+                        description: '반드시 해당 기업의 개별 뉴스 2개 이상을 우선 인용하고, 필요시 동향 뉴스로 보완하여 투자 근거 제시. 형식: "뉴스25에 따르면, 네이버는 클라우드 매출이 30% 증가했다고 발표했습니다. 또한 뉴스31에서는 AI 서비스 확장 계획이 공개되었습니다. 이처럼 성장 모멘텀이 지속되어 투자 가치가 높습니다."'
                       }
                     },
                     required: ['ticker', 'name', 'reason']
@@ -621,10 +751,14 @@ export class FunctionCallingExecutor {
                 },
                 analysis_reasoning: {
                   type: 'string',
-                  description: '시장 동향 분석에서 최소 3개 이상의 뉴스를 인용하여 풍부한 분석 제시. 각 뉴스의 시점을 명확히 표시하고, 마지막에 두 전략의 장단점을 비교 분석.'
+                  description: '동향 뉴스와 기업별 뉴스를 종합하여 시장 분석 제시. 최소 3개 이상의 서로 다른 뉴스를 인용하고, 각 뉴스 번호를 명시하여 풍부한 분석을 제공.'
+                },
+                strategy_comparison: {
+                  type: 'string',
+                  description: '정통한 전략과 창의적 전략의 기대 효과를 대조적으로 설명. 각 전략의 장단점, 리스크, 수익성 등을 뉴스 근거와 함께 비교 분석.'
                 }
               },
-              required: ['traditional_strategies', 'creative_strategies', 'analysis_reasoning']
+              required: ['traditional_strategies', 'creative_strategies', 'analysis_reasoning', 'strategy_comparison']
             }
           }
         }
@@ -661,10 +795,18 @@ export class FunctionCallingExecutor {
         }
 
         if (functionArgs) {
+          console.log(`🔧 [Function Call] HCX-005 응답 필드 확인:`, {
+            traditional_strategies: functionArgs.traditional_strategies?.length || 0,
+            creative_strategies: functionArgs.creative_strategies?.length || 0,
+            analysis_reasoning: !!functionArgs.analysis_reasoning,
+            strategy_comparison: !!functionArgs.strategy_comparison
+          });
+
           const result: InvestmentRecommendationResult = {
             traditionalStrategy: functionArgs.traditional_strategies || [],
             creativeStrategy: functionArgs.creative_strategies || [],
-            analysisReasoning: functionArgs.analysis_reasoning || '검색 기반 투자 분석이 완료되었습니다.'
+            analysisReasoning: functionArgs.analysis_reasoning || '검색 기반 투자 분석이 완료되었습니다.',
+            strategyComparison: functionArgs.strategy_comparison || '전략 비교 분석이 완료되었습니다.'
           };
 
           const executionTime = Date.now() - startTime;
@@ -690,38 +832,8 @@ export class FunctionCallingExecutor {
         }
       }
 
-      // Function Calling이 실패한 경우 기존 방식으로 폴백
-      console.log(`⚠️ [Function Call] HCX-005 Function Calling 실패, 기존 방식으로 폴백`);
-      const { generateInvestmentRecommendations } = await import('./ai-service');
-
-      const input: InvestmentRecommendationInput = {
-        userMessage: enhancedUserMessage,
-        selectedIndustries: args.selected_industries,
-        ragAccuracy: args.rag_accuracy
-      };
-
-      const result = await generateInvestmentRecommendations(input);
-
-      const executionTime = Date.now() - startTime;
-      this.logger.logFunctionCall(
-        functionName,
-        {
-          ...args,
-          enhanced_message_length: enhancedUserMessage.length,
-          trend_news_count: args.trend_news?.length || 0,
-          company_news_count: Object.keys(args.company_news || {}).length
-        },
-        {
-          traditional_strategies: result.traditionalStrategy.length,
-          creative_strategies: result.creativeStrategy.length,
-          hcx_function_called: false,
-          fallback_used: true
-        },
-        true,
-        executionTime
-      );
-
-      return result;
+      // Function Calling이 실패한 경우 오류 발생
+      throw new Error('HCX-005 Function Calling 실패: 응답에서 결과를 찾을 수 없습니다.');
     } catch (error) {
       const executionTime = Date.now() - startTime;
       this.logger.logFunctionCall(functionName, args, error, false, executionTime);
