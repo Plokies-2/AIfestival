@@ -71,9 +71,9 @@ const LandingPage: React.FC<LandingPageProps> = () => {
       features: [
         { icon: '📊', title: '기술적 분석 3종', desc: 'MFI, 볼린저 밴드, RSI 지표를 다수결로 묶어 기술적 지표를 종합 분석합니다.' },
         { icon: '📉', title: 'VaR 측정', desc: 'Value at Risk 리스크 분석, GARCH(1,1)을 통해 통계적인 변동성과 리스크를 측정합니다.' },
-        { icon: '🏭', title: '산업베타', desc: '산업 포트폴리오 회귀를 통한 산업 민감도 분석' },
-        { icon: '📈', title: '시장베타', desc: 'CAPM 기반 분석' },
-        { icon: '🚦', title: 'SpeedTraffic™', desc: '직관적 UI와 직관적 해설' }
+        { icon: '🏭', title: '산업베타', desc: '산업 포트폴리오 회귀를 통한 산업 이슈 민감도를 분석합니다.' },
+        { icon: '📈', title: '시장베타', desc: 'CAPM 기반 분석 시장 포트폴리오 민감도를 분석합니다.' },
+        { icon: '🚦', title: 'SpeedTraffic™', desc: '직관적 UI와 HCX-DASH-002 모델의 논리적 해설을 결합해 감각적으로 투자 의사결정을 지원합니다.' }
       ],
       bgColor: 'from-orange-50 to-red-100',
       textColor: 'text-gray-900'
@@ -147,7 +147,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
               className="w-8 h-8 rounded-full"
             />
             <span className="text-xl font-semibold text-gray-900">
-              AI 투자 분석 플랫폼
+              사용자 맞춤 투자지원 AI
             </span>
           </div>
           <button
@@ -618,14 +618,14 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                           <div className="flex items-center justify-between mb-4">
                             <div>
                               <h2 className="text-lg font-semibold text-slate-900">SpeedTraffic™</h2>
-                              <div className="text-sm text-slate-600">4중 AI 분석</div>
+                              <div className="text-sm text-slate-600">4중 차트 분석</div>
                             </div>
                           </div>
                         </div>
 
                         {/* 좌우 배치: 신호등(좌측) + 해설 채팅창(우측) */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                          {/* 좌측: 4개 신호등 - 실제 SpeedTraffic 페이지와 동일한 크기 */}
+                          {/* 좌측: 4개 신호등  */}
                           <div className="flex justify-center self-start">
                             <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-6 w-full max-w-sm">
                               <div className="space-y-4">

@@ -94,10 +94,77 @@ class handler(BaseHTTPRequestHandler):
         }
         response_json = json.dumps(error_response, ensure_ascii=False)
         self.wfile.write(response_json.encode('utf-8'))
-    
+
+    def convert_company_name_to_ticker(self, input_symbol):
+        """회사명을 티커로 변환하는 함수"""
+        import sys
+
+        # 이미 6자리 숫자 티커면 그대로 반환
+        if input_symbol.isdigit() and len(input_symbol) == 6:
+            return input_symbol
+
+        # 지수 심볼이면 그대로 반환
+        if input_symbol.startswith('^'):
+            return input_symbol
+
+        # .KS가 붙어있으면 제거하고 확인
+        clean_symbol = input_symbol.replace('.KS', '')
+        if clean_symbol.isdigit() and len(clean_symbol) == 6:
+            return clean_symbol
+
+        # 간단한 회사명-티커 매핑 (주요 기업들)
+        company_ticker_map = {
+            '삼성전자': '005930',
+            'SK하이닉스': '000660',
+            'LG에너지솔루션': '373220',
+            'NAVER': '035420',
+            '카카오': '035720',
+            'LG화학': '051910',
+            '현대차': '005380',
+            'KB금융': '105560',
+            '신한지주': '055550',
+            'LG전자': '066570',
+            '포스코홀딩스': '005490',
+            '기아': '000270',
+            'SK': '034730',
+            'KT&G': '033780',
+            '하나금융지주': '086790',
+            'SK이노베이션': '096770',
+            '현대모비스': '012330',
+            'LG': '003550',
+            '우리금융지주': '316140',
+            'POSCO DX': '022100'
+        }
+
+        # 정확한 매칭 시도
+        if input_symbol in company_ticker_map:
+            converted = company_ticker_map[input_symbol]
+            print(f"[TICKER_CONVERT] '{input_symbol}' -> '{converted}'", file=sys.stderr)
+            return converted
+
+        # 부분 매칭 시도 (회사명에 포함된 키워드로 검색)
+        for company_name, ticker in company_ticker_map.items():
+            if company_name in input_symbol or input_symbol in company_name:
+                print(f"[TICKER_CONVERT] 부분매칭 '{input_symbol}' -> '{ticker}' (via {company_name})", file=sys.stderr)
+                return ticker
+
+        # 매칭되지 않으면 원본 반환
+        print(f"[TICKER_CONVERT] 매칭 실패, 원본 반환: '{input_symbol}'", file=sys.stderr)
+        return input_symbol
+
     def load_stock_data(self, symbol):
         """주식 데이터 로드 (한국 주식 지원)"""
         try:
+            import sys
+
+            # 입력된 심볼이 회사명인지 확인하고 티커로 변환
+            original_symbol = symbol
+            converted_ticker = self.convert_company_name_to_ticker(symbol)
+
+            if converted_ticker != symbol:
+                print(f"[LOAD_DATA] 회사명 변환: '{symbol}' -> '{converted_ticker}'", file=sys.stderr)
+                symbol = converted_ticker
+
             # 한국 주식의 경우 .KS 접미사 추가 (지수는 제외)
             yahoo_symbol = symbol
             if symbol.startswith('^'):  # 지수 심볼 (^KS11, ^IXIC 등)
@@ -107,8 +174,7 @@ class handler(BaseHTTPRequestHandler):
             elif '.' not in symbol and not symbol.startswith('^'):  # 접미사가 없는 일반 주식
                 yahoo_symbol = f"{symbol}.KS"
 
-            import sys
-            print(f"[LOAD_DATA] {symbol} -> {yahoo_symbol} 데이터 로드 시작", file=sys.stderr)
+            print(f"[LOAD_DATA] {original_symbol} -> {symbol} -> {yahoo_symbol} 데이터 로드 시작", file=sys.stderr)
 
             # 1년간의 데이터 가져오기
             end_date = datetime.now()

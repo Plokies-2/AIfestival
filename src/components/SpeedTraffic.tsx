@@ -45,10 +45,9 @@ const SpeedTraffic: React.FC<SpeedTrafficProps> = ({ symbol, onPhaseMessage, onA
       return;
     }
 
-    // 요청 간격 제한 (최소 10초)
     const now = Date.now();
     if (now - lastRequestTime.current < 10000) {
-      console.log('요청이 너무 빈번합니다. 잠시 후 다시 시도해주세요.');
+      console.log('무한 루프 감지');
       return;
     }
 

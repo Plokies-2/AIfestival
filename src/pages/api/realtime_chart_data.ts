@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import fs from 'fs';
 import path from 'path';
+import { getTickerFromCompanyName, getYahooFinanceTicker, getCompanyName } from '../../utils/companyLookup';
 
 interface ChartDataPoint {
   time: string;
@@ -125,24 +126,30 @@ export default async function handler(
   res: NextApiResponse<ChartResponse | ErrorResponse>
 ) {
   const { symbol, force_refresh } = req.query;
-  
+
   if (!symbol || Array.isArray(symbol)) {
     return res.status(400).json({ error: 'symbol 파라미터가 필요합니다.' });
   }
 
-  const symbolUpper = symbol.toUpperCase();
-  // 한국 주식의 경우 .KS 접미사 추가
-  const yahooSymbol = symbolUpper.includes('.') ? symbolUpper : `${symbolUpper}.KS`;
+  // 회사명을 티커로 변환 (예: "삼성전자" -> "005930")
+  const convertedTicker = getTickerFromCompanyName(symbol);
+  const ticker = convertedTicker.toUpperCase();
+  const companyName = getCompanyName(ticker);
+
+  // Yahoo Finance 형식으로 변환 (예: "005930" -> "005930.KS")
+  const yahooSymbol = getYahooFinanceTicker(ticker);
   const forceRefresh = force_refresh === 'true';
+
+  console.log(`[REALTIME_CHART] 입력: "${symbol}" -> 티커: "${ticker}" -> Yahoo: "${yahooSymbol}" -> 회사명: "${companyName}"`);
 
   try {
     // 캐시 로직 제거 - 항상 실시간 데이터 사용
-    console.log(`🔄 Fetching realtime data for ${symbolUpper}...`);
+    console.log(`🔄 Fetching realtime data for ${ticker}...`);
     const chartData = await fetchRealtimeData(yahooSymbol);
     const source = 'yfinance';
 
     if (!chartData || chartData.length === 0) {
-      return res.status(404).json({ error: `${symbolUpper}에 대한 데이터를 찾을 수 없습니다.` });
+      return res.status(404).json({ error: `${companyName} (${ticker})에 대한 데이터를 찾을 수 없습니다.` });
     }
 
     // 날짜순 정렬 (오래된 것부터)
@@ -150,7 +157,8 @@ export default async function handler(
 
     return res.status(200).json({
       data: chartData,
-      symbol: symbolUpper,
+      symbol: ticker,
+      companyName: companyName,
       lastUpdate: new Date().toISOString(),
       source
     });

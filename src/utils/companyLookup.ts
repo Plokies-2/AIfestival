@@ -59,12 +59,67 @@ export function getAllTickers(): string[] {
 export function searchCompaniesByName(searchTerm: string): string[] {
   const lowerSearchTerm = searchTerm.toLowerCase();
   const matches: string[] = [];
-  
+
   for (const [ticker, company] of Object.entries(QUICK_ENRICHED_FINAL)) {
     if (company.name.toLowerCase().includes(lowerSearchTerm)) {
       matches.push(ticker);
     }
   }
-  
+
   return matches;
+}
+
+/**
+ * Convert company name to ticker symbol
+ * @param companyName - Company name to convert (e.g., "삼성전자")
+ * @returns Ticker symbol if found, or original input if not found
+ */
+export function getTickerFromCompanyName(companyName: string): string {
+  const trimmedName = companyName.trim();
+
+  // 정확한 이름 매칭 먼저 시도
+  for (const [ticker, company] of Object.entries(QUICK_ENRICHED_FINAL)) {
+    if (company.name === trimmedName) {
+      return ticker;
+    }
+  }
+
+  // 부분 매칭 시도 (첫 번째 매칭 결과 반환)
+  const matches = searchCompaniesByName(trimmedName);
+  if (matches.length > 0) {
+    return matches[0];
+  }
+
+  // 매칭되지 않으면 원본 반환
+  return companyName;
+}
+
+/**
+ * Convert ticker to Yahoo Finance format for Korean stocks
+ * @param ticker - KOSPI ticker (e.g., "005930")
+ * @returns Yahoo Finance ticker (e.g., "005930.KS")
+ */
+export function getYahooFinanceTicker(ticker: string): string {
+  // 이미 .KS가 붙어있으면 그대로 반환
+  if (ticker.endsWith('.KS')) {
+    return ticker;
+  }
+
+  // 지수 심볼은 그대로 반환 (^KS11, ^IXIC 등)
+  if (ticker.startsWith('^')) {
+    return ticker;
+  }
+
+  // KOSPI 티커인지 확인
+  if (isValidTicker(ticker)) {
+    return `${ticker}.KS`;
+  }
+
+  // 6자리 숫자면 한국 주식으로 간주
+  if (/^\d{6}$/.test(ticker)) {
+    return `${ticker}.KS`;
+  }
+
+  // 그 외는 그대로 반환
+  return ticker;
 }

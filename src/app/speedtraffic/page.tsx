@@ -600,7 +600,7 @@ export default function SpeedTrafficPage() {
                       </span>
                     )}
                   </h2>
-                  <div className="text-sm text-gray-500">4중 AI 분석</div>
+                  <div className="text-sm text-gray-500">4중 차트 분석</div>
                 </div>
 
                 {/* 신호등 디스플레이 */}

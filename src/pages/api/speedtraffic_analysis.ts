@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { executePythonAnalysis } from './unified_analysis';
+import { getTickerFromCompanyName, getCompanyName } from '../../utils/companyLookup';
 
 // 심볼별 뮤텍스 - 동시 요청 방지
 const processing = new Map<string, { active: boolean; startTime: number }>();
@@ -96,7 +97,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Symbol is required' });
   }
 
-  const ticker = symbol.toUpperCase();
+  // 회사명을 티커로 변환 (예: "삼성전자" -> "005930")
+  const convertedTicker = getTickerFromCompanyName(symbol);
+  const ticker = convertedTicker.toUpperCase();
+  const companyName = getCompanyName(ticker);
+
+  console.log(`[SPEEDTRAFFIC_API] 입력: "${symbol}" -> 티커: "${ticker}" -> 회사명: "${companyName}"`);
 
   // 정리 작업 실행
   cleanupStaleProcessing();
@@ -204,7 +210,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       symbol: ticker,
       timestamp: new Date().toISOString(),
       analysisDate: new Date().toISOString().split('T')[0],
-      companyName: ticker, // 회사명은 별도 조회 필요
+      companyName: companyName, // 변환된 회사명 사용
       mfi: finalMFIResult,
       bollinger: finalBollingerResult,
       rsi: finalRSIResult,
