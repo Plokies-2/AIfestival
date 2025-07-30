@@ -174,7 +174,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
           <section
             key={section.id}
             ref={(el) => {
-              if (el) sectionsRef.current[index] = el;
+              if (el) sectionsRef.current[index] = el as HTMLDivElement;
             }}
             className={`relative min-h-screen flex items-center justify-center py-20 ${
               index === 0

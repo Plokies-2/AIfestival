@@ -147,7 +147,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   } catch (error) {
     console.error('❌ [Backtest] 백테스팅 실패:', error);
-    res.status(500).json({ error: 'Backtesting failed', details: error.message });
+    res.status(500).json({
+      error: 'Backtesting failed',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 }
 

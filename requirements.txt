@@ -1,7 +1,5 @@
 numpy
 pandas
-tensorflow
-scikit-learn
 statsmodels
 arch
 yfinance

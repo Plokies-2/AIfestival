@@ -58,7 +58,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // 투자 추천 입력 데이터 구성 - 1차 응답에서 실제로 추천된 산업만 사용
     const investmentInput: InvestmentRecommendationInput = {
       userMessage,
-      selectedIndustries: session.recommendedIndustries || []
+      selectedIndustries: session.recommendedIndustries || [],
+      ragAccuracy: 0.8
     };
 
     sendEvent('progress', { 
@@ -81,27 +82,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // 응답 생성
-    let reply = `📊 **투자 동향 뉴스 ${analysisData.trendNewsCount || 0}개와 기업별 뉴스를 종합 분석하였습니다.**\n\n`;
+    let reply = `📊 **투자 동향 뉴스 ${analysisData.trendNews?.length || 0}개와 기업별 뉴스를 종합 분석하였습니다.**\n\n`;
     
-    // 시장 분석 추가
-    if (analysisData.marketAnalysis) {
-      reply += `${analysisData.marketAnalysis}\n\n`;
+    // 검색 요약 추가
+    if (analysisData.searchSummary) {
+      reply += `${analysisData.searchSummary}\n\n`;
     }
 
-    const investmentRecommendation = analysisData.investmentRecommendation;
-
     // 정통한 전략 섹션
-    if (investmentRecommendation.traditionalStrategy.length > 0) {
+    if (analysisData.traditionalStrategy.length > 0) {
       reply += `## 🎯 정통한 투자 전략\n\n`;
-      investmentRecommendation.traditionalStrategy.forEach((rec) => {
+      analysisData.traditionalStrategy.forEach((rec) => {
         reply += `**${rec.ticker} (${rec.name})**\n${rec.reason}\n\n`;
       });
     }
 
     // 창의적 전략 섹션
-    if (investmentRecommendation.creativeStrategy.length > 0) {
+    if (analysisData.creativeStrategy.length > 0) {
       reply += `## 🚀 창의적 투자 전략\n\n`;
-      investmentRecommendation.creativeStrategy.forEach((rec) => {
+      analysisData.creativeStrategy.forEach((rec) => {
         reply += `**${rec.ticker} (${rec.name})**\n${rec.reason}\n\n`;
       });
     }
@@ -119,11 +118,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // 포트폴리오 데이터 전송
     const portfolioData = {
-      traditionalStrategy: investmentRecommendation.traditionalStrategy,
-      creativeStrategy: investmentRecommendation.creativeStrategy,
+      traditionalStrategy: analysisData.traditionalStrategy,
+      creativeStrategy: analysisData.creativeStrategy,
       selectedIndustries: investmentInput.selectedIndustries,
       userMessage: investmentInput.userMessage,
-      refinedQuery: analysisData?.refinedQuery || investmentInput.userMessage
+      refinedQuery: analysisData?.searchSummary || investmentInput.userMessage
     };
 
     // 최종 결과 전송
@@ -135,12 +134,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // 세션 업데이트
     updateSession(sessionId, {
-      stage: 'COMPLETED',
-      lastAnalysis: {
-        userMessage,
-        reply,
-        timestamp: new Date().toISOString()
-      }
+      stage: 'START'
     });
 
     res.end();

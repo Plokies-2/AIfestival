@@ -281,7 +281,7 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
         const progress = data.currentProgress;
 
         // 타입 매핑
-        const getProgressType = (step: string) => {
+        const getProgressType = (step: string): 'search' | 'analyze' | 'extract' | 'generate' | 'complete' => {
           if (step.includes('search') || step.includes('검색')) return 'search';
           if (step.includes('analyze') || step.includes('분석')) return 'analyze';
           if (step.includes('extract') || step.includes('추출')) return 'extract';
@@ -577,7 +577,7 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
     const text = inputRef.current?.value.trim();
     if (!text) return;
 
-    const newHistory = [...history, { from: 'user', text }];
+    const newHistory = [...history, { from: 'user' as const, text }];
     setHistory(newHistory);
     inputRef.current!.value = '';
 
@@ -653,7 +653,7 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
       if (process.env.NODE_ENV === 'development') {
         console.error('Chat error:', error);
       }
-      const errorHistory = [...newHistory, { from: 'bot', text: '죄송합니다. 일시적인 오류가 발생했습니다.' }];
+      const errorHistory = [...newHistory, { from: 'bot' as const, text: '죄송합니다. 일시적인 오류가 발생했습니다.' }];
       setHistory(errorHistory);
 
       // 에러 메시지도 localStorage에 저장

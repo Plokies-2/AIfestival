@@ -1,0 +1,56 @@
+# Node modules
+node_modules/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Development files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+.nyc_output
+
+# Build artifacts (except .next for Next.js)
+dist/
+build/
+
+# Documentation
+README.md
+docs/
+
+# Git
+.git/
+.gitignore
+
+# Package manager files
+yarn.lock
+pnpm-lock.yaml
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/

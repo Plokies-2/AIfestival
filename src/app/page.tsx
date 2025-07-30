@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import FinancialChart from '@/components/FinancialChart';
 import AIChat, { AIChatRef } from '@/components/AIChat';
@@ -10,9 +10,42 @@ import MarketStatus from '@/components/MarketStatus';
 import LandingPage from '@/components/LandingPageNew';
 import { useServerStatus } from '@/hooks/useServerStatus';
 
+// URL 파라미터를 처리하는 별도 컴포넌트
+function URLParamsHandler({
+  onSymbolChange,
+  onLandingChange,
+  onCompanyListChange,
+  onLSTMChange
+}: {
+  onSymbolChange: (symbol: string | undefined) => void;
+  onLandingChange: (show: boolean) => void;
+  onCompanyListChange: (show: boolean) => void;
+  onLSTMChange: (disable: boolean) => void;
+}) {
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (!searchParams) return;
+
+    const symbol = searchParams.get('symbol');
+    const disableLSTMParam = searchParams.get('disableLSTM');
+
+    if (symbol) {
+      onSymbolChange(symbol);
+      onLandingChange(false);
+      onCompanyListChange(false);
+    }
+
+    if (disableLSTMParam === 'true') {
+      onLSTMChange(true);
+    }
+  }, [searchParams, onSymbolChange, onLandingChange, onCompanyListChange, onLSTMChange]);
+
+  return null;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [currentSymbol, setCurrentSymbol] = useState<string | undefined>(undefined);
   const [showingCompanyList, setShowingCompanyList] = useState(false);
   const [analysisData, setAnalysisData] = useState<any>(null);
@@ -22,23 +55,7 @@ export default function DashboardPage() {
   const [isChartExpanded, setIsChartExpanded] = useState(false); // 차트 확장 상태
   const aiChatRef = useRef<AIChatRef>(null);
 
-  // URL 파라미터 처리
-  useEffect(() => {
-    if (!searchParams) return;
-
-    const symbol = searchParams.get('symbol');
-    const disableLSTMParam = searchParams.get('disableLSTM');
-
-    if (symbol) {
-      setCurrentSymbol(symbol);
-      setShowLanding(false);
-      setShowingCompanyList(false);
-    }
-
-    if (disableLSTMParam === 'true') {
-      setDisableLSTM(true);
-    }
-  }, [searchParams]);
+  // URL 파라미터는 URLParamsHandler에서 처리됨
 
   // 서버 재시작 감지 (포트폴리오 유지)
   useServerStatus({
@@ -128,6 +145,16 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-50">
+      {/* URL 파라미터 처리 */}
+      <Suspense fallback={null}>
+        <URLParamsHandler
+          onSymbolChange={setCurrentSymbol}
+          onLandingChange={setShowLanding}
+          onCompanyListChange={setShowingCompanyList}
+          onLSTMChange={setDisableLSTM}
+        />
+      </Suspense>
+
       {/* 헤더 */}
       <header className="relative bg-white border-b border-slate-200 shadow-sm">
         <div className="absolute inset-0 gradient-bg opacity-5"></div>

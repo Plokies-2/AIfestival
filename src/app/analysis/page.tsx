@@ -67,7 +67,6 @@ export default function AnalysisPage() {
             <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden" style={{ height: 'calc(100vh - 300px)' }}>
               <AIChat
                 ref={chatRef}
-                onLoadingChange={setIsLoading}
               />
             </div>
           </div>

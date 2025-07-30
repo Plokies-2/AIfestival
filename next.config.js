@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false, // Disable for development to prevent double SSE connections
-  serverExternalPackages: ['tensorflow'],
 
   // Vercel 배포 최적화
   experimental: {
