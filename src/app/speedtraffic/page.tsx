@@ -399,54 +399,13 @@ export default function SpeedTrafficPage() {
             analysisDate: finalResults.analysisDate,
             timestamp: finalResults.timestamp,
             traffic_lights: finalResults.traffic_lights,
-            technical_analysis: {
-              mfi: {
-                value: finalResults.mfi?.mfi_14 || null,
-                signal: finalResults.mfi?.traffic_light || null, // traffic_light를 signal로 매핑
-                summary: finalResults.mfi?.summary_ko || null,
-                traffic_light: finalResults.mfi?.traffic_light || null
-              },
-              rsi: {
-                value: finalResults.rsi?.rsi_14 || null,
-                signal: finalResults.rsi?.traffic_light || null, // traffic_light를 signal로 매핑
-                summary: finalResults.rsi?.summary_ko || null,
-                traffic_light: finalResults.rsi?.traffic_light || null
-              },
-              bollinger: {
-                percent_b: finalResults.bollinger?.percent_b || null,
-                signal: finalResults.bollinger?.traffic_light || null, // traffic_light를 signal로 매핑
-                summary: finalResults.bollinger?.summary_ko || null,
-                traffic_light: finalResults.bollinger?.traffic_light || null
-              }
-            },
-            market_analysis: {
-              capm: {
-                beta: finalResults.capm?.beta_market || null,
-                r_squared: finalResults.capm?.r2_market || null,
-                t_stat: finalResults.capm?.tstat_market || null,
-                signal: finalResults.capm?.signal || null,
-                summary: finalResults.capm?.summary_ko || null,
-                traffic_light: finalResults.capm?.traffic_light || null
-              },
-              industry: {
-                beta: finalResults.industry?.beta || null,
-                r_squared: finalResults.industry?.r2 || null,
-                t_stat: finalResults.industry?.tstat || null,
-                signal: finalResults.industry?.signal || null,
-                summary: finalResults.industry?.summary_ko || null,
-                traffic_light: finalResults.industry?.traffic_light || null
-              }
-            },
-            risk_analysis: {
-              garch: {
-                volatility: finalResults.garch?.sigma_pct || null,
-                var_95: finalResults.garch?.var95_pct || null,
-                var_99: finalResults.garch?.var99_pct || null,
-                signal: finalResults.garch?.signal || null,
-                summary: finalResults.garch?.summary_ko || null,
-                traffic_light: finalResults.garch?.traffic_light || null
-              }
-            }
+            // 실제 API 응답 데이터를 직접 전달
+            mfi: finalResults.mfi,
+            rsi: finalResults.rsi,
+            bollinger: finalResults.bollinger,
+            capm: finalResults.capm,
+            industry: finalResults.industry,
+            garch: finalResults.garch
           })
         });
 

@@ -73,26 +73,43 @@ class handler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(error_response).encode())
     
     def load_stock_data(self, symbol):
-        """주식 데이터 로드"""
+        """주식 데이터 로드 (한국 주식 지원)"""
         try:
+            # 한국 주식의 경우 .KS 접미사 추가 (지수는 제외)
+            yahoo_symbol = symbol
+            if symbol.startswith('^'):  # 지수 심볼 (^KS11, ^IXIC 등)
+                yahoo_symbol = symbol  # 지수는 그대로 사용
+            elif symbol.isdigit() and len(symbol) == 6:  # 한국 주식 코드 (6자리 숫자)
+                yahoo_symbol = f"{symbol}.KS"
+            elif '.' not in symbol and not symbol.startswith('^'):  # 접미사가 없는 일반 주식
+                yahoo_symbol = f"{symbol}.KS"
+
+            import sys
+            print(f"[LOAD_DATA] {symbol} -> {yahoo_symbol} 데이터 로드 시작", file=sys.stderr)
+
             # 1년간의 데이터 가져오기
             end_date = datetime.now()
             start_date = end_date - timedelta(days=365)
 
-            ticker_obj = yf.Ticker(symbol)
+            ticker_obj = yf.Ticker(yahoo_symbol)
             hist = ticker_obj.history(start=start_date, end=end_date)
 
             if hist.empty:
-                raise ValueError(f"No data available for {symbol}")
+                raise ValueError(f"No data available for {yahoo_symbol}")
 
             # 컬럼명 표준화
             hist.columns = [col.replace(' ', '').title() for col in hist.columns]
             hist.rename(columns={'Adjclose': 'AdjClose'}, inplace=True)
 
+            # timezone 정보 제거 (일관성을 위해)
+            if hist.index.tz is not None:
+                hist.index = hist.index.tz_localize(None)
+
+            print(f"[LOAD_DATA] {yahoo_symbol} 데이터 로드 성공: {len(hist)}일", file=sys.stderr)
             return hist
 
         except Exception as e:
-            raise Exception(f"Failed to load data for {symbol}: {str(e)}")
+            raise Exception(f"Failed to load data for {symbol} ({yahoo_symbol}): {str(e)}")
     
     def ols_regression(self, y, x):
         """
@@ -751,8 +768,9 @@ class handler(BaseHTTPRequestHandler):
 
     def run_integrated_analysis(self, symbol):
         """통합 분석 실행"""
+        import sys
         try:
-            print(f"[UNIFIED_ANALYSIS] {symbol} 분석 시작")
+            print(f"[UNIFIED_ANALYSIS] {symbol} 분석 시작", file=sys.stderr)
 
             # 6개 분석 실행
             results = {}
@@ -760,37 +778,37 @@ class handler(BaseHTTPRequestHandler):
             try:
                 results['mfi'] = self.calculate_mfi(symbol)
             except Exception as e:
-                print(f"MFI 분석 실패: {e}")
+                print(f"MFI 분석 실패: {e}", file=sys.stderr)
                 results['mfi'] = None
 
             try:
                 results['bollinger'] = self.calculate_bollinger(symbol)
             except Exception as e:
-                print(f"Bollinger 분석 실패: {e}")
+                print(f"Bollinger 분석 실패: {e}", file=sys.stderr)
                 results['bollinger'] = None
 
             try:
                 results['rsi'] = self.calculate_rsi(symbol)
             except Exception as e:
-                print(f"RSI 분석 실패: {e}")
+                print(f"RSI 분석 실패: {e}", file=sys.stderr)
                 results['rsi'] = None
 
             try:
                 results['industry'] = self.calculate_industry_analysis(symbol)
             except Exception as e:
-                print(f"Industry 분석 실패: {e}")
+                print(f"Industry 분석 실패: {e}", file=sys.stderr)
                 results['industry'] = None
 
             try:
                 results['capm'] = self.calculate_capm(symbol)
             except Exception as e:
-                print(f"CAPM 분석 실패: {e}")
+                print(f"CAPM 분석 실패: {e}", file=sys.stderr)
                 results['capm'] = None
 
             try:
                 results['garch'] = self.calculate_garch_analysis(symbol)
             except Exception as e:
-                print(f"GARCH 분석 실패: {e}")
+                print(f"GARCH 분석 실패: {e}", file=sys.stderr)
                 results['garch'] = None
 
             # 신호등 결정
@@ -804,11 +822,11 @@ class handler(BaseHTTPRequestHandler):
                 "traffic_lights": traffic_lights
             }
 
-            print(f"[UNIFIED_ANALYSIS] {symbol} 분석 완료")
+            print(f"[UNIFIED_ANALYSIS] {symbol} 분석 완료", file=sys.stderr)
             return response
 
         except Exception as e:
-            print(f"[UNIFIED_ANALYSIS] {symbol} 분석 오류: {e}")
+            print(f"[UNIFIED_ANALYSIS] {symbol} 분석 오류: {e}", file=sys.stderr)
             return {
                 "symbol": symbol,
                 "timestamp": datetime.now().isoformat(),
@@ -820,3 +838,82 @@ class handler(BaseHTTPRequestHandler):
                     "risk": "inactive"
                 }
             }
+
+# Vercel 서버리스 함수를 위한 HTTP 핸들러 추가
+def handle_vercel_request(request_body):
+    """
+    Vercel 서버리스 환경에서 HTTP POST 요청을 처리
+    실제 시장 데이터만 사용하며 모의 데이터 생성 금지
+    """
+    try:
+        # JSON 데이터 파싱
+        input_data = json.loads(request_body) if isinstance(request_body, str) else request_body
+        symbol = input_data.get('symbol', '').upper()
+        analysis_type = input_data.get('analysis_type', 'speedtraffic').lower()
+
+        if not symbol:
+            raise ValueError("Symbol parameter is required")
+
+        # 분석 클래스를 독립적으로 사용할 수 있도록 수정
+        class AnalysisEngine(handler):
+            def __init__(self):
+                # BaseHTTPRequestHandler 초기화를 건너뛰고 필요한 메서드만 사용
+                pass
+
+        # 분석 인스턴스 생성
+        analyzer = AnalysisEngine()
+
+        # 분석 타입에 따라 다른 함수 호출
+        if analysis_type == 'mfi':
+            result = analyzer.calculate_mfi(symbol)
+        elif analysis_type == 'rsi':
+            result = analyzer.calculate_rsi(symbol)
+        elif analysis_type == 'bollinger':
+            result = analyzer.calculate_bollinger(symbol)
+        elif analysis_type == 'capm':
+            result = analyzer.calculate_capm(symbol)
+        elif analysis_type == 'garch':
+            result = analyzer.calculate_garch_analysis(symbol)
+        elif analysis_type == 'industry':
+            result = analyzer.calculate_industry_analysis(symbol)
+        else:  # speedtraffic (통합 분석)
+            result = analyzer.run_integrated_analysis(symbol)
+
+        return result
+
+    except Exception as e:
+        # 오류 발생 시 오류 정보 반환
+        return {
+            "error": f"Python 분석 실패: {str(e)}",
+            "symbol": input_data.get('symbol', 'UNKNOWN') if 'input_data' in locals() else 'UNKNOWN',
+            "analysis_type": input_data.get('analysis_type', 'UNKNOWN') if 'input_data' in locals() else 'UNKNOWN',
+            "timestamp": datetime.now().isoformat()
+        }
+
+# TypeScript에서 직접 호출할 수 있도록 메인 함수 추가 (로컬 개발용)
+def main():
+    """
+    stdin에서 JSON 입력을 받아 분석을 수행하고 결과를 stdout으로 출력
+    실제 시장 데이터만 사용하며 모의 데이터 생성 금지
+    """
+    import sys
+
+    try:
+        # stdin에서 JSON 데이터 읽기
+        input_data = json.loads(sys.stdin.read())
+        result = handle_vercel_request(input_data)
+
+        # 결과를 JSON으로 출력
+        print(json.dumps(result, ensure_ascii=False))
+
+    except Exception as e:
+        # 오류 발생 시 오류 정보를 JSON으로 출력
+        error_result = {
+            "error": f"Python 분석 실패: {str(e)}",
+            "timestamp": datetime.now().isoformat()
+        }
+        print(json.dumps(error_result, ensure_ascii=False))
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

@@ -356,9 +356,7 @@ export default function PortfolioPage() {
             {portfolioGroups.length === 0 ? (
               <div className="p-6 text-center">
                 <div className="w-16 h-16 mx-auto mb-4 bg-slate-100 rounded-full flex items-center justify-center">
-                  <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
+                  <span className="text-3xl">📄</span>
                 </div>
                 <h3 className="text-lg font-medium text-slate-900 mb-2">포트폴리오가 없습니다</h3>
                 <p className="text-slate-600 mb-4">메인 페이지에서 AI 분석을 받아 포트폴리오를 생성해보세요.</p>
@@ -540,9 +538,7 @@ export default function PortfolioPage() {
               ) : (
                 <div className="h-full flex items-center justify-center text-slate-400">
                   <div className="text-center">
-                    <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
+                    <span className="text-6xl mb-4 block">💡</span>
                     <p className="text-lg font-medium">포트폴리오를 선택하고 백테스팅을 실행하세요</p>
                     <p className="text-sm mt-1">수익률 곡선이 여기에 표시됩니다</p>
                   </div>
@@ -739,9 +735,7 @@ export default function PortfolioPage() {
           ) : (
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 text-center">
               <div className="w-20 h-20 mx-auto mb-6 bg-slate-100 rounded-full flex items-center justify-center">
-                <svg className="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
+                <span className="text-4xl">💡</span>
               </div>
               <h3 className="text-xl font-semibold text-slate-900 mb-2">포트폴리오를 선택하세요</h3>
               <p className="text-slate-600">좌측에서 포트폴리오를 선택하면 상세 정보와 백테스팅을 진행할 수 있습니다.</p>

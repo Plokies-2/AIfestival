@@ -23,7 +23,7 @@ class handler(BaseHTTPRequestHandler):
             else:
                 protocol = "http"
             
-            api_url = f"{protocol}://{base_url}/api/unified_analysis?type=mfi&symbol={symbol}"
+            api_url = f"{protocol}://{base_url}/api/unified_analysis?type=garch&symbol={symbol}"
             
             req = urllib.request.Request(api_url)
             with urllib.request.urlopen(req) as response:

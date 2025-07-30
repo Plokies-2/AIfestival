@@ -1,7 +1,4 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { spawn } from 'child_process';
-import path from 'path';
-import fs from 'fs';
 
 // 심볼별 뮤텍스 - 동시 요청 방지
 const processing = new Map<string, { active: boolean; startTime: number }>();
@@ -61,13 +58,7 @@ const recordFailure = (symbol: string) => {
   console.log(`[SPEEDTRAFFIC_API] 실패 기록 ${failures}회: ${symbol}`);
 };
 
-// 429 오류 감지 함수
-const is429Error = (stderr: string): boolean => {
-  return stderr.includes('429') || 
-         stderr.includes('Too Many Requests') ||
-         stderr.includes('rate limit') ||
-         stderr.includes('HTTP 429');
-};
+
 
 // 서비스별 신호등 색상 가져오기
 const getServiceTrafficLight = (result: any): string => {
@@ -88,113 +79,46 @@ const getTechnicalAnalysisColor = (mfiResult: any, bollingerResult: any, rsiResu
   return 'red';
 };
 
-// Python 스크립트 실행 함수 (429 오류 처리 포함)
-const executeProcess = async (scriptPath: string, ticker: string, processName: string, maxRetries: number = 3): Promise<any> => {
+// API 호출을 통한 분석 결과 가져오기 함수
+const fetchAnalysisResult = async (url: string, processName: string, maxRetries: number = 3): Promise<any> => {
   const startTime = Date.now();
-  
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`[${processName}] ${ticker} 분석 시작 (시도 ${attempt}/${maxRetries})`);
+      console.log(`[${processName}] 분석 시작 (시도 ${attempt}/${maxRetries})`);
 
-      const childProcess = spawn('python', [scriptPath, ticker], {
-        cwd: path.join(process.cwd(), 'src', 'services'),
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: { ...process.env, PYTHONUNBUFFERED: '1' }
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // 30초 타임아웃
+        signal: AbortSignal.timeout(30000)
       });
 
-      let stdout = '';
-      let stderr = '';
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
 
-      childProcess.stdout.on('data', (data) => {
-        stdout += data.toString();
-      });
+      const result = await response.json();
+      const executionTime = Date.now() - startTime;
 
-      childProcess.stderr.on('data', (data) => {
-        stderr += data.toString();
-      });
-
-      const result = await new Promise<any>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          childProcess.kill();
-          reject(new Error(`${processName} 타임아웃 (30초)`));
-        }, 30000); // 30초 타임아웃
-
-        childProcess.on('close', (code) => {
-          clearTimeout(timeout);
-          const executionTime = Date.now() - startTime;
-
-          if (code !== 0) {
-            console.log(`[${processName}] ${ticker} 실패 (코드 ${code}, ${executionTime}ms)`);
-            
-            // 429 오류 감지
-            if (is429Error(stderr)) {
-              console.log(`[${processName}] ${ticker} - 429 오류 감지, 재시도 필요`);
-              reject(new Error('429_ERROR'));
-              return;
-            }
-            
-            reject(new Error(`Process failed with code ${code}: ${stderr}`));
-            return;
-          }
-
-          try {
-            // JSON 출력 파싱
-            const lines = stdout.trim().split('\n');
-            let jsonLine = null;
-
-            // 마지막 줄부터 역순으로 JSON 찾기
-            for (let i = lines.length - 1; i >= 0; i--) {
-              const line = lines[i].trim();
-              if (line.startsWith('{') && line.endsWith('}')) {
-                jsonLine = line;
-                break;
-              }
-            }
-
-            if (!jsonLine) {
-              throw new Error(`${processName}에서 JSON 출력을 찾을 수 없음`);
-            }
-
-            const jsonOutput = JSON.parse(jsonLine);
-            console.log(`[${processName}] ${ticker} 성공 (${executionTime}ms) - 신호등: ${jsonOutput.traffic_light || 'N/A'}`);
-            resolve(jsonOutput);
-
-          } catch (parseError) {
-            console.error(`[${processName}] ${ticker} JSON 파싱 오류:`, parseError);
-            reject(parseError);
-          }
-        });
-
-        childProcess.on('error', (error) => {
-          clearTimeout(timeout);
-          reject(error);
-        });
-      });
-
+      console.log(`[${processName}] 성공 (${executionTime}ms) - 신호등: ${result.traffic_light || 'N/A'}`);
       return result;
 
     } catch (error: any) {
-      console.error(`[${processName}] ${ticker} 시도 ${attempt} 실패:`, error.message);
+      console.error(`[${processName}] 시도 ${attempt} 실패:`, error.message);
 
-      // 429 오류인 경우 재시도 전 대기
-      if (error.message === '429_ERROR' && attempt < maxRetries) {
-        const waitTime = attempt * 2000; // 2초, 4초, 6초 대기
-        console.log(`[${processName}] ${ticker} - ${waitTime}ms 대기 후 재시도`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
-        continue;
-      }
-
-      // 마지막 시도에서 실패하면 에러 던지기
       if (attempt === maxRetries) {
+        console.error(`[${processName}_ERROR]: ${error}`);
         throw error;
       }
 
-      // 일반 오류인 경우 1초 대기 후 재시도
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // 재시도 전 대기 (지수 백오프)
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
-
-  throw new Error(`${processName} 모든 재시도 실패`);
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -247,31 +171,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     console.log(`[SPEEDTRAFFIC_API] ${ticker} 분석 시작`);
 
-    // 스크립트 경로 설정 - Python 파일들이 /api/python/으로 이동됨
-    const scriptPaths = {
-      mfi: path.join(process.cwd(), 'api', 'python', 'mfi_analysis.py'),
-      bollinger: path.join(process.cwd(), 'api', 'python', 'bollinger_analysis.py'),
-      rsi: path.join(process.cwd(), 'api', 'python', 'rsi_analysis.py'),
-      industry: path.join(process.cwd(), 'api', 'python', 'industry_analysis.py'),
-      capm: path.join(process.cwd(), 'api', 'python', 'capm_analysis.py'),
-      garch: path.join(process.cwd(), 'api', 'python', 'garch_analysis.py')
-    };
+    // unified_analysis API를 통한 분석 실행
+    const baseUrl = `http://localhost:${process.env.PORT || 3000}`;
 
-    // 스크립트 존재 확인
-    for (const [name, scriptPath] of Object.entries(scriptPaths)) {
-      if (!fs.existsSync(scriptPath)) {
-        throw new Error(`${name} 서비스 스크립트를 찾을 수 없음: ${scriptPath}`);
-      }
-    }
-
-    // 6개 분석 서비스 병렬 실행
+    // 6개 분석 서비스 병렬 실행 (API 호출 방식)
     const [mfiResult, bollingerResult, rsiResult, industryResult, capmResult, garchResult] = await Promise.allSettled([
-      executeProcess(scriptPaths.mfi, ticker, 'MFI'),
-      executeProcess(scriptPaths.bollinger, ticker, 'BOLLINGER'),
-      executeProcess(scriptPaths.rsi, ticker, 'RSI'),
-      executeProcess(scriptPaths.industry, ticker, 'INDUSTRY'),
-      executeProcess(scriptPaths.capm, ticker, 'CAPM'),
-      executeProcess(scriptPaths.garch, ticker, 'GARCH')
+      fetchAnalysisResult(`${baseUrl}/api/unified_analysis?type=mfi&symbol=${ticker}`, 'MFI'),
+      fetchAnalysisResult(`${baseUrl}/api/unified_analysis?type=bollinger&symbol=${ticker}`, 'BOLLINGER'),
+      fetchAnalysisResult(`${baseUrl}/api/unified_analysis?type=rsi&symbol=${ticker}`, 'RSI'),
+      fetchAnalysisResult(`${baseUrl}/api/unified_analysis?type=industry&symbol=${ticker}`, 'INDUSTRY'),
+      fetchAnalysisResult(`${baseUrl}/api/unified_analysis?type=capm&symbol=${ticker}`, 'CAPM'),
+      fetchAnalysisResult(`${baseUrl}/api/unified_analysis?type=garch&symbol=${ticker}`, 'GARCH')
     ]);
 
     // 결과 추출

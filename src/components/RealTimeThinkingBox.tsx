@@ -87,7 +87,7 @@ const RealTimeThinkingBox: React.FC<RealTimeThinkingBoxProps> = ({ isVisible, on
   if (!currentMessage) return null;
 
   return (
-    <div className={`inline-block w-full max-w-3xl lg:max-w-4xl transition-all duration-300 ease-in-out ${
+    <div className={`inline-block w-full max-w-2xl lg:max-w-3xl transition-all duration-300 ease-in-out ${
       isAnimatingOut ? 'opacity-0 transform scale-95' : 'opacity-100 transform scale-100'
     }`}>
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl px-6 py-3 shadow-md border border-blue-200/50 backdrop-blur-sm">

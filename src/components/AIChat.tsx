@@ -393,7 +393,15 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
           const { traditionalStrategy, creativeStrategy, recommendedIndustries, userMessage, refinedQuery } = data.portfolioData;
           const portfolios = [];
           // 정제된 쿼리를 우선 사용하고, 없으면 사용자 메시지 사용
-          const portfolioName = refinedQuery || userMessage || recommendedIndustries[0]?.industry_ko || '투자';
+          const basePortfolioName = refinedQuery || userMessage || recommendedIndustries[0]?.industry_ko || '투자';
+          // 중복 방지를 위해 시간 정보 추가
+          const timeString = new Date().toLocaleString('ko-KR', {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          const portfolioName = `${basePortfolioName} (${timeString})`;
           const timestamp = new Date().toISOString();
           const groupId = `group_${Date.now()}`; // 하나의 답변당 하나의 그룹 ID
 

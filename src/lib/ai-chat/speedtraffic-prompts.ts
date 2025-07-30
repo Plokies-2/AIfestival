@@ -37,6 +37,7 @@ export const SPEEDTRAFFIC_ANALYSIS_PROMPT = `당신은 전문 투자 분석가�
 투자 결정은 본인의 판단과 책임하에 이루어져야 하며, 이 분석은 참고용으로만 활용하시기 바랍니다. 과거 데이터 기반 분석이므로 미래 수익을 보장하지 않습니다.
 
 **응답 시 주의사항:**
+0. 업종 베타가 낮다는 것은 해당 기업이 해당 산업 이슈에 민감하게 반응하지 않는다는 의미임을 기억하세요.
 1. 위 형식을 정확히 따를 것
 2. 구체적인 수치를 반드시 포함할 것
 3. 투자 조언이 아닌 분석 해설임을 명확히 할 것
@@ -48,10 +49,10 @@ export const SPEEDTRAFFIC_ANALYSIS_PROMPT = `당신은 전문 투자 분석가�
  * SpeedTraffic 분석 데이터를 AI가 이해할 수 있는 형태로 변환
  */
 export function formatSpeedTrafficDataForAI(analysisData: any): string {
-  const { symbol, companyName, traffic_lights, technical_analysis, market_analysis, risk_analysis } = analysisData;
-  
+  const { symbol, companyName, traffic_lights, mfi, rsi, bollinger, capm, garch, industry } = analysisData;
+
   return `
-다음은 ${symbol}(${companyName})의 SpeedTraffic™ AI 분석 결과입니다:
+다음은 ${symbol}(${companyName || '알 수 없음'})의 SpeedTraffic™ AI 분석 결과입니다:
 
 ## 투자 신호등 현황
 - 기술적 분석: ${traffic_lights?.technical || 'inactive'}
@@ -62,18 +63,18 @@ export function formatSpeedTrafficDataForAI(analysisData: any): string {
 ## 상세 분석 데이터
 
 ### 기술적 지표
-- MFI(자금흐름지수): ${technical_analysis?.mfi?.value || 'N/A'}% (신호: ${technical_analysis?.mfi?.signal || 'N/A'})
-- RSI(상대강도지수): ${technical_analysis?.rsi?.value || 'N/A'} (신호: ${technical_analysis?.rsi?.signal || 'N/A'})
-- 볼린저밴드 %B: ${technical_analysis?.bollinger?.percent_b || 'N/A'} (신호: ${technical_analysis?.bollinger?.signal || 'N/A'})
+- MFI(자금흐름지수): ${mfi?.mfi_14 || 'N/A'}% (신호: ${mfi?.signal || 'N/A'})
+- RSI(상대강도지수): ${rsi?.rsi_14 || 'N/A'} (신호: ${rsi?.signal || 'N/A'})
+- 볼린저밴드 %B: ${bollinger?.percent_b || 'N/A'} (신호: ${bollinger?.signal || 'N/A'})
 
 ### 시장 분석
-- CAPM 베타: ${market_analysis?.capm?.beta || 'N/A'} (R²: ${market_analysis?.capm?.r_squared || 'N/A'})
-- 업종 베타: ${market_analysis?.industry?.beta || 'N/A'} (R²: ${market_analysis?.industry?.r_squared || 'N/A'})
+- CAPM 베타: ${capm?.beta_market || 'N/A'} (R²: ${capm?.r2_market || 'N/A'})
+- 업종 베타: ${industry?.beta_industry || 'N/A'} (R²: ${industry?.r2_industry || 'N/A'})
 
 ### 리스크 분석
-- 변동성: ${risk_analysis?.garch?.volatility || 'N/A'}%
-- VaR(95%): ${risk_analysis?.garch?.var_95 || 'N/A'}%
-- VaR(99%): ${risk_analysis?.garch?.var_99 || 'N/A'}%
+- 변동성: ${garch?.sigma_pct || 'N/A'}%
+- VaR(95%): ${garch?.var95_pct || 'N/A'}%
+- VaR(99%): ${garch?.var99_pct || 'N/A'}%
 
 위 분석 결과를 바탕으로 투자자에게 명확하고 실용적인 해설을 제공해주세요.
   `.trim();
