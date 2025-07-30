@@ -595,15 +595,59 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
     }
 
     try {
-      const res = await send({ message: text, history });
-      const updatedHistory = [...newHistory, { from: 'bot', text: res.reply }];
-      setHistory(updatedHistory);
+      // 1초 후에 thinking box 표시하고 LLM API 호출
+      setTimeout(async () => {
+        // 1차 답변 중에도 thinking box 표시
+        setHistory(h => [...h, {
+          from: 'bot',
+          text: '', // 빈 텍스트 (ThinkingBox가 표시됨)
+          isThinking: true
+        }]);
+        setIsThinking(true);
+        setThinkingMessages([{
+          id: 'thinking-1',
+          text: '답변을 생성하고 있습니다...',
+          type: 'analyze',
+          timestamp: Date.now()
+        }]);
 
-      // 봇 응답도 localStorage에 저장
-      localStorage.setItem('ai_chat_history', JSON.stringify(updatedHistory));
-      localStorage.setItem('ai_chat_timestamp', Date.now().toString());
+        const res = await send({ message: text, history });
 
-      await handleApiResponse(res);
+        // 1차 답변 완료 - thinking box 제거하고 실제 답변 표시
+        setIsThinking(false);
+        setThinkingMessages([]);
+
+        // history에서 thinking 상태인 마지막 메시지를 실제 답변으로 교체
+        setHistory(h => {
+          const newHistory = [...h];
+          const lastIndex = newHistory.length - 1;
+          if (lastIndex >= 0 && newHistory[lastIndex].isThinking) {
+            newHistory[lastIndex] = { from: 'bot', text: res.reply };
+          }
+          return newHistory;
+        });
+
+        // 봇 응답도 localStorage에 저장
+        const currentHistory = [...newHistory, { from: 'bot', text: res.reply }];
+        localStorage.setItem('ai_chat_history', JSON.stringify(currentHistory));
+        localStorage.setItem('ai_chat_timestamp', Date.now().toString());
+
+        // 1차 답변 완료 후 즉시 임시 thinking box 표시
+        setTimeout(() => {
+          setIsThinking(true);
+          setThinkingMessages([{
+            id: 'preparing-detailed',
+            text: '고급 답변 준비 중...',
+            type: 'analyze',
+            timestamp: Date.now()
+          }]);
+
+          // 상세 분석 시작
+          handleApiResponse(res);
+        }, 200);
+
+        await Promise.resolve(); // handleApiResponse를 비동기로 처리
+      }, 1000); // 1초 후에 thinking box 표시 및 API 호출
     } catch (error) {
       // 개발 환경에서만 상세 에러 로깅
       if (process.env.NODE_ENV === 'development') {
@@ -705,7 +749,7 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
                       }}
                     />
                   ) : (
-                    <div className="px-3 py-2 rounded-xl shadow-sm whitespace-pre-line bg-white border border-slate-200 text-slate-900">
+                    <div className="px-3 py-2 rounded-xl shadow-sm whitespace-pre-line bg-white border border-slate-200 text-slate-900 animate-fadeIn">
                       {m.isLoading ? (
                         <div className="flex items-center space-x-2">
                           <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>

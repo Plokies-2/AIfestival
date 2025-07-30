@@ -300,7 +300,7 @@ export async function generateEnhancedInvestmentAnalysis(
   console.log(`🔧 [New Pipeline] 사용자 메시지: "${input.userMessage.substring(0, 50)}..."`);
   console.log(`🔧 [New Pipeline] 선택된 산업 수: ${input.selectedIndustries.length}`);
 
-  const functionExecutor = new FunctionCallingExecutor();
+  const functionExecutor = new FunctionCallingExecutor(options?.onProgress);
   const newsSearchSystem = new RAGNewsSearchSystem();
 
   try {

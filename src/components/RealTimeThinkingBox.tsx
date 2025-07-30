@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface ThinkingMessage {
   id: string;
@@ -19,7 +19,7 @@ interface RealTimeThinkingBoxProps {
 const RealTimeThinkingBox: React.FC<RealTimeThinkingBoxProps> = ({ isVisible, onComplete, realTimeMessages }) => {
   const [currentMessage, setCurrentMessage] = useState<ThinkingMessage | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [messageHistory, setMessageHistory] = useState<ThinkingMessage[]>([]);
+  const [isAnimatingOut, setIsAnimatingOut] = useState(false);
 
   // 메시지 타입별 아이콘
   const getMessageIcon = (type: string) => {
@@ -34,79 +34,13 @@ const RealTimeThinkingBox: React.FC<RealTimeThinkingBoxProps> = ({ isVisible, on
     }
   };
 
-  // 백엔드 로그를 파싱하여 메시지 생성
-  const parseLogToMessage = (logText: string): ThinkingMessage | null => {
-    const timestamp = Date.now();
-    
-    // 뉴스 검색 관련
-    if (logText.includes('뉴스 검색 시작') || logText.includes('Investment Trend Search')) {
-      return {
-        id: `search_${timestamp}`,
-        text: '투자 동향 뉴스 검색 중...',
-        type: 'search',
-        timestamp
-      };
-    }
-    
-    // RAG reasoning
-    if (logText.includes('RAG Reasoning') || logText.includes('검색어 정제')) {
-      return {
-        id: `analyze_${timestamp}`,
-        text: '검색어 정제 및 분석 중...',
-        type: 'analyze',
-        timestamp
-      };
-    }
-    
-    // 기업 추출
-    if (logText.includes('기업 추출') || logText.includes('extract_companies')) {
-      return {
-        id: `extract_${timestamp}`,
-        text: '투자 대상 기업 추출 중...',
-        type: 'extract',
-        timestamp
-      };
-    }
 
-    // 뉴스 요약
-    if (logText.includes('뉴스 요약') || logText.includes('News Summary') || logText.includes('Summary API')) {
-      return {
-        id: `summarize_${timestamp}`,
-        text: '뉴스 데이터 요약 중...',
-        type: 'summarize',
-        timestamp
-      };
-    }
-    
-    // 투자 전략 생성
-    if (logText.includes('투자 전략 생성') || logText.includes('generate_investment')) {
-      return {
-        id: `generate_${timestamp}`,
-        text: '투자 전략 및 포트폴리오 생성 중...',
-        type: 'generate',
-        timestamp
-      };
-    }
-    
-    // 완료
-    if (logText.includes('분석 완료') || logText.includes('성공')) {
-      return {
-        id: `complete_${timestamp}`,
-        text: '분석 완료!',
-        type: 'complete',
-        timestamp
-      };
-    }
-    
-    return null;
-  };
 
   // 실시간 메시지 처리 (최우선순위 - 백엔드 실제 데이터)
   useEffect(() => {
     if (realTimeMessages && realTimeMessages.length > 0) {
       const latestMessage = realTimeMessages[realTimeMessages.length - 1];
       setCurrentMessage(latestMessage);
-      setMessageHistory(realTimeMessages);
       setIsCompleted(latestMessage.type === 'complete');
 
       console.log('📊 [Real-time] 실제 백엔드 진행 상황:', latestMessage);
@@ -125,9 +59,19 @@ const RealTimeThinkingBox: React.FC<RealTimeThinkingBoxProps> = ({ isVisible, on
   // 시뮬레이션된 진행 상황 (실시간 메시지가 없을 때만)
   useEffect(() => {
     if (!isVisible) {
-      setCurrentMessage(null);
-      setIsCompleted(false);
-      setMessageHistory([]);
+      // fade-out 애니메이션 시작
+      if (currentMessage && !isAnimatingOut) {
+        setIsAnimatingOut(true);
+        // 300ms 후에 실제로 숨김
+        setTimeout(() => {
+          setCurrentMessage(null);
+          setIsCompleted(false);
+          setIsAnimatingOut(false);
+        }, 300);
+      } else if (!currentMessage) {
+        setIsCompleted(false);
+        setIsAnimatingOut(false);
+      }
       return;
     }
 
@@ -140,25 +84,27 @@ const RealTimeThinkingBox: React.FC<RealTimeThinkingBoxProps> = ({ isVisible, on
     // 실시간 메시지만 사용
   }, [isVisible, onComplete, realTimeMessages]);
 
-  if (!isVisible || !currentMessage) return null;
+  if (!currentMessage) return null;
 
   return (
-    <div className="inline-block max-w-3xl">
-      <div className="bg-gray-100 rounded-2xl px-4 py-2 shadow-sm border border-gray-200">
-        <div className="flex items-center space-x-2">
+    <div className={`inline-block w-full max-w-3xl lg:max-w-4xl transition-all duration-300 ease-in-out ${
+      isAnimatingOut ? 'opacity-0 transform scale-95' : 'opacity-100 transform scale-100'
+    }`}>
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl px-6 py-3 shadow-md border border-blue-200/50 backdrop-blur-sm">
+        <div className="flex items-center space-x-4">
           {/* 아이콘 */}
           <div className="flex-shrink-0">
-            <span className="text-sm">{getMessageIcon(currentMessage.type)}</span>
+            <span className="text-lg">{getMessageIcon(currentMessage.type)}</span>
           </div>
 
           {/* 메시지 내용 */}
           <div className="flex-1 min-w-0">
-            <div className="text-sm text-gray-800 font-medium">
+            <div className="text-base text-gray-800 font-medium leading-relaxed">
               {currentMessage.text}
             </div>
             {currentMessage.detail && (
-              <div className="text-xs text-gray-600 mt-1.5">
-                <div className="break-words leading-relaxed bg-gray-50 rounded-lg px-2 py-1 border">
+              <div className="text-sm text-gray-600 mt-2">
+                <div className="break-words leading-relaxed bg-white/70 rounded-lg px-3 py-2 border border-blue-100">
                   {currentMessage.detail}
                 </div>
               </div>
@@ -167,10 +113,10 @@ const RealTimeThinkingBox: React.FC<RealTimeThinkingBoxProps> = ({ isVisible, on
 
           {/* 로딩 애니메이션 (완료되지 않은 경우) */}
           {!isCompleted && currentMessage.type !== 'complete' && (
-            <div className="flex space-x-1">
-              <div className="w-1 h-1 bg-gray-400 rounded-full animate-pulse"></div>
-              <div className="w-1 h-1 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-              <div className="w-1 h-1 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+            <div className="flex space-x-1.5">
+              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
             </div>
           )}
         </div>

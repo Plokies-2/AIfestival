@@ -24,75 +24,9 @@ interface ErrorResponse {
   error: string;
 }
 
-interface CacheData {
-  data: ChartDataPoint[];
-  timestamp: number;
-  symbol: string;
-}
+// 캐시 관련 코드 제거됨 - 실시간 데이터만 사용
 
-// 캐시 설정
-const CACHE_DURATION = 60 * 60 * 1000; // 1시간 (밀리초)
-const CACHE_DIR = path.join(process.cwd(), '.cache', 'chart_data');
-
-/**
- * 캐시 디렉토리 생성
- */
-function ensureCacheDir() {
-  if (!fs.existsSync(CACHE_DIR)) {
-    fs.mkdirSync(CACHE_DIR, { recursive: true });
-  }
-}
-
-/**
- * 캐시에서 데이터 읽기
- */
-function getCachedData(symbol: string): CacheData | null {
-  try {
-    ensureCacheDir();
-    const cacheFile = path.join(CACHE_DIR, `${symbol.toUpperCase()}.json`);
-    
-    if (!fs.existsSync(cacheFile)) {
-      return null;
-    }
-    
-    const cacheContent = fs.readFileSync(cacheFile, 'utf-8');
-    const cacheData: CacheData = JSON.parse(cacheContent);
-    
-    // 캐시 만료 확인
-    const now = Date.now();
-    if (now - cacheData.timestamp > CACHE_DURATION) {
-      console.log(`📅 Cache expired for ${symbol}, age: ${Math.round((now - cacheData.timestamp) / 1000 / 60)} minutes`);
-      return null;
-    }
-    
-    console.log(`💾 Using cached data for ${symbol}, age: ${Math.round((now - cacheData.timestamp) / 1000 / 60)} minutes`);
-    return cacheData;
-  } catch (error) {
-    console.error(`❌ Error reading cache for ${symbol}:`, error);
-    return null;
-  }
-}
-
-/**
- * 캐시에 데이터 저장
- */
-function setCachedData(symbol: string, data: ChartDataPoint[]) {
-  try {
-    ensureCacheDir();
-    const cacheFile = path.join(CACHE_DIR, `${symbol.toUpperCase()}.json`);
-    
-    const cacheData: CacheData = {
-      data,
-      timestamp: Date.now(),
-      symbol: symbol.toUpperCase()
-    };
-    
-    fs.writeFileSync(cacheFile, JSON.stringify(cacheData, null, 2));
-    console.log(`💾 Cached data for ${symbol}, ${data.length} data points`);
-  } catch (error) {
-    console.error(`❌ Error writing cache for ${symbol}:`, error);
-  }
-}
+// 캐시 관련 함수들 제거됨 - 실시간 데이터만 사용
 
 /**
  * Yahoo Finance API를 사용하여 실시간 데이터 가져오기 (Node.js 기반)
@@ -202,65 +136,10 @@ export default async function handler(
   const forceRefresh = force_refresh === 'true';
 
   try {
-    let chartData: ChartDataPoint[] | null = null;
-    let source: 'cache' | 'yfinance' = 'cache';
-
-    // 강제 새로고침이 아닌 경우 캐시 확인
-    if (!forceRefresh) {
-      const cachedData = getCachedData(symbolUpper);
-      if (cachedData) {
-        chartData = cachedData.data;
-        source = 'cache';
-      }
-    }
-
-    // 캐시에 데이터가 없거나 강제 새로고침인 경우 실시간 데이터 가져오기
-    if (!chartData) {
-      // SpeedTraffic용 데이터 캐싱 먼저 수행
-      console.log(`🔄 Pre-caching comprehensive data for SpeedTraffic analysis...`);
-      try {
-        const { spawn } = require('child_process');
-        const cachingProcess = spawn('python', ['src/services/data_cache_service.py', symbolUpper], {
-          cwd: process.cwd()
-        });
-
-        // 캐싱 프로세스 완료 대기 (최대 30초)
-        await new Promise((resolve) => {
-          const timeout = setTimeout(() => {
-            cachingProcess.kill();
-            console.warn(`⚠️ Caching timeout for ${symbolUpper}, continuing...`);
-            resolve(null);
-          }, 30000);
-
-          cachingProcess.on('close', (code: number | null) => {
-            clearTimeout(timeout);
-            if (code === 0) {
-              console.log(`✅ SpeedTraffic data cached successfully for ${symbolUpper}`);
-            } else {
-              console.warn(`⚠️ SpeedTraffic caching failed for ${symbolUpper} (code: ${code}), continuing...`);
-            }
-            resolve(null);
-          });
-
-          cachingProcess.on('error', (error: Error) => {
-            clearTimeout(timeout);
-            console.warn(`⚠️ SpeedTraffic caching error for ${symbolUpper}:`, error.message);
-            resolve(null);
-          });
-        });
-      } catch (cachingError) {
-        console.warn(`⚠️ SpeedTraffic caching service error:`, cachingError);
-        // 캐싱 실패해도 계속 진행
-      }
-
-      chartData = await fetchRealtimeData(yahooSymbol);
-      source = 'yfinance';
-
-      // 데이터를 성공적으로 가져온 경우 캐시에 저장
-      if (chartData) {
-        setCachedData(symbolUpper, chartData);
-      }
-    }
+    // 캐시 로직 제거 - 항상 실시간 데이터 사용
+    console.log(`🔄 Fetching realtime data for ${symbolUpper}...`);
+    const chartData = await fetchRealtimeData(yahooSymbol);
+    const source = 'yfinance';
 
     if (!chartData || chartData.length === 0) {
       return res.status(404).json({ error: `${symbolUpper}에 대한 데이터를 찾을 수 없습니다.` });

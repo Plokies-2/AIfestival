@@ -12,13 +12,7 @@ import pandas as pd
 import statsmodels.api as sm
 from datetime import datetime, timedelta
 
-# 데이터 캐시 서비스 가져오기
-try:
-    from data_cache_service import get_cached_data, convert_to_dataframe
-    CACHE_SERVICE_AVAILABLE = True
-except ImportError:
-    CACHE_SERVICE_AVAILABLE = False
-    print("Warning: data_cache_service not available, falling back to direct yfinance", file=sys.stderr)
+# 캐시 서비스 제거됨 - 실시간 데이터만 사용
 
 # yfinance 유틸리티 가져오기
 try:
@@ -38,23 +32,10 @@ except ImportError:
 
 WIN = 126   # 6 개월(영업일)
 
-def load_cached_data(symbol):
+def load_data(symbol):
     """
-    캐시된 데이터를 사용하여 DataFrame 반환
+    실시간 데이터 로드 (캐시 제거됨)
     """
-    if CACHE_SERVICE_AVAILABLE:
-        try:
-            print(f"📦 Loading cached data for {symbol}...", file=sys.stderr)
-            cached_data = get_cached_data(symbol)
-            if cached_data:
-                df = convert_to_dataframe(cached_data, 'ticker')
-                if df is not None and not df.empty:
-                    print(f"✅ Loaded {len(df)} days of cached data for {symbol}", file=sys.stderr)
-                    return df
-        except Exception as e:
-            print(f"❌ Error loading cached data: {e}", file=sys.stderr)
-
-    # 캐시 서비스 실패 시 직접 yfinance 사용
     return load_realtime_data_direct(symbol)
 
 def load_realtime_data_direct(symbol):
@@ -128,14 +109,14 @@ def nw_maxlags(n):
 def capm_beta(ticker: str):
     # ─ 개별 주식 데이터 로드
     print(f"📊 CAPM 분석 시작: {ticker}", file=sys.stderr)
-    df_stk = load_cached_data(ticker)
+    df_stk = load_data(ticker)
 
     if df_stk is None:
         print(f"❌ {ticker} 주식 데이터 로드 실패", file=sys.stderr)
         sys.exit(1)
 
     # ─ KOSPI 지수 데이터 로드
-    df_mkt = load_cached_data("^KS11")
+    df_mkt = load_data("^KS11")
 
     if df_mkt is None:
         print(f"❌ KOSPI 지수 데이터 로드 실패", file=sys.stderr)

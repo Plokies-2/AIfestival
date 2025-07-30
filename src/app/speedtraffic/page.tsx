@@ -9,14 +9,114 @@ export default function SpeedTrafficPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [currentSymbol, setCurrentSymbol] = useState<string | undefined>(undefined);
+
+  // 디버깅 모드 감지 (직접 접속 시)
+  const initialSymbol = searchParams?.get('symbol');
+  const isDebugMode = !initialSymbol;
   const [chatMessages, setChatMessages] = useState<Array<{message: string, isBot: boolean, timestamp: Date}>>([]);
-  const [analysisResults, setAnalysisResults] = useState<any>(null);
-  const [isAnalysisComplete, setIsAnalysisComplete] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
 
   // 분석 중복 방지
   const inFlight = useRef(false);
   const processedSymbols = useRef(new Set<string>());
+
+  // SpeedTraffic 분석법 관련 질문 프리셋 (15개)
+  const questionPresets = [
+    "볼린저 밴드가 무엇인가요?",
+    "MFI는 어떻게 계산하나요?",
+    "VaR가 무엇인가요?",
+    "Industry 분석은 어떻게 했나요?",
+    "RSI 지표는 무엇을 의미하나요?",
+    "CAPM 베타는 어떻게 해석하나요?",
+    "GARCH 모델이 무엇인가요?",
+    "기술적 분석의 신호등은 어떻게 결정되나요?",
+    "시장 분석에서 베타 계수의 의미는?",
+    "리스크 분석은 어떤 방식으로 진행되나요?",
+    "변동성은 어떻게 측정하나요?",
+    "업종 베타와 시장 베타의 차이점은?",
+    "신호등 색깔은 어떤 기준으로 정해지나요?",
+    "과매수/과매도 구간은 어떻게 판단하나요?",
+    "포트폴리오 리스크는 어떻게 계산하나요?"
+  ];
+
+  // 랜덤하게 3개 질문 선택
+  const getRandomQuestions = () => {
+    const shuffled = [...questionPresets].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, 3);
+  };
+
+  // 컴포넌트 마운트 시 랜덤 질문 설정
+  useEffect(() => {
+    setSelectedQuestions(getRandomQuestions());
+  }, [currentSymbol]);
+
+  // 채팅 스크롤 ref 추가
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  // 채팅 스크롤을 최하단으로 이동하는 함수
+  const scrollToBottom = useCallback(() => {
+    if (chatScrollRef.current) {
+      setTimeout(() => {
+        chatScrollRef.current?.scrollTo({
+          top: chatScrollRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      }, 100);
+    }
+  }, []);
+
+  // 질문 카드 클릭 핸들러
+  const handleQuestionClick = async (question: string) => {
+    try {
+      const response = await fetch('/api/hcx-002-dash', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: question,
+          context: `SpeedTraffic 분석 관련 질문: ${currentSymbol ? `현재 분석 중인 종목은 ${currentSymbol}입니다.` : ''}`
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        // 채팅 메시지에 질문과 답변 추가
+        setChatMessages(prev => [
+          ...prev,
+          {
+            message: `Q: ${question}`,
+            isBot: false,
+            timestamp: new Date()
+          },
+          {
+            message: result.reply || '답변을 생성할 수 없습니다.',
+            isBot: true,
+            timestamp: new Date()
+          }
+        ]);
+        // 스크롤을 최하단으로 이동
+        scrollToBottom();
+      }
+    } catch (error) {
+      console.error('질문 처리 중 오류:', error);
+      setChatMessages(prev => [
+        ...prev,
+        {
+          message: `Q: ${question}`,
+          isBot: false,
+          timestamp: new Date()
+        },
+        {
+          message: '죄송합니다. 현재 답변을 생성할 수 없습니다.',
+          isBot: true,
+          timestamp: new Date()
+        }
+      ]);
+      // 스크롤을 최하단으로 이동
+      scrollToBottom();
+    }
+  };
 
   // 신호등 상태 관리 (4중 분석)
   const [trafficLights, setTrafficLights] = useState({
@@ -35,6 +135,20 @@ export default function SpeedTrafficPage() {
     }
   }, [searchParams]);
 
+  // 질문 변경 시 스크롤 유지를 위한 플래그
+  const [shouldPreventScroll, setShouldPreventScroll] = useState(false);
+
+  // 채팅 메시지가 변경될 때마다 자동 스크롤 (질문 변경 시 제외)
+  useEffect(() => {
+    if (!shouldPreventScroll) {
+      scrollToBottom();
+    }
+    // 플래그 리셋
+    if (shouldPreventScroll) {
+      setShouldPreventScroll(false);
+    }
+  }, [chatMessages, scrollToBottom, shouldPreventScroll]);
+
   // 채팅 메시지 추가 (메모이제이션으로 무한 루프 방지)
   const handleChatMessage = useCallback((message: string, isBot: boolean = true) => {
     setChatMessages(prev => [...prev, {
@@ -46,8 +160,7 @@ export default function SpeedTrafficPage() {
 
   // 분석 완료 처리 (메모이제이션으로 무한 루프 방지)
   const handleAnalysisComplete = useCallback((results: any) => {
-    setIsAnalysisComplete(true);
-    setAnalysisResults(results);
+    // 분석 완료 상태 처리 (state 제거됨)
 
     // 신호등 상태 업데이트
     if (results.traffic_lights) {
@@ -89,7 +202,7 @@ export default function SpeedTrafficPage() {
     try {
       inFlight.current = true;
       processedSymbols.current.add(symbol);
-      setIsAnalyzing(true);
+      // 분석 시작 (state 제거됨)
 
       const companyName = getCompanyName(symbol);
       handleChatMessage(`🚀 ${companyName} 차트 분석을 시작할게요! 📊`);
@@ -112,8 +225,8 @@ export default function SpeedTrafficPage() {
 
       const result = await response.json();
 
-      // 분석 완료 메시지
-      handleChatMessage('기술적 분석, 산업 민감도, 시장 민감도, 변동성 리스크 분석을 완료했어요! 📊');
+      // 통합된 분석 완료 메시지
+      handleChatMessage('기술적 분석, 산업 민감도, 시장 민감도, 변동성 리스크 분석을 완료했어요! 📊\n\n4단계 분석이 완료되었습니다! 투자 신호등을 확인해보세요. 🎯');
 
       // 최종 결과 구성
       const finalResults = {
@@ -133,15 +246,222 @@ export default function SpeedTrafficPage() {
       // 분석 완료 처리
       handleAnalysisComplete(finalResults);
 
+      // 백엔드로 분석 결과 전송 (AI 해석용) - 확장된 데이터 구조
+      try {
+        console.log('🔍 [SPEEDTRAFFIC_PAGE] 백엔드 로그 전송 시작');
+        console.log('🔍 [SPEEDTRAFFIC_PAGE] finalResults:', JSON.stringify(finalResults, null, 2));
+
+        const enhancedAnalysisData = {
+          symbol,
+          companyName,
+          analysisDate: finalResults.analysisDate,
+          timestamp: finalResults.timestamp,
+
+          // 신호등 상태 (AI 해석용)
+          traffic_lights: finalResults.traffic_lights,
+
+          // 기술적 분석 상세 데이터
+          technical_analysis: {
+            mfi: {
+              value: finalResults.mfi?.mfi_14 || null,
+              signal: finalResults.mfi?.signal || null,
+              summary: finalResults.mfi?.summary_ko || null,
+              traffic_light: finalResults.mfi?.traffic_light || null
+            },
+            rsi: {
+              value: finalResults.rsi?.rsi_14 || null,
+              signal: finalResults.rsi?.signal || null,
+              summary: finalResults.rsi?.summary_ko || null,
+              traffic_light: finalResults.rsi?.traffic_light || null
+            },
+            bollinger: {
+              percent_b: finalResults.bollinger?.percent_b || null,
+              signal: finalResults.bollinger?.signal || null,
+              summary: finalResults.bollinger?.summary_ko || null,
+              traffic_light: finalResults.bollinger?.traffic_light || null
+            }
+          },
+
+          // 시장 분석 상세 데이터
+          market_analysis: {
+            capm: {
+              beta: finalResults.capm?.beta_market || null,
+              r_squared: finalResults.capm?.r2_market || null,
+              t_stat: finalResults.capm?.tstat_market || null,
+              signal: finalResults.capm?.signal || null,
+              summary: finalResults.capm?.summary_ko || null,
+              traffic_light: finalResults.capm?.traffic_light || null
+            },
+            industry: {
+              beta: finalResults.industry?.beta || null,
+              r_squared: finalResults.industry?.r2 || null,
+              t_stat: finalResults.industry?.tstat || null,
+              signal: finalResults.industry?.signal || null,
+              summary: finalResults.industry?.summary_ko || null,
+              traffic_light: finalResults.industry?.traffic_light || null
+            }
+          },
+
+          // 리스크 분석 상세 데이터
+          risk_analysis: {
+            garch: {
+              volatility: finalResults.garch?.sigma_pct || null,
+              var_95: finalResults.garch?.var95_pct || null,
+              var_99: finalResults.garch?.var99_pct || null,
+              signal: finalResults.garch?.signal || null,
+              summary: finalResults.garch?.summary_ko || null,
+              traffic_light: finalResults.garch?.traffic_light || null
+            }
+          },
+
+          // 원본 데이터 (백업용)
+          raw_analysis_results: {
+            mfi: finalResults.mfi,
+            bollinger: finalResults.bollinger,
+            rsi: finalResults.rsi,
+            industry: finalResults.industry,
+            capm: finalResults.capm,
+            garch: finalResults.garch
+          },
+
+          session_id: `speedtraffic_${Date.now()}`
+        };
+
+        console.log('🔍 [SPEEDTRAFFIC_PAGE] enhancedAnalysisData:', JSON.stringify(enhancedAnalysisData, null, 2));
+
+        const logResponse = await fetch('/api/speedtraffic_log', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(enhancedAnalysisData)
+        });
+
+        console.log('🔍 [SPEEDTRAFFIC_PAGE] 로그 API 응답 상태:', logResponse.status);
+
+        if (logResponse.ok) {
+          const logResult = await logResponse.json();
+          console.log('✅ [SPEEDTRAFFIC_PAGE] 로그 전송 성공:', logResult);
+        } else {
+          const errorText = await logResponse.text();
+          console.error('❌ [SPEEDTRAFFIC_PAGE] 로그 전송 실패:', errorText);
+        }
+
+        console.log('📝 SpeedTraffic 확장 결과가 백엔드로 전송되었습니다.');
+      } catch (logError) {
+        console.error('❌ [SPEEDTRAFFIC_PAGE] 백엔드 로깅 실패:', logError);
+        // 로깅 실패해도 사용자 경험에는 영향 없음
+      }
+
       // 완료 메시지
       handleChatMessage('4단계 분석이 완료되었습니다! 투자 신호등을 확인해보세요. 🎯', true);
+
+      // AI 해설 생성 요청
+      try {
+        handleChatMessage('🤖 AI가 분석 결과를 해설하고 있습니다...', true);
+
+        const commentaryResponse = await fetch('/api/speedtraffic_commentary', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            symbol,
+            companyName,
+            analysisDate: finalResults.analysisDate,
+            timestamp: finalResults.timestamp,
+            traffic_lights: finalResults.traffic_lights,
+            technical_analysis: {
+              mfi: {
+                value: finalResults.mfi?.mfi_14 || null,
+                signal: finalResults.mfi?.traffic_light || null, // traffic_light를 signal로 매핑
+                summary: finalResults.mfi?.summary_ko || null,
+                traffic_light: finalResults.mfi?.traffic_light || null
+              },
+              rsi: {
+                value: finalResults.rsi?.rsi_14 || null,
+                signal: finalResults.rsi?.traffic_light || null, // traffic_light를 signal로 매핑
+                summary: finalResults.rsi?.summary_ko || null,
+                traffic_light: finalResults.rsi?.traffic_light || null
+              },
+              bollinger: {
+                percent_b: finalResults.bollinger?.percent_b || null,
+                signal: finalResults.bollinger?.traffic_light || null, // traffic_light를 signal로 매핑
+                summary: finalResults.bollinger?.summary_ko || null,
+                traffic_light: finalResults.bollinger?.traffic_light || null
+              }
+            },
+            market_analysis: {
+              capm: {
+                beta: finalResults.capm?.beta_market || null,
+                r_squared: finalResults.capm?.r2_market || null,
+                t_stat: finalResults.capm?.tstat_market || null,
+                signal: finalResults.capm?.signal || null,
+                summary: finalResults.capm?.summary_ko || null,
+                traffic_light: finalResults.capm?.traffic_light || null
+              },
+              industry: {
+                beta: finalResults.industry?.beta || null,
+                r_squared: finalResults.industry?.r2 || null,
+                t_stat: finalResults.industry?.tstat || null,
+                signal: finalResults.industry?.signal || null,
+                summary: finalResults.industry?.summary_ko || null,
+                traffic_light: finalResults.industry?.traffic_light || null
+              }
+            },
+            risk_analysis: {
+              garch: {
+                volatility: finalResults.garch?.sigma_pct || null,
+                var_95: finalResults.garch?.var95_pct || null,
+                var_99: finalResults.garch?.var99_pct || null,
+                signal: finalResults.garch?.signal || null,
+                summary: finalResults.garch?.summary_ko || null,
+                traffic_light: finalResults.garch?.traffic_light || null
+              }
+            }
+          })
+        });
+
+        if (commentaryResponse.ok) {
+          const commentaryResult = await commentaryResponse.json();
+          if (commentaryResult.success && commentaryResult.commentary) {
+            // 1.25초 후에 AI 해설 메시지 표시
+            setTimeout(() => {
+              handleChatMessage('🤖 AI가 분석 결과를 해설하고 있습니다...', true);
+              // 실제 AI 해설을 추가로 표시
+              setTimeout(() => {
+                handleChatMessage(commentaryResult.commentary, true);
+                // AI 분석 결과가 나오면 자동으로 스크롤을 최하단으로 이동
+                scrollToBottom();
+                console.log('🤖 AI 해설 생성 완료');
+              }, 500);
+            }, 1250);
+          } else {
+            setTimeout(() => {
+              handleChatMessage('⚠️ AI 해설 생성에 실패했습니다. 신호등 결과를 참고해주세요.', true);
+              scrollToBottom();
+            }, 1250);
+          }
+        } else {
+          setTimeout(() => {
+            handleChatMessage('⚠️ AI 해설 서비스에 일시적인 문제가 발생했습니다.', true);
+            scrollToBottom();
+          }, 1250);
+        }
+      } catch (commentaryError) {
+        console.warn('⚠️ AI 해설 생성 실패:', commentaryError);
+        setTimeout(() => {
+          handleChatMessage('⚠️ AI 해설 생성 중 오류가 발생했습니다. 분석 결과는 정상적으로 완료되었습니다.', true);
+          scrollToBottom();
+        }, 1250);
+      }
 
     } catch (error) {
       console.error('분석 오류:', error);
       const errorMessage = error instanceof Error ? error.message : '분석 서비스 연결 실패';
       handleChatMessage(`❌ 분석 중 오류가 발생했습니다: ${errorMessage}`);
     } finally {
-      setIsAnalyzing(false);
+      // 분석 완료 (state 제거됨)
       inFlight.current = false;
     }
   }, [handleChatMessage, handleAnalysisComplete]);
@@ -157,9 +477,6 @@ export default function SpeedTrafficPage() {
   const handleNewAnalysis = () => {
     setCurrentSymbol(undefined);
     setChatMessages([]);
-    setAnalysisResults(null);
-    setIsAnalysisComplete(false);
-    setIsAnalyzing(false);
     setTrafficLights({
       technical: 'inactive',
       industry: 'inactive',
@@ -175,9 +492,6 @@ export default function SpeedTrafficPage() {
   const handleSymbolSubmit = (symbol: string) => {
     setCurrentSymbol(symbol);
     setChatMessages([]);
-    setAnalysisResults(null);
-    setIsAnalysisComplete(false);
-    setIsAnalyzing(false);
     setTrafficLights({
       technical: 'inactive',
       industry: 'inactive',
@@ -301,7 +615,14 @@ export default function SpeedTrafficPage() {
             <div className="lg:col-span-2">
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-gray-900">SpeedTraffic™</h2>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    SpeedTraffic™
+                    {isDebugMode && (
+                      <span className="ml-2 px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-md">
+                        디버깅 모드
+                      </span>
+                    )}
+                  </h2>
                   <div className="text-sm text-gray-500">4중 AI 분석</div>
                 </div>
 
@@ -346,7 +667,7 @@ export default function SpeedTrafficPage() {
                   <h3 className="text-lg font-semibold text-gray-900">AI 분석 진행상황</h3>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
                   {chatMessages.length === 0 ? (
                     <div className="text-sm text-gray-500 text-center py-8">
                       분석을 시작하면 진행상황이 표시됩니다
@@ -374,6 +695,51 @@ export default function SpeedTrafficPage() {
               </div>
             </div>
           </div>
+
+          {/* 질문 카드 섹션 */}
+          {currentSymbol && selectedQuestions.length > 0 && (
+            <div className="mt-6">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">💡 SpeedTraffic에 대해 질문하세요</h3>
+                  <button
+                    onClick={() => {
+                      setShouldPreventScroll(true);
+                      setSelectedQuestions(getRandomQuestions());
+                    }}
+                    className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    🔄 다른 질문 보기
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {selectedQuestions.map((question, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleQuestionClick(question)}
+                      className="text-left p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 hover:from-blue-100 hover:to-indigo-100 transition-all duration-200 hover:shadow-md group"
+                    >
+                      <div className="flex items-start space-x-3">
+                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 transition-colors">
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-800 group-hover:text-gray-900">
+                            {question}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            클릭하여 질문
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* 하단: 차트 */}
           {currentSymbol && (

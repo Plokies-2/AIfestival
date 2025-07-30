@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import FinancialChart from '@/components/FinancialChart';
 import AIChat, { AIChatRef } from '@/components/AIChat';
 import SpeedTraffic from '@/components/SpeedTraffic';
-import LandingPage from '@/components/LandingPage';
+import MarketStatus from '@/components/MarketStatus';
+import LandingPage from '@/components/LandingPageNew';
 import { useServerStatus } from '@/hooks/useServerStatus';
 
 export default function DashboardPage() {
@@ -38,11 +39,11 @@ export default function DashboardPage() {
     }
   }, [searchParams]);
 
-  // 서버 재시작 감지 및 포트폴리오 자동 삭제
+  // 서버 재시작 감지 (포트폴리오 유지)
   useServerStatus({
     onServerRestart: () => {
-      console.log('🔄 [Main Page] 서버 재시작으로 인한 포트폴리오 삭제 완료');
-      // 필요시 추가 처리 (예: 사용자에게 알림)
+      console.log('🔄 [Main Page] 서버 재시작 감지됨, 포트폴리오는 유지됩니다');
+      // 포트폴리오 삭제 로직 제거 - 사용자가 생성한 포트폴리오는 유지
     }
   });
 
@@ -255,12 +256,15 @@ export default function DashboardPage() {
                 {currentSymbol ? 'AI 기반 투자 적격성 분석' : '실시간 시장 지표'}
               </p>
             </div>
-            <SpeedTraffic
-              symbol={currentSymbol}
-              onPhaseMessage={handlePhaseMessage}
-              onAnalysisComplete={handleAnalysisComplete}
-              disableLSTM={disableLSTM}
-            />
+            {currentSymbol ? (
+              <SpeedTraffic
+                symbol={currentSymbol}
+                onPhaseMessage={handlePhaseMessage}
+                onAnalysisComplete={handleAnalysisComplete}
+              />
+            ) : (
+              <MarketStatus />
+            )}
 
             {/* SpeedTraffic 전용 페이지 안내 */}
             {currentSymbol && (

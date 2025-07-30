@@ -4,13 +4,7 @@ import pandas as pd
 from arch import arch_model
 from datetime import datetime, timedelta
 
-# 데이터 캐시 서비스 가져오기
-try:
-    from data_cache_service import get_cached_data, convert_to_dataframe
-    CACHE_SERVICE_AVAILABLE = True
-except ImportError:
-    CACHE_SERVICE_AVAILABLE = False
-    print("Warning: data_cache_service not available, falling back to direct yfinance", file=sys.stderr)
+# 캐시 서비스 제거됨 - 실시간 데이터만 사용
 
 # yfinance 유틸리티 가져오기
 try:
@@ -28,23 +22,10 @@ except ImportError:
     YFINANCE_AVAILABLE = False
     print("Warning: yfinance not available", file=sys.stderr)
 
-def load_cached_data(symbol):
+def load_data(symbol):
     """
-    캐시된 데이터를 사용하여 DataFrame 반환
+    실시간 데이터 로드 (캐시 제거됨)
     """
-    if CACHE_SERVICE_AVAILABLE:
-        try:
-            print(f"📦 Loading cached data for {symbol}...", file=sys.stderr)
-            cached_data = get_cached_data(symbol)
-            if cached_data:
-                df = convert_to_dataframe(cached_data, 'ticker')
-                if df is not None and not df.empty:
-                    print(f"✅ Loaded {len(df)} days of cached data for {symbol}", file=sys.stderr)
-                    return df
-        except Exception as e:
-            print(f"❌ Error loading cached data: {e}", file=sys.stderr)
-
-    # 캐시 서비스 실패 시 직접 yfinance 사용
     return load_realtime_data_direct(symbol)
 
 def load_realtime_data_direct(symbol):
@@ -106,8 +87,8 @@ def load_realtime_data_direct(symbol):
         return None
 
 def gjr_var(ticker: str):
-    # 먼저 캐시된 데이터 시도
-    df = load_cached_data(ticker)
+    # 실시간 데이터 로드
+    df = load_data(ticker)
 
     if df is not None:
         print(f"📊 Using data for {ticker}", file=sys.stderr)

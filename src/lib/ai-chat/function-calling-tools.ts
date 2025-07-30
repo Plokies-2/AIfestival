@@ -126,11 +126,13 @@ export class FunctionCallingExecutor {
   private logger: FunctionCallLogger;
   private hcxClient: HCX005FunctionCallingClient;
   private summaryService: NewsSummaryService;
+  private onProgress?: (step: string, message: string, icon?: string, detail?: string) => void;
 
-  constructor() {
+  constructor(onProgress?: (step: string, message: string, icon?: string, detail?: string) => void) {
     this.logger = FunctionCallLogger.getInstance();
     this.hcxClient = new HCX005FunctionCallingClient();
     this.summaryService = new NewsSummaryService();
+    this.onProgress = onProgress;
     console.log('🔧 [Function Executor] Function Calling 실행기 초기화 완료');
   }
 
@@ -311,6 +313,9 @@ export class FunctionCallingExecutor {
         // 뉴스 요약 필요성 판단
         if (this.summaryService.shouldSummarize(args.trend_news)) {
           console.log(`📝 [News Summary] 뉴스 ${args.trend_news.length}개 요약 시작 - 토큰 절약을 위해 요약 적용`);
+
+          // Progress 업데이트: 뉴스 요약 중
+          this.onProgress?.('summarize', '뉴스 데이터 요약 중...', '📝', '수집된 뉴스 요약 중');
 
           try {
             const summarizedNews = await this.summaryService.summarize(args.trend_news);
@@ -571,8 +576,31 @@ export class FunctionCallingExecutor {
           console.log(`⚠️ [Function Call] LLM이 function calling 대신 일반 텍스트로 응답`);
           console.log(`📝 [Function Call] 응답 내용:`, messageContent?.substring(0, 200) + '...');
 
-          // 뉴스가 부족하거나 관련성이 낮을 때 발생하는 상황으로 판단
-          throw new Error('1차 분류 오류로 답변을 생성하지 못했습니다. 관련 내용을 관리자에게 알려주시기 바랍니다.');
+          // Fallback: 산업 정보를 기반으로 기본 기업 추출
+          console.log(`🔄 [Function Call] Fallback 모드: 산업 정보 기반 기업 추출`);
+
+          const fallbackResult = this.generateFallbackCompanies(args.selected_industries, traditionalCount, creativeCount);
+
+          const executionTime = Date.now() - startTime;
+          this.logger.logFunctionCall(
+            functionName,
+            {
+              ...args,
+              enhanced_message_length: enhancedUserMessage.length,
+              trend_news_count: args.trend_news?.length || 0,
+              fallback_used: true
+            },
+            {
+              traditional_companies: fallbackResult.traditional_companies.length,
+              creative_companies: fallbackResult.creative_companies.length,
+              hcx_function_called: false
+            },
+            true,
+            executionTime
+          );
+
+          console.log(`✅ [Function Call] Fallback 기업 추출 완료!`);
+          return fallbackResult;
         }
       }
 
@@ -584,6 +612,61 @@ export class FunctionCallingExecutor {
       this.logger.logFunctionCall(functionName, args, error, false, executionTime);
       throw error;
     }
+  }
+
+  /**
+   * Fallback 기업 추출 메서드
+   * LLM이 function calling에 실패했을 때 산업 정보를 기반으로 기본 기업들을 추출
+   */
+  private generateFallbackCompanies(
+    selectedIndustries: Array<{
+      industry_ko: string;
+      score: number;
+      companies: Array<{
+        ticker: string;
+        name: string;
+        industry: string;
+      }>;
+    }>,
+    traditionalCount: number,
+    creativeCount: number
+  ): {
+    traditional_companies: Array<{ ticker: string; name: string; reason: string }>;
+    creative_companies: Array<{ ticker: string; name: string; reason: string }>;
+    market_analysis: string;
+    strategy_comparison: string;
+  } {
+    console.log(`🔄 [Fallback] 산업 정보 기반 기업 추출 시작`);
+
+    const allCompanies = selectedIndustries.flatMap(industry =>
+      industry.companies.map(company => ({
+        ...company,
+        industryScore: industry.score,
+        industryName: industry.industry_ko
+      }))
+    );
+
+    // 점수 기준으로 정렬
+    allCompanies.sort((a, b) => b.industryScore - a.industryScore);
+
+    const traditional_companies = allCompanies.slice(0, traditionalCount).map(company => ({
+      ticker: company.ticker,
+      name: company.name,
+      reason: `${company.industryName} 분야의 대표 기업으로 안정적인 성장이 기대됩니다.`
+    }));
+
+    const creative_companies = allCompanies.slice(traditionalCount, traditionalCount + creativeCount).map(company => ({
+      ticker: company.ticker,
+      name: company.name,
+      reason: `${company.industryName} 분야에서 혁신적인 성장 잠재력을 보유한 기업입니다.`
+    }));
+
+    return {
+      traditional_companies,
+      creative_companies,
+      market_analysis: '선택된 산업 분야를 기반으로 안정적인 성장이 예상되는 기업들을 선별했습니다.',
+      strategy_comparison: '정통한 전략은 안정성에, 창의적 전략은 성장 잠재력에 중점을 두었습니다.'
+    };
   }
 
   /**
@@ -718,8 +801,8 @@ export class FunctionCallingExecutor {
 
       // 핵심 지시사항 강화
       enhancedUserMessage += `\n\n**🚨 절대 준수 사항:**
-1. **동향 뉴스 분석 시 특정 기업명 절대 언급 금지! 산업 전반의 트렌드만 언급하세요**
-2. **동향 뉴스에서 "AI 반도체 시장의 급성장", "글로벌 파트너십 확산" 등 종합적 인사이트 추출하세요**
+1. **동향 뉴스 분석 시 특정 기업명 절대 언급 금지! 산업 전반의 트렌드만 언급하며, 8줄 내외로 적당한 분량의 동향 보고서를 작성하세요.**
+2. **동향 뉴스에서는 "AI 반도체 시장의 급성장", "글로벌 파트너십 확산" 처럼 종합적 인사이트에 집중하세요**
 3. **각 기업마다 반드시 서로 다른 2개 이상의 뉴스를 인용하세요**
 4. **절대 같은 뉴스를 여러 기업에서 반복 사용하지 마세요**
 5. **뉴스 번호를 명시하세요 (예: "뉴스3에 따르면...", "뉴스15에서는...")**

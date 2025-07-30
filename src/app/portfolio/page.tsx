@@ -63,13 +63,12 @@ export default function PortfolioPage() {
     companyName: string;
   } | null>(null);
 
-  // 서버 재시작 감지 및 포트폴리오 자동 삭제
+  // 서버 재시작 감지 (포트폴리오 유지)
   useServerStatus({
     onServerRestart: () => {
-      console.log('🔄 [Portfolio Page] 서버 재시작으로 인한 포트폴리오 삭제, 페이지 새로고침');
-      setPortfolios([]);
-      setPortfolioGroups([]);
-      loadPortfolios(); // 새로고침
+      console.log('🔄 [Portfolio Page] 서버 재시작 감지됨, 포트폴리오는 유지됩니다');
+      // 포트폴리오 삭제 로직 제거 - 사용자가 생성한 포트폴리오는 유지
+      loadPortfolios(); // 새로고침만 수행
     }
   });
 
@@ -77,6 +76,28 @@ export default function PortfolioPage() {
   useEffect(() => {
     loadPortfolios();
   }, []);
+
+  // 포트폴리오 초기화 함수
+  const handleResetPortfolios = () => {
+    const confirmed = window.confirm('정말로 모든 포트폴리오를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.');
+
+    if (confirmed) {
+      // 로컬 스토리지에서 포트폴리오 삭제
+      localStorage.removeItem('ai_portfolios');
+
+      // 상태 초기화
+      setPortfolios([]);
+      setPortfolioGroups([]);
+      setSelectedPortfolio(null);
+      setBacktestResults(null);
+      setExpandedGroup(null);
+
+      console.log('🗑️ 모든 포트폴리오가 삭제되었습니다.');
+
+      // 사용자에게 완료 알림
+      alert('모든 포트폴리오가 삭제되었습니다.');
+    }
+  };
 
   const loadPortfolios = () => {
     const savedPortfolios = localStorage.getItem('ai_portfolios');
@@ -315,13 +336,23 @@ export default function PortfolioPage() {
 
       <main className="flex flex-1 p-4 gap-4 min-h-0">
         {/* 좌측: 포트폴리오 목록 */}
-        <section className="w-1/3 bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <section className="w-1/3 bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden flex flex-col">
           <div className="p-4 border-b border-slate-200">
-            <h2 className="text-lg font-semibold text-slate-900">내 포트폴리오</h2>
-            <p className="text-sm text-slate-600 mt-1">AI가 추천한 포트폴리오 목록</p>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-semibold text-slate-900">내 포트폴리오</h2>
+              {portfolioGroups.length > 0 && (
+                <button
+                  onClick={handleResetPortfolios}
+                  className="px-3 py-1.5 text-sm bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors duration-200 font-medium"
+                >
+                  초기화
+                </button>
+              )}
+            </div>
+            <p className="text-sm text-slate-600">AI가 추천한 포트폴리오 목록</p>
           </div>
 
-          <div className="overflow-y-auto h-full">
+          <div className="flex-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
             {portfolioGroups.length === 0 ? (
               <div className="p-6 text-center">
                 <div className="w-16 h-16 mx-auto mb-4 bg-slate-100 rounded-full flex items-center justify-center">
