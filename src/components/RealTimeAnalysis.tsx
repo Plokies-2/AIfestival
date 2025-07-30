@@ -21,7 +21,7 @@ const RealTimeAnalysis: React.FC = () => {
       changePercent: 0.47,
       lastUpdate: new Date().toLocaleTimeString('ko-KR')
     },
-    {
+    {asd
       symbol: '^KQ11',
       name: '한국 VIX',
       value: 18.23,
