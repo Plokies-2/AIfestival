@@ -50,13 +50,13 @@ export default function AnalysisPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8 text-center">
           <h2 className="text-3xl font-bold text-slate-900 mb-4">
-            AI 투자 분석 채팅
+            
           </h2>
           <p className="text-lg text-slate-600 mb-2">
-            자연어로 질문하면 AI가 맞춤형 투자 전략을 제안합니다
+            
           </p>
           <p className="text-sm text-slate-500">
-            의도 분석 → 뉴스 분석 → 포트폴리오 백테스팅까지 한 번에
+            
           </p>
         </div>
 

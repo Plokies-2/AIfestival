@@ -54,19 +54,54 @@ const RealTimeAnalysis: React.FC = () => {
     try {
       setIsLoading(true);
 
-      const response = await fetch('/api/market_data');
-      const result = await response.json();
+      // 각 심볼별로 개별 API 호출
+      const symbols = ['^KS11', '^KQ11', 'KRW=X', '^TNX'];
+      const promises = symbols.map(async (symbol) => {
+        try {
+          const response = await fetch(`/api/market_data?symbol=${encodeURIComponent(symbol)}`);
+          const result = await response.json();
 
-      if (result.success && result.data) {
-        setMarketData(result.data);
-      } else {
-        console.error('시장 데이터 가져오기 실패:', result.error);
+          if (response.ok) {
+            return {
+              symbol: result.symbol,
+              name: getSymbolName(result.symbol),
+              value: result.price || 0,
+              change: result.change || 0,
+              changePercent: result.changePercent || 0,
+              lastUpdate: new Date().toLocaleTimeString('ko-KR')
+            };
+          } else {
+            console.error(`${symbol} 데이터 가져오기 실패:`, result.error);
+            return null;
+          }
+        } catch (error) {
+          console.error(`${symbol} API 호출 오류:`, error);
+          return null;
+        }
+      });
+
+      const results = await Promise.all(promises);
+      const validResults = results.filter(result => result !== null) as MarketData[];
+
+      if (validResults.length > 0) {
+        setMarketData(validResults);
       }
     } catch (error) {
       console.error('시장 데이터 API 호출 오류:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // 심볼에 따른 한국어 이름 반환
+  const getSymbolName = (symbol: string): string => {
+    const nameMap: { [key: string]: string } = {
+      '^KS11': 'KOSPI',
+      '^KQ11': '한국 VIX',
+      'KRW=X': '원/달러',
+      '^TNX': '미국 10년 국채'
+    };
+    return nameMap[symbol] || symbol;
   };
 
   // 컴포넌트 마운트 시 초기 데이터 로드

@@ -29,27 +29,7 @@ const API_BASE_URL = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}/api`
   : 'http://localhost:3000/api';
 
-async function callAnalysisAPI(endpoint: string, symbol: string): Promise<AnalysisResult | undefined> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/${endpoint}?symbol=${symbol}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
 
-    if (!response.ok) {
-      console.error(`${endpoint} API 호출 실패:`, response.status, response.statusText);
-      return undefined;
-    }
-
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    console.error(`${endpoint} API 호출 오류:`, error);
-    return undefined;
-  }
-}
 
 function determineTrafficLights(results: {
   mfi?: AnalysisResult | undefined;
@@ -120,24 +100,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     console.log(`[SPEEDTRAFFIC_VERCEL] ${ticker} 분석 시작`);
 
-    // 6개 분석 서비스 병렬 호출
-    const [mfiResult, bollingerResult, rsiResult, industryResult, capmResult, garchResult] = await Promise.allSettled([
-      callAnalysisAPI('mfi_analysis', ticker),
-      callAnalysisAPI('bollinger_analysis', ticker),
-      callAnalysisAPI('rsi_analysis', ticker),
-      callAnalysisAPI('industry_analysis', ticker),
-      callAnalysisAPI('capm_analysis', ticker),
-      callAnalysisAPI('garch_analysis', ticker)
-    ]);
+    // 통합 분석 API 호출
+    const apiResponse = await fetch(`${API_BASE_URL}/unified_analysis?symbol=${ticker}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-    // 결과 추출
+    if (!apiResponse.ok) {
+      throw new Error(`Unified analysis API 호출 실패: ${apiResponse.status} ${apiResponse.statusText}`);
+    }
+
+    const analysisResult = await apiResponse.json();
+
+    // 결과 추출 (기존 형식과 호환)
     const results = {
-      mfi: mfiResult.status === 'fulfilled' ? mfiResult.value : undefined,
-      bollinger: bollingerResult.status === 'fulfilled' ? bollingerResult.value : undefined,
-      rsi: rsiResult.status === 'fulfilled' ? rsiResult.value : undefined,
-      industry: industryResult.status === 'fulfilled' ? industryResult.value : undefined,
-      capm: capmResult.status === 'fulfilled' ? capmResult.value : undefined,
-      garch: garchResult.status === 'fulfilled' ? garchResult.value : undefined,
+      mfi: analysisResult.mfi,
+      bollinger: analysisResult.bollinger,
+      rsi: analysisResult.rsi,
+      industry: analysisResult.industry,
+      capm: analysisResult.capm,
+      garch: analysisResult.garch,
     };
 
     // 신호등 결정
