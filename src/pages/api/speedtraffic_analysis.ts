@@ -247,14 +247,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     console.log(`[SPEEDTRAFFIC_API] ${ticker} 분석 시작`);
 
-    // 스크립트 경로 설정
+    // 스크립트 경로 설정 - Python 파일들이 /api/python/으로 이동됨
     const scriptPaths = {
-      mfi: path.join(process.cwd(), 'src', 'services', 'mfi_service.py'),
-      bollinger: path.join(process.cwd(), 'src', 'services', 'bollinger_service.py'),
-      rsi: path.join(process.cwd(), 'src', 'services', 'rsi_service.py'),
-      industry: path.join(process.cwd(), 'src', 'services', 'industry_regression_service.py'),
-      capm: path.join(process.cwd(), 'src', 'services', 'capm_service.py'),
-      garch: path.join(process.cwd(), 'src', 'services', 'garch_service.py')
+      mfi: path.join(process.cwd(), 'api', 'python', 'mfi_analysis.py'),
+      bollinger: path.join(process.cwd(), 'api', 'python', 'bollinger_analysis.py'),
+      rsi: path.join(process.cwd(), 'api', 'python', 'rsi_analysis.py'),
+      industry: path.join(process.cwd(), 'api', 'python', 'industry_analysis.py'),
+      capm: path.join(process.cwd(), 'api', 'python', 'capm_analysis.py'),
+      garch: path.join(process.cwd(), 'api', 'python', 'garch_analysis.py')
     };
 
     // 스크립트 존재 확인

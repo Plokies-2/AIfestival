@@ -7,6 +7,16 @@ const nextConfig = {
     // serverComponentsExternalPackages는 더 이상 사용되지 않음 (serverExternalPackages로 이동됨)
   },
 
+  // Python API 리라이트 설정
+  async rewrites() {
+    return [
+      {
+        source: '/api/python/:path*',
+        destination: '/api/python/:path*', // Vercel에서 자동으로 Python 서버리스 함수로 처리됨
+      },
+    ];
+  },
+
   webpack: (config, { isServer }) => {
     // Handle node modules that need to be external
     if (!isServer) {
