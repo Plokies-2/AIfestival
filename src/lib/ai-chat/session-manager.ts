@@ -32,7 +32,8 @@ if (!globalThis.__AI_CHAT_SESSION_STATE__) {
     selectedTicker: null,
     conversationHistory: [],
     lastActivity: Date.now(),
-    pendingDetailedAnalysis: undefined
+    pendingDetailedAnalysis: undefined,
+    recommendedIndustries: undefined
   };
   console.log('🚀 Simplified session manager initialized with new global state');
 } else {
@@ -61,7 +62,8 @@ export function createNewSession(): SessionState {
     industryCompanies: [],
     selectedTicker: null,
     conversationHistory: [],
-    lastActivity: Date.now()
+    lastActivity: Date.now(),
+    recommendedIndustries: undefined
   };
 
   console.log(`✅ Reset global session state`);
@@ -156,7 +158,8 @@ export function resetSession(_sessionId: string, preserveHistory: boolean = true
     industryCompanies: [],
     selectedTicker: null,
     conversationHistory,
-    lastActivity: Date.now()
+    lastActivity: Date.now(),
+    recommendedIndustries: undefined
   };
 
 
@@ -275,7 +278,8 @@ export function clearAllSessions(): number {
     industryCompanies: [],
     selectedTicker: null,
     conversationHistory: [],
-    lastActivity: Date.now()
+    lastActivity: Date.now(),
+    recommendedIndustries: undefined
   };
   console.log('🗑️ Reset global session state');
   return 1;

@@ -197,13 +197,6 @@ async function handleInvestmentQuery(
       };
     }
 
-    const newState: SessionState = {
-      ...state,
-      stage: 'SHOW_INDUSTRY',
-      selectedIndustry: primaryIndustry.industry_ko,
-      industryCompanies: primaryIndustry.companies
-    };
-
     // 세션 상태 변경 디버깅 로그
     console.log(`🔄 [세션 상태 변경] START → SHOW_INDUSTRY:`);
     console.log(`   - Session ID: ${sessionId}`);
@@ -254,6 +247,24 @@ async function handleInvestmentQuery(
       industryResults: industryResults,
       displayIndustries: displayIndustries,
       ragAccuracy: industryResults.reduce((sum, industry) => sum + industry.score, 0) / industryResults.length
+    };
+
+    // 세션 상태 생성 (displayIndustries 정의 후)
+    const newState: SessionState = {
+      ...state,
+      stage: 'SHOW_INDUSTRY',
+      selectedIndustry: primaryIndustry.industry_ko,
+      industryCompanies: primaryIndustry.companies,
+      // 1차 응답에서 실제로 추천된 산업들을 저장 (2차 응답에서 사용)
+      recommendedIndustries: displayIndustries.map((industry: any) => ({
+        industry_ko: industry.industry_ko,
+        score: industry.score,
+        companies: industry.companies.map((ticker: string) => ({
+          ticker: ticker,
+          name: getCompanyName(ticker),
+          industry: industry.industry_ko
+        }))
+      }))
     };
 
     // 세션 상태에 상세 분석 데이터 저장
@@ -376,24 +387,6 @@ async function handleChartConfirmation(context: PipelineContext): Promise<StageH
   console.log(`🔧 [Chart Confirmation] handleChartConfirmation 함수 호출됨!`);
 
   try {
-    // 현재 세션에서 선택된 산업과 기업 정보 수집
-    const selectedIndustries = [];
-
-    if (state.selectedIndustry && state.industryCompanies.length > 0) {
-      // 간단한 산업 정보 구성
-      const companies = state.industryCompanies.map(ticker => ({
-        ticker: ticker,
-        name: getCompanyName(ticker),
-        industry: state.selectedIndustry || 'Unknown'
-      }));
-
-      selectedIndustries.push({
-        industry_ko: state.selectedIndustry,
-        score: 0.8, // 기본 점수
-        companies: companies
-      });
-    }
-
     // 사용자의 원본 메시지 재구성 (대화 히스토리에서 추출)
     const originalUserMessage = state.conversationHistory.length > 0
       ? (typeof state.conversationHistory[0] === 'string'
@@ -401,10 +394,10 @@ async function handleChartConfirmation(context: PipelineContext): Promise<StageH
          : state.conversationHistory[0].user)
       : `${state.selectedIndustry} 산업에 투자하고 싶습니다.`;
 
-    // 검색 기능이 통합된 투자 분석 실행
+    // 검색 기능이 통합된 투자 분석 실행 - 1차 응답에서 추천된 산업 사용
     const input: InvestmentRecommendationInput = {
       userMessage: originalUserMessage,
-      selectedIndustries: selectedIndustries,
+      selectedIndustries: state.recommendedIndustries || [],
       ragAccuracy: 0.8
     };
 

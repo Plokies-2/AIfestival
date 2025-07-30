@@ -43,8 +43,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // 세션 정보 가져오기
     const session = getSession(sessionId);
-    if (!session || !session.selectedIndustries || session.selectedIndustries.length === 0) {
-      sendEvent('error', { message: '세션 정보가 없거나 선택된 산업이 없습니다.' });
+    if (!session || !session.recommendedIndustries || session.recommendedIndustries.length === 0) {
+      sendEvent('error', { message: '세션 정보가 없거나 추천된 산업이 없습니다.' });
       res.end();
       return;
     }
@@ -55,18 +55,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       icon: '🚀'
     });
 
-    // 투자 추천 입력 데이터 구성
+    // 투자 추천 입력 데이터 구성 - 1차 응답에서 실제로 추천된 산업만 사용
     const investmentInput: InvestmentRecommendationInput = {
       userMessage,
-      selectedIndustries: session.selectedIndustries.map(industry => ({
-        industry_ko: industry.industry,
-        score: industry.score,
-        companies: industry.companies.map(company => ({
-          ticker: company.ticker,
-          name: company.name,
-          industry: industry.industry
-        }))
-      }))
+      selectedIndustries: session.recommendedIndustries || []
     };
 
     sendEvent('progress', { 

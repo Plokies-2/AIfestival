@@ -514,11 +514,11 @@ export async function generateEnhancedInvestmentAnalysis(
 export function savePortfoliosFromAnalysis(
   analysisResult: any,
   userMessage: string,
-  selectedIndustries: Array<{ industry_ko: string; score: number }>
+  recommendedIndustries: Array<{ industry_ko: string; score: number }>
 ) {
   try {
     const portfolios = [];
-    const industryName = selectedIndustries[0]?.industry_ko || '투자';
+    const industryName = recommendedIndustries[0]?.industry_ko || '투자';
     const timestamp = new Date().toISOString();
 
     // 정통한 전략 포트폴리오

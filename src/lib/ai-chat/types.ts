@@ -50,6 +50,16 @@ export interface SessionState {
   analysisProgress?: AnalysisProgress[]; // 분석 진행 상황 히스토리
   currentProgress?: AnalysisProgress; // 현재 진행 상황
   isAnalyzing?: boolean; // 분석 진행 중 여부
+  // 1차 응답에서 실제로 추천된 산업들 (2차 응답에서 사용)
+  recommendedIndustries?: Array<{
+    industry_ko: string;
+    score: number;
+    companies: Array<{
+      ticker: string;
+      name: string;
+      industry: string;
+    }>;
+  }>;
 }
 
 // ============================================================================

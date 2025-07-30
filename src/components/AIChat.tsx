@@ -390,10 +390,10 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
       // 포트폴리오 데이터가 있으면 저장
       if (data.portfolioData) {
         try {
-          const { traditionalStrategy, creativeStrategy, selectedIndustries, userMessage, refinedQuery } = data.portfolioData;
+          const { traditionalStrategy, creativeStrategy, recommendedIndustries, userMessage, refinedQuery } = data.portfolioData;
           const portfolios = [];
           // 정제된 쿼리를 우선 사용하고, 없으면 사용자 메시지 사용
-          const portfolioName = refinedQuery || userMessage || selectedIndustries[0]?.industry_ko || '투자';
+          const portfolioName = refinedQuery || userMessage || recommendedIndustries[0]?.industry_ko || '투자';
           const timestamp = new Date().toISOString();
           const groupId = `group_${Date.now()}`; // 하나의 답변당 하나의 그룹 ID
 
@@ -693,12 +693,12 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
             ? 'calc(100vh - 200px)' // 질문 블럭 공간 고려
             : hasChart
               ? '180px'
-              : '280px',
+              : 'calc(100% - 120px)', // 입력창과 헤더 공간을 제외한 나머지 전체 사용
           height: showingCompanyList
             ? 'calc(100vh - 200px)'
             : hasChart
               ? '180px'
-              : '280px'
+              : 'calc(100% - 120px)' // 입력창과 헤더 공간을 제외한 나머지 전체 사용
         }}
       >
         {history.map((m, i) => (

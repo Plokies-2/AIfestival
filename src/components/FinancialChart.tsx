@@ -334,7 +334,7 @@ const FinancialChart: React.FC<FinancialChartProps> = memo(({ symbol, isMinimize
               </svg>
             </div>
             <div className="flex items-center space-x-2">
-              <h3 className="text-sm font-semibold text-slate-900">차트 생성 대기중</h3>
+              <h3 className="text-sm font-semibold text-slate-900">포트폴리오 생성 중</h3>
               <div className="flex space-x-1">
                 <div className="w-1 h-1 bg-blue-400 rounded-full animate-pulse"></div>
                 <div className="w-1 h-1 bg-blue-400 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>

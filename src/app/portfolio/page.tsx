@@ -713,6 +713,15 @@ export default function PortfolioPage() {
                           step="100"
                         />
                         <span className="text-sm text-slate-600">만원</span>
+                        {/* SpeedTraffic 분석 버튼 */}
+                        <button
+                          onClick={() => router.push(`/speedtraffic?symbol=${company.ticker}&name=${encodeURIComponent(company.name)}`)}
+                          className="px-3 py-1 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-1"
+                          title={`${company.name} SpeedTraffic 분석`}
+                        >
+                          <span>⚡</span>
+                          <span>SpeedTraffic 분석</span>
+                        </button>
                       </div>
                     </div>
                   ))}

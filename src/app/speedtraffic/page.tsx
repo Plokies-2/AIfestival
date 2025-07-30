@@ -15,6 +15,7 @@ export default function SpeedTrafficPage() {
   const isDebugMode = !initialSymbol;
   const [chatMessages, setChatMessages] = useState<Array<{message: string, isBot: boolean, timestamp: Date}>>([]);
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
+  const [isQuestionLoading, setIsQuestionLoading] = useState(false);
 
   // 분석 중복 방지
   const inFlight = useRef(false);
@@ -50,6 +51,26 @@ export default function SpeedTrafficPage() {
     setSelectedQuestions(getRandomQuestions());
   }, [currentSymbol]);
 
+  // URL 파라미터 처리 및 자동 분석 시작
+  useEffect(() => {
+    const symbol = searchParams?.get('symbol');
+
+    if (symbol && !processedSymbols.current.has(symbol)) {
+      setCurrentSymbol(symbol);
+      // 자동으로 분석 시작
+      setTimeout(() => {
+        const inputElement = document.querySelector('input[placeholder="분석할 종목 티커"]') as HTMLInputElement;
+        const buttonElement = document.querySelector('button[type="submit"]') as HTMLButtonElement;
+
+        if (inputElement && buttonElement) {
+          inputElement.value = symbol;
+          inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+          buttonElement.click();
+        }
+      }, 500);
+    }
+  }, [searchParams]);
+
   // 채팅 스크롤 ref 추가
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
@@ -67,30 +88,36 @@ export default function SpeedTrafficPage() {
 
   // 질문 카드 클릭 핸들러
   const handleQuestionClick = async (question: string) => {
+    setIsQuestionLoading(true);
+
+    // 질문을 먼저 채팅에 추가
+    setChatMessages(prev => [
+      ...prev,
+      {
+        message: `Q: ${question}`,
+        isBot: false,
+        timestamp: new Date()
+      }
+    ]);
+
     try {
-      const response = await fetch('/api/hcx-002-dash', {
+      const response = await fetch('/api/simple_ai_chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: question,
-          context: `SpeedTraffic 분석 관련 질문: ${currentSymbol ? `현재 분석 중인 종목은 ${currentSymbol}입니다.` : ''}`
+          message: `${question} ${currentSymbol ? `(현재 분석 중인 종목: ${currentSymbol})` : ''}`
         })
       });
 
       if (response.ok) {
         const result = await response.json();
-        // 채팅 메시지에 질문과 답변 추가
+        // AI 답변 추가
         setChatMessages(prev => [
           ...prev,
           {
-            message: `Q: ${question}`,
-            isBot: false,
-            timestamp: new Date()
-          },
-          {
-            message: result.reply || '답변을 생성할 수 없습니다.',
+            message: result.response || '답변을 생성할 수 없습니다.',
             isBot: true,
             timestamp: new Date()
           }
@@ -103,11 +130,6 @@ export default function SpeedTrafficPage() {
       setChatMessages(prev => [
         ...prev,
         {
-          message: `Q: ${question}`,
-          isBot: false,
-          timestamp: new Date()
-        },
-        {
           message: '죄송합니다. 현재 답변을 생성할 수 없습니다.',
           isBot: true,
           timestamp: new Date()
@@ -115,6 +137,8 @@ export default function SpeedTrafficPage() {
       ]);
       // 스크롤을 최하단으로 이동
       scrollToBottom();
+    } finally {
+      setIsQuestionLoading(false);
     }
   };
 
@@ -353,9 +377,6 @@ export default function SpeedTrafficPage() {
         // 로깅 실패해도 사용자 경험에는 영향 없음
       }
 
-      // 완료 메시지
-      handleChatMessage('4단계 분석이 완료되었습니다! 투자 신호등을 확인해보세요. 🎯', true);
-
       // AI 해설 생성 요청
       try {
         handleChatMessage('🤖 AI가 분석 결과를 해설하고 있습니다...', true);
@@ -425,16 +446,13 @@ export default function SpeedTrafficPage() {
         if (commentaryResponse.ok) {
           const commentaryResult = await commentaryResponse.json();
           if (commentaryResult.success && commentaryResult.commentary) {
-            // 1.25초 후에 AI 해설 메시지 표시
+            // 1.25초 후에 AI 해설 표시
             setTimeout(() => {
-              handleChatMessage('🤖 AI가 분석 결과를 해설하고 있습니다...', true);
-              // 실제 AI 해설을 추가로 표시
-              setTimeout(() => {
-                handleChatMessage(commentaryResult.commentary, true);
-                // AI 분석 결과가 나오면 자동으로 스크롤을 최하단으로 이동
-                scrollToBottom();
-                console.log('🤖 AI 해설 생성 완료');
-              }, 500);
+              // 실제 AI 해설을 표시
+              handleChatMessage(commentaryResult.commentary, true);
+              // AI 분석 결과가 나오면 자동으로 스크롤을 최하단으로 이동
+              scrollToBottom();
+              console.log('🤖 AI 해설 생성 완료');
             }, 1250);
           } else {
             setTimeout(() => {
@@ -473,20 +491,7 @@ export default function SpeedTrafficPage() {
     }
   }, [currentSymbol, executeAnalysis]);
 
-  // 새 분석 시작
-  const handleNewAnalysis = () => {
-    setCurrentSymbol(undefined);
-    setChatMessages([]);
-    setTrafficLights({
-      technical: 'inactive',
-      industry: 'inactive',
-      market: 'inactive',
-      risk: 'inactive'
-    });
-    // 처리된 심볼 목록 초기화
-    processedSymbols.current.clear();
-    inFlight.current = false;
-  };
+
 
   // 종목 입력 처리
   const handleSymbolSubmit = (symbol: string) => {
@@ -593,10 +598,16 @@ export default function SpeedTrafficPage() {
 
               <div className="flex items-center space-x-4">
                 <button
-                  onClick={handleNewAnalysis}
+                  onClick={() => router.push('/portfolio')}
+                  className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-lg transition-all duration-200 text-sm font-medium"
+                >
+                  내 포트폴리오
+                </button>
+                <button
+                  onClick={() => router.push('/analysis')}
                   className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-lg transition-all duration-200 text-sm font-medium"
                 >
-                  새 분석
+                  AI 분석
                 </button>
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -712,30 +723,42 @@ export default function SpeedTrafficPage() {
                     🔄 다른 질문 보기
                   </button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {selectedQuestions.map((question, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleQuestionClick(question)}
-                      className="text-left p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 hover:from-blue-100 hover:to-indigo-100 transition-all duration-200 hover:shadow-md group"
-                    >
-                      <div className="flex items-start space-x-3">
-                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 transition-colors">
-                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
+                <div className="relative">
+                  <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${isQuestionLoading ? 'blur-sm' : ''} transition-all duration-200`}>
+                    {selectedQuestions.map((question, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleQuestionClick(question)}
+                        disabled={isQuestionLoading}
+                        className={`text-left p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 hover:from-blue-100 hover:to-indigo-100 transition-all duration-200 hover:shadow-md group ${isQuestionLoading ? 'cursor-not-allowed' : ''}`}
+                      >
+                        <div className="flex items-start space-x-3">
+                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 transition-colors">
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-800 group-hover:text-gray-900">
+                              {question}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              클릭하여 질문
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-800 group-hover:text-gray-900">
-                            {question}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            클릭하여 질문
-                          </p>
-                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* 로딩 상태 오버레이 */}
+                  {isQuestionLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-white bg-opacity-90 rounded-lg p-4 shadow-lg">
+                        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                       </div>
-                    </button>
-                  ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

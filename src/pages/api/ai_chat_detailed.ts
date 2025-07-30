@@ -159,7 +159,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const portfolioData = {
       traditionalStrategy: investmentRecommendation.traditionalStrategy,
       creativeStrategy: investmentRecommendation.creativeStrategy,
-      selectedIndustries: investmentInput.selectedIndustries,
+      recommendedIndustries: investmentInput.selectedIndustries,
       userMessage: investmentInput.userMessage,
       refinedQuery: analysisData?.refinedQuery || investmentInput.userMessage
     };

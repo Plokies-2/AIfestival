@@ -29,7 +29,6 @@ interface AnalysisResults {
 const SpeedTraffic: React.FC<SpeedTrafficProps> = ({ symbol, onPhaseMessage, onAnalysisComplete }) => {
   // 분석 상태 관리
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   // 요청 중복 방지
   const inFlight = useRef(false);
@@ -57,7 +56,6 @@ const SpeedTraffic: React.FC<SpeedTrafficProps> = ({ symbol, onPhaseMessage, onA
       inFlight.current = true;
       lastRequestTime.current = now;
       setIsAnalyzing(true);
-      setAnalysisError(null);
 
       const companyName = getCompanyName(symbol);
       onPhaseMessage?.(`🚀 ${companyName} 차트 분석을 시작할게요! 📊`);
@@ -80,9 +78,6 @@ const SpeedTraffic: React.FC<SpeedTrafficProps> = ({ symbol, onPhaseMessage, onA
 
       const result = await response.json();
 
-      // 분석 완료 메시지
-      onPhaseMessage?.('기술적 분석, 산업 민감도, 시장 민감도, 변동성 리스크 분석을 완료했어요! 📊');
-
       // 최종 결과 구성
       const finalResults: AnalysisResults = {
         symbol,
@@ -104,13 +99,12 @@ const SpeedTraffic: React.FC<SpeedTrafficProps> = ({ symbol, onPhaseMessage, onA
       // 처리된 심볼로 표시
       processedSymbols.current.add(symbol);
 
-      // 완료 메시지
+      // 완료 메시지 (한 번만)
       onPhaseMessage?.('4단계 분석이 완료되었습니다! 투자 신호등을 확인해보세요. 🎯', true);
 
     } catch (error) {
       console.error('분석 오류:', error);
       const errorMessage = error instanceof Error ? error.message : '분석 서비스 연결 실패';
-      setAnalysisError(errorMessage);
       onPhaseMessage?.(`❌ 분석 중 오류가 발생했습니다: ${errorMessage}`);
     } finally {
       setIsAnalyzing(false);

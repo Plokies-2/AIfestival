@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import FinancialChart from '@/components/FinancialChart';
 import AIChat, { AIChatRef } from '@/components/AIChat';
 import SpeedTraffic from '@/components/SpeedTraffic';
+import SpeedTrafficLights from '@/components/SpeedTrafficLights';
 import MarketStatus from '@/components/MarketStatus';
 import LandingPage from '@/components/LandingPageNew';
 import { useServerStatus } from '@/hooks/useServerStatus';
@@ -121,9 +122,7 @@ export default function DashboardPage() {
   // 시작 페이지 표시
   if (showLanding) {
     return (
-      <LandingPage
-        onStartChat={() => setShowLanding(false)}
-      />
+      <LandingPage />
     );
   }
 
@@ -257,11 +256,30 @@ export default function DashboardPage() {
               </p>
             </div>
             {currentSymbol ? (
-              <SpeedTraffic
-                symbol={currentSymbol}
-                onPhaseMessage={handlePhaseMessage}
-                onAnalysisComplete={handleAnalysisComplete}
-              />
+              <div>
+                {/* 백그라운드 분석 실행 */}
+                <SpeedTraffic
+                  symbol={currentSymbol}
+                  onPhaseMessage={handlePhaseMessage}
+                  onAnalysisComplete={handleAnalysisComplete}
+                />
+
+                {/* 신호등 표시 */}
+                {analysisData && analysisData.traffic_lights ? (
+                  <SpeedTrafficLights
+                    technicalLight={analysisData.traffic_lights.technical || 'inactive'}
+                    industryLight={analysisData.traffic_lights.industry || 'inactive'}
+                    marketLight={analysisData.traffic_lights.market || 'inactive'}
+                    riskLight={analysisData.traffic_lights.risk || 'inactive'}
+                    isLoading={false}
+                  />
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+                    <p className="text-sm text-slate-600">분석 중...</p>
+                  </div>
+                )}
+              </div>
             ) : (
               <MarketStatus />
             )}

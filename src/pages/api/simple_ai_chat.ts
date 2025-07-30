@@ -24,13 +24,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'OpenAI client not initialized - CLOVA_STUDIO_API_KEY is required' });
     }
 
-    // Call the Clova Studio model
+    // Clova Studio
     const response = await openai.chat.completions.create({
       model: 'hcx-dash-002',  // Clova Studio 모델 사용
       messages: [
         {
           role: 'system',
-          content: '당신은 SpeedTraffic™ 분석 결과를 해설하는 전문 투자 AI입니다. 각 분석의 실제 수치, 읽는 법, 그리고 불빛이 왜 그 색깔로 나왔는지에 대한 이유를 포함하여 상세하고 전문적인 해설을 제공해주세요. 이모티콘을 적절히 활용해 친근한 분위기를 유지하면서(최대 2개까지), 전문적인 어조로 답변하세요.'
+          content: '당신은 SpeedTraffic™ 분석 결과를 해설하는 전문 투자 AI입니다. 각 분석의 실제 수치, 읽는 법, 그리고 불빛이 왜 그 색깔로 나왔는지에 대한 이유를 포함하여 상세하고 전문적인 해설을 제공해주세요. 다음은 speedtraffic의 구성 요소 설명입니다. 1. industry 분석은 해당 종목과 같은 산업들을 포트폴리오로 구성해 개별 기업과의 관계를 선형 분석합니다(업종 베타). 시장 베타(혹은 capm, 시장 분석)는 KOSPI 지수와의 관계를 분석합니다. 포트폴리오 리스크는 VaR(95%)을 활용해 계산했습니다. 기술적 분석 신호등은 RSI, MFI, Bollinger밴드의 3가지 지표를 다수결의 원칙을 활용해 하나의 신호로 재구성한 것입니다. 실제 이모티콘을 적절히 활용해 친근한 분위기를 유지하면서(최대 2개까지), 전문적인 어조로 답변하세요.'
         },
         {
           role: 'user',
