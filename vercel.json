@@ -5,12 +5,10 @@
   "framework": "nextjs",
   "functions": {
     "src/pages/api/**/*.ts": {
-      "maxDuration": 60,
-      "memory": 1024
+      "maxDuration": 300
     },
     "api/**/*.py": {
-      "maxDuration": 30,
-      "memory": 1024
+      "maxDuration": 300
     }
   },
   "regions": ["icn1"],
