@@ -1,9 +1,8 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import fs from 'fs';
-import path from 'path';
 
 // SpeedTraffic 분석 결과를 백엔드에 로깅하는 API
 // AI가 추후 이 로그들을 분석하여 SpeedTraffic 결과를 해석할 수 있도록 함
+// Vercel 서버리스 환경을 위해 메모리 기반 저장 방식 사용
 
 interface SpeedTrafficLogEntry {
   timestamp: string;
@@ -43,30 +42,47 @@ interface SpeedTrafficLogEntry {
   user_agent?: string;
 }
 
-// 로그 디렉토리 설정
-const LOG_DIR = path.join(process.cwd(), 'logs', 'speedtraffic');
+// 메모리 기반 로그 저장소 (Vercel 서버리스 환경 대응)
+// 각 인스턴스별로 독립적인 메모리 저장소 유지
+const memoryLogStore: Map<string, SpeedTrafficLogEntry[]> = new Map();
+const MAX_LOGS_PER_SYMBOL = 100; // 심볼당 최대 로그 개수
+const MAX_TOTAL_LOGS = 1000; // 전체 최대 로그 개수
 
-function ensureLogDir() {
-  if (!fs.existsSync(LOG_DIR)) {
-    fs.mkdirSync(LOG_DIR, { recursive: true });
-  }
-}
-
-function getLogFileName() {
-  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-  return path.join(LOG_DIR, `speedtraffic_${today}.jsonl`);
-}
-
-function appendToLog(logEntry: SpeedTrafficLogEntry) {
+function addToMemoryLog(logEntry: SpeedTrafficLogEntry) {
   try {
-    ensureLogDir();
-    const logFile = getLogFileName();
-    const logLine = JSON.stringify(logEntry) + '\n';
-    
-    fs.appendFileSync(logFile, logLine, 'utf-8');
-    console.log(`📝 SpeedTraffic 로그 저장됨: ${logEntry.symbol} - ${JSON.stringify(logEntry.traffic_lights)}`);
+    const symbol = logEntry.symbol;
+
+    // 심볼별 로그 배열 가져오기 또는 생성
+    if (!memoryLogStore.has(symbol)) {
+      memoryLogStore.set(symbol, []);
+    }
+
+    const symbolLogs = memoryLogStore.get(symbol)!;
+
+    // 새 로그 추가
+    symbolLogs.push(logEntry);
+
+    // 심볼별 로그 개수 제한
+    if (symbolLogs.length > MAX_LOGS_PER_SYMBOL) {
+      symbolLogs.shift(); // 가장 오래된 로그 제거
+    }
+
+    // 전체 로그 개수 제한 (메모리 사용량 관리)
+    const totalLogs = Array.from(memoryLogStore.values()).reduce((sum, logs) => sum + logs.length, 0);
+    if (totalLogs > MAX_TOTAL_LOGS) {
+      // 가장 오래된 심볼의 로그부터 제거
+      const oldestSymbol = Array.from(memoryLogStore.keys())[0];
+      const oldestLogs = memoryLogStore.get(oldestSymbol)!;
+      if (oldestLogs.length > 1) {
+        oldestLogs.shift();
+      } else {
+        memoryLogStore.delete(oldestSymbol);
+      }
+    }
+
+    console.log(`📝 SpeedTraffic 메모리 로그 저장됨: ${logEntry.symbol} - ${JSON.stringify(logEntry.traffic_lights)} (총 ${symbolLogs.length}개)`);
   } catch (error) {
-    console.error('❌ SpeedTraffic 로그 저장 실패:', error);
+    console.error('❌ SpeedTraffic 메모리 로그 저장 실패:', error);
   }
 }
 
@@ -123,8 +139,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       user_agent: req.headers['user-agent'] || ''
     };
 
-    // 로그 파일에 추가
-    appendToLog(logEntry);
+    // 메모리 로그에 추가
+    addToMemoryLog(logEntry);
 
     // 콘솔에도 상세 요약 출력 (AI 해석용)
     const techSummary = technical_analysis ?
@@ -152,40 +168,59 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-// 로그 조회를 위한 헬퍼 함수들 (필요시 사용)
+// 메모리 로그 조회를 위한 헬퍼 함수들
 export function getRecentLogs(days: number = 7): SpeedTrafficLogEntry[] {
   try {
     const logs: SpeedTrafficLogEntry[] = [];
-    const now = new Date();
-    
-    for (let i = 0; i < days; i++) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      const logFile = path.join(LOG_DIR, `speedtraffic_${dateStr}.jsonl`);
-      
-      if (fs.existsSync(logFile)) {
-        const content = fs.readFileSync(logFile, 'utf-8');
-        const lines = content.trim().split('\n').filter(line => line.trim());
-        
-        for (const line of lines) {
-          try {
-            logs.push(JSON.parse(line));
-          } catch (parseError) {
-            console.warn('로그 파싱 오류:', parseError);
-          }
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+
+    // 모든 심볼의 로그를 수집
+    for (const symbolLogs of memoryLogStore.values()) {
+      for (const log of symbolLogs) {
+        const logDate = new Date(log.timestamp);
+        if (logDate >= cutoffDate) {
+          logs.push(log);
         }
       }
     }
-    
+
+    // 타임스탬프 기준으로 최신순 정렬
     return logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   } catch (error) {
-    console.error('로그 조회 오류:', error);
+    console.error('메모리 로그 조회 오류:', error);
     return [];
   }
 }
 
 export function getLogsBySymbol(symbol: string, days: number = 30): SpeedTrafficLogEntry[] {
-  const allLogs = getRecentLogs(days);
-  return allLogs.filter(log => log.symbol === symbol.toUpperCase());
+  try {
+    const symbolLogs = memoryLogStore.get(symbol.toUpperCase()) || [];
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+
+    return symbolLogs
+      .filter(log => new Date(log.timestamp) >= cutoffDate)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  } catch (error) {
+    console.error('심볼별 메모리 로그 조회 오류:', error);
+    return [];
+  }
+}
+
+// 메모리 로그 통계 조회 함수 (디버깅용)
+export function getMemoryLogStats(): { totalSymbols: number; totalLogs: number; symbolStats: Record<string, number> } {
+  const symbolStats: Record<string, number> = {};
+  let totalLogs = 0;
+
+  for (const [symbol, logs] of memoryLogStore.entries()) {
+    symbolStats[symbol] = logs.length;
+    totalLogs += logs.length;
+  }
+
+  return {
+    totalSymbols: memoryLogStore.size,
+    totalLogs,
+    symbolStats
+  };
 }

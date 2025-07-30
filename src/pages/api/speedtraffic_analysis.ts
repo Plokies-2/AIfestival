@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
+import { executePythonAnalysis } from './unified_analysis';
 
 // 심볼별 뮤텍스 - 동시 요청 방지
 const processing = new Map<string, { active: boolean; startTime: number }>();
@@ -79,47 +80,10 @@ const getTechnicalAnalysisColor = (mfiResult: any, bollingerResult: any, rsiResu
   return 'red';
 };
 
-// API 호출을 통한 분석 결과 가져오기 함수
-const fetchAnalysisResult = async (url: string, processName: string, maxRetries: number = 3): Promise<any> => {
-  const startTime = Date.now();
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`[${processName}] 분석 시작 (시도 ${attempt}/${maxRetries})`);
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        // 30초 타임아웃
-        signal: AbortSignal.timeout(30000)
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      const executionTime = Date.now() - startTime;
-
-      console.log(`[${processName}] 성공 (${executionTime}ms) - 신호등: ${result.traffic_light || 'N/A'}`);
-      return result;
-
-    } catch (error: any) {
-      console.error(`[${processName}] 시도 ${attempt} 실패:`, error.message);
-
-      if (attempt === maxRetries) {
-        console.error(`[${processName}_ERROR]: ${error}`);
-        throw error;
-      }
-
-      // 재시도 전 대기 (지수 백오프)
-      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-};
+// 더 이상 사용하지 않는 함수 (직접 Python 함수 호출로 대체됨)
+// const fetchAnalysisResult = async (url: string, processName: string, maxRetries: number = 3): Promise<any> => {
+//   ... (localhost 호출 방식은 Vercel에서 작동하지 않으므로 제거됨)
+// };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -171,20 +135,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     console.log(`[SPEEDTRAFFIC_API] ${ticker} 분석 시작`);
 
-    // unified_analysis API를 통한 분석 실행
-    const baseUrl = `http://localhost:${process.env.PORT || 3000}`;
-
-    // 6개 분석 서비스 병렬 실행 (API 호출 방식)
+    // 직접 Python 분석 함수 호출 (localhost 호출 대신)
+    // 6개 분석 서비스 병렬 실행 (직접 함수 호출 방식)
     const [mfiResult, bollingerResult, rsiResult, industryResult, capmResult, garchResult] = await Promise.allSettled([
-      fetchAnalysisResult(`${baseUrl}/api/unified_analysis?type=mfi&symbol=${ticker}`, 'MFI'),
-      fetchAnalysisResult(`${baseUrl}/api/unified_analysis?type=bollinger&symbol=${ticker}`, 'BOLLINGER'),
-      fetchAnalysisResult(`${baseUrl}/api/unified_analysis?type=rsi&symbol=${ticker}`, 'RSI'),
-      fetchAnalysisResult(`${baseUrl}/api/unified_analysis?type=industry&symbol=${ticker}`, 'INDUSTRY'),
-      fetchAnalysisResult(`${baseUrl}/api/unified_analysis?type=capm&symbol=${ticker}`, 'CAPM'),
-      fetchAnalysisResult(`${baseUrl}/api/unified_analysis?type=garch&symbol=${ticker}`, 'GARCH')
+      executePythonAnalysis(ticker, 'mfi').catch(error => {
+        console.error(`[MFI_ERROR] ${ticker}:`, error);
+        return null;
+      }),
+      executePythonAnalysis(ticker, 'bollinger').catch(error => {
+        console.error(`[BOLLINGER_ERROR] ${ticker}:`, error);
+        return null;
+      }),
+      executePythonAnalysis(ticker, 'rsi').catch(error => {
+        console.error(`[RSI_ERROR] ${ticker}:`, error);
+        return null;
+      }),
+      executePythonAnalysis(ticker, 'industry').catch(error => {
+        console.error(`[INDUSTRY_ERROR] ${ticker}:`, error);
+        return null;
+      }),
+      executePythonAnalysis(ticker, 'capm').catch(error => {
+        console.error(`[CAPM_ERROR] ${ticker}:`, error);
+        return null;
+      }),
+      executePythonAnalysis(ticker, 'garch').catch(error => {
+        console.error(`[GARCH_ERROR] ${ticker}:`, error);
+        return null;
+      })
     ]);
 
-    // 결과 추출
+    // 결과 추출 (Promise.allSettled 결과에서 값 추출)
     const finalMFIResult = mfiResult.status === 'fulfilled' ? mfiResult.value : null;
     const finalBollingerResult = bollingerResult.status === 'fulfilled' ? bollingerResult.value : null;
     const finalRSIResult = rsiResult.status === 'fulfilled' ? rsiResult.value : null;

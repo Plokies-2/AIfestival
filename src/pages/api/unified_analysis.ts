@@ -20,7 +20,7 @@ interface AnalysisResult {
  * 로컬 개발: child_process 사용
  * Vercel 배포: HTTP 요청 사용
  */
-async function executePythonAnalysis(symbol: string, analysisType: string): Promise<AnalysisResult> {
+export async function executePythonAnalysis(symbol: string, analysisType: string): Promise<AnalysisResult> {
   console.log(`[UNIFIED_ANALYSIS] Python 분석 시작: ${symbol} - ${analysisType}`);
 
   // Vercel 환경 감지
