@@ -10,7 +10,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
   const router = useRouter();
   const [currentSection, setCurrentSection] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const sectionsRef = useRef<HTMLDivElement[]>([]);
+  const sectionsRef = useRef<HTMLElement[]>([]);
 
   //섹션 정의
   const sections = [
@@ -628,29 +628,29 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                           {/* 좌측: 4개 신호등 - 원형, 세로 정렬 */}
                           <div className="flex justify-center self-start">
-                            <div className="bg-slate-800 rounded-lg p-3 flex flex-col space-y-2 w-fit">
+                            <div className="bg-slate-800 rounded-lg p-9 flex flex-col space-y-6 w-fit">
                               {/* 기술적 분석 - Red */}
-                              <div className="flex items-center space-x-2">
-                                <div className="w-8 h-8 rounded-full bg-red-500"></div>
-                                <div className="text-xs font-medium text-white">기술적</div>
+                              <div className="flex items-center space-x-6">
+                                <div className="w-24 h-24 rounded-full bg-red-500"></div>
+                                <div className="text-base font-medium text-white">기술적</div>
                               </div>
 
                               {/* 업종 민감도 - Green */}
-                              <div className="flex items-center space-x-2">
-                                <div className="w-8 h-8 rounded-full bg-green-500"></div>
-                                <div className="text-xs font-medium text-white">업종</div>
+                              <div className="flex items-center space-x-6">
+                                <div className="w-24 h-24 rounded-full bg-green-500"></div>
+                                <div className="text-base font-medium text-white">업종</div>
                               </div>
 
                               {/* 시장 민감도 - Yellow */}
-                              <div className="flex items-center space-x-2">
-                                <div className="w-8 h-8 rounded-full bg-yellow-500"></div>
-                                <div className="text-xs font-medium text-white">시장</div>
+                              <div className="flex items-center space-x-6">
+                                <div className="w-24 h-24 rounded-full bg-yellow-500"></div>
+                                <div className="text-base font-medium text-white">시장</div>
                               </div>
 
                               {/* 변동성 리스크 - Red */}
-                              <div className="flex items-center space-x-2">
-                                <div className="w-8 h-8 rounded-full bg-red-500"></div>
-                                <div className="text-xs font-medium text-white">리스크</div>
+                              <div className="flex items-center space-x-6">
+                                <div className="w-24 h-24 rounded-full bg-red-500"></div>
+                                <div className="text-base font-medium text-white">리스크</div>
                               </div>
                             </div>
                           </div>

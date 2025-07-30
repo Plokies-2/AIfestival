@@ -7,6 +7,7 @@ interface AIChatProps {
   onSymbolSubmit?: (symbol: string) => void;
   onSymbolError?: () => void;
   onShowingCompanyList?: (showing: boolean) => void;
+  onLoadingChange?: (loading: boolean) => void; // 로딩 상태 변경 콜백
   hasChart?: boolean; // 차트 표시 여부
   showingCompanyList?: boolean; // 기업 리스트 표시 여부
   currentSymbol?: string; // 현재 분석 중인 심볼
@@ -31,7 +32,7 @@ interface ChatApiResponse {
   // Add other fields from the API response if needed
 }
 
-const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolError, onShowingCompanyList, hasChart, showingCompanyList, currentSymbol, analysisData }, ref) => {
+const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolError, onShowingCompanyList, onLoadingChange, hasChart, showingCompanyList, currentSymbol, analysisData }, ref) => {
   const [history, setHistory] = useState<ChatMessage[]>([]);
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
   const [isHidingSuggestions, setIsHidingSuggestions] = useState(false);
@@ -281,7 +282,7 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
         const progress = data.currentProgress;
 
         // 타입 매핑
-        const getProgressType = (step: string) => {
+        const getProgressType = (step: string): "search" | "analyze" | "extract" | "generate" | "complete" => {
           if (step.includes('search') || step.includes('검색')) return 'search';
           if (step.includes('analyze') || step.includes('분석')) return 'analyze';
           if (step.includes('extract') || step.includes('추출')) return 'extract';
@@ -577,7 +578,7 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
     const text = inputRef.current?.value.trim();
     if (!text) return;
 
-    const newHistory = [...history, { from: 'user', text }];
+    const newHistory = [...history, { from: 'user' as const, text }];
     setHistory(newHistory);
     inputRef.current!.value = '';
 
@@ -653,7 +654,7 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
       if (process.env.NODE_ENV === 'development') {
         console.error('Chat error:', error);
       }
-      const errorHistory = [...newHistory, { from: 'bot', text: '죄송합니다. 일시적인 오류가 발생했습니다.' }];
+      const errorHistory = [...newHistory, { from: 'bot' as const, text: '죄송합니다. 일시적인 오류가 발생했습니다.' }];
       setHistory(errorHistory);
 
       // 에러 메시지도 localStorage에 저장

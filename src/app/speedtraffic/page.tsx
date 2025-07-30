@@ -1,18 +1,35 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import FinancialChart from '@/components/FinancialChart';
 import { getCompanyName } from '@/utils/companyLookup';
 
+// URL 파라미터를 처리하는 별도 컴포넌트
+function SpeedTrafficURLHandler({
+  onSymbolChange,
+  onDebugModeChange
+}: {
+  onSymbolChange: (symbol: string | undefined) => void;
+  onDebugModeChange: (isDebug: boolean) => void;
+}) {
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const initialSymbol = searchParams?.get('symbol');
+    const isDebugMode = !initialSymbol;
+
+    onSymbolChange(initialSymbol || undefined);
+    onDebugModeChange(isDebugMode);
+  }, [searchParams, onSymbolChange, onDebugModeChange]);
+
+  return null;
+}
+
 export default function SpeedTrafficPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [currentSymbol, setCurrentSymbol] = useState<string | undefined>(undefined);
-
-  // 디버깅 모드 감지 (직접 접속 시)
-  const initialSymbol = searchParams?.get('symbol');
-  const isDebugMode = !initialSymbol;
+  const [isDebugMode, setIsDebugMode] = useState(false);
   const [chatMessages, setChatMessages] = useState<Array<{message: string, isBot: boolean, timestamp: Date}>>([]);
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
   const [isQuestionLoading, setIsQuestionLoading] = useState(false);
@@ -51,25 +68,22 @@ export default function SpeedTrafficPage() {
     setSelectedQuestions(getRandomQuestions());
   }, [currentSymbol]);
 
-  // URL 파라미터 처리 및 자동 분석 시작
+  // 심볼 변경 시 자동 분석 시작
   useEffect(() => {
-    const symbol = searchParams?.get('symbol');
-
-    if (symbol && !processedSymbols.current.has(symbol)) {
-      setCurrentSymbol(symbol);
+    if (currentSymbol && !processedSymbols.current.has(currentSymbol)) {
       // 자동으로 분석 시작
       setTimeout(() => {
         const inputElement = document.querySelector('input[placeholder="분석할 종목 티커"]') as HTMLInputElement;
         const buttonElement = document.querySelector('button[type="submit"]') as HTMLButtonElement;
 
         if (inputElement && buttonElement) {
-          inputElement.value = symbol;
+          inputElement.value = currentSymbol;
           inputElement.dispatchEvent(new Event('input', { bubbles: true }));
           buttonElement.click();
         }
       }, 500);
     }
-  }, [searchParams]);
+  }, [currentSymbol]);
 
   // 채팅 스크롤 ref 추가
   const chatScrollRef = useRef<HTMLDivElement>(null);
@@ -150,14 +164,7 @@ export default function SpeedTrafficPage() {
     risk: 'inactive' as 'inactive' | 'red' | 'yellow' | 'green'
   });
 
-  // URL에서 symbol 파라미터 읽기
-  useEffect(() => {
-    if (!searchParams) return;
-    const symbol = searchParams.get('symbol');
-    if (symbol) {
-      setCurrentSymbol(symbol);
-    }
-  }, [searchParams]);
+  // URL 파라미터는 URLHandler에서 처리됨
 
   // 질문 변경 시 스크롤 유지를 위한 플래그
   const [shouldPreventScroll, setShouldPreventScroll] = useState(false);
@@ -797,5 +804,17 @@ export default function SpeedTrafficPage() {
   };
 
   // 현재 심볼이 없으면 입력 폼을, 있으면 분석 화면을 표시
-  return currentSymbol ? <AnalysisScreen /> : <SymbolInputForm />;
+  return (
+    <>
+      {/* URL 파라미터 처리 */}
+      <Suspense fallback={null}>
+        <SpeedTrafficURLHandler
+          onSymbolChange={setCurrentSymbol}
+          onDebugModeChange={setIsDebugMode}
+        />
+      </Suspense>
+
+      {currentSymbol ? <AnalysisScreen /> : <SymbolInputForm />}
+    </>
+  );
 }

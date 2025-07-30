@@ -29,9 +29,9 @@ const API_BASE_URL = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}/api`
   : 'http://localhost:3000/api';
 
-async function callAnalysisAPI(endpoint: string, symbol: string): Promise<AnalysisResult | null> {
+async function callAnalysisAPI(endpoint: string, symbol: string): Promise<AnalysisResult | undefined> {
   try {
-    const response = await fetch(`${API_BASE_URL}/${endpoint}?symbol=${symbol}`, {
+    const response = await fetch(`api/${endpoint}?symbol=${symbol}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -40,24 +40,24 @@ async function callAnalysisAPI(endpoint: string, symbol: string): Promise<Analys
 
     if (!response.ok) {
       console.error(`${endpoint} API 호출 실패:`, response.status, response.statusText);
-      return null;
+      return undefined;
     }
 
     const result = await response.json();
     return result;
   } catch (error) {
     console.error(`${endpoint} API 호출 오류:`, error);
-    return null;
+    return undefined;
   }
 }
 
 function determineTrafficLights(results: {
-  mfi?: AnalysisResult | null;
-  bollinger?: AnalysisResult | null;
-  rsi?: AnalysisResult | null;
-  industry?: AnalysisResult | null;
-  capm?: AnalysisResult | null;
-  garch?: AnalysisResult | null;
+  mfi?: AnalysisResult | undefined;
+  bollinger?: AnalysisResult | undefined;
+  rsi?: AnalysisResult | undefined;
+  industry?: AnalysisResult | undefined;
+  capm?: AnalysisResult | undefined;
+  garch?: AnalysisResult | undefined;
 }) {
   const lights = {
     technical: 'inactive' as string,
@@ -132,12 +132,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // 결과 추출
     const results = {
-      mfi: mfiResult.status === 'fulfilled' ? mfiResult.value : null,
-      bollinger: bollingerResult.status === 'fulfilled' ? bollingerResult.value : null,
-      rsi: rsiResult.status === 'fulfilled' ? rsiResult.value : null,
-      industry: industryResult.status === 'fulfilled' ? industryResult.value : null,
-      capm: capmResult.status === 'fulfilled' ? capmResult.value : null,
-      garch: garchResult.status === 'fulfilled' ? garchResult.value : null,
+      mfi: mfiResult.status === 'fulfilled' ? mfiResult.value : undefined,
+      bollinger: bollingerResult.status === 'fulfilled' ? bollingerResult.value : undefined,
+      rsi: rsiResult.status === 'fulfilled' ? rsiResult.value : undefined,
+      industry: industryResult.status === 'fulfilled' ? industryResult.value : undefined,
+      capm: capmResult.status === 'fulfilled' ? capmResult.value : undefined,
+      garch: garchResult.status === 'fulfilled' ? garchResult.value : undefined,
     };
 
     // 신호등 결정
