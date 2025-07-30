@@ -166,8 +166,8 @@ export default function DashboardPage() {
             >
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden group-hover:scale-105 transition-transform duration-200 shadow-sm">
                 <img
-                  src="/hanyang-logo.png"
-                  alt="한양대학교 로고"
+                  src="/image.png"
+                  alt="로고"
                   className="w-full h-full object-cover"
                 />
               </div>

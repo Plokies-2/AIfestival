@@ -16,9 +16,9 @@ export const metadata: Metadata = {
   title: '사용자 맞춤 투자지원 AI',
   description: '한양대학교 금융인공지능실무 - 사용자 맞춤형 투자지원 AI 시스템',
   icons: {
-    icon: '/hanyang-logo.png',
-    shortcut: '/hanyang-logo.png',
-    apple: '/hanyang-logo.png',
+    icon: '/image.png',
+    shortcut: '/image.png',
+    apple: '/image.png',
   }
 }
 

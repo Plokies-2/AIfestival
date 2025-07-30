@@ -11,21 +11,28 @@ warnings.filterwarnings('ignore')
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        import sys
         try:
+            print(f"[PYTHON_API] GET 요청 수신: {self.path}", file=sys.stderr)
+
             # URL 파라미터 파싱
             parsed_url = urllib.parse.urlparse(self.path)
             query_params = urllib.parse.parse_qs(parsed_url.query)
-            
+
             # 분석 타입과 심볼 추출
             analysis_type = query_params.get('type', ['speedtraffic'])[0]
             symbol = query_params.get('symbol', [None])[0]
-            
+
+            print(f"[PYTHON_API] 파라미터 - symbol: {symbol}, type: {analysis_type}", file=sys.stderr)
+
             if not symbol:
+                print("[PYTHON_API] 오류: Symbol 파라미터 누락", file=sys.stderr)
                 self.send_error_response(400, "Symbol parameter is required")
                 return
-            
+
             symbol = symbol.upper()
-            
+            print(f"[PYTHON_API] {symbol} {analysis_type} 분석 시작", file=sys.stderr)
+
             # 분석 타입에 따라 다른 함수 호출
             if analysis_type == 'mfi':
                 result = self.calculate_mfi(symbol)
@@ -41,18 +48,24 @@ class handler(BaseHTTPRequestHandler):
                 result = self.calculate_industry_analysis(symbol)
             else:  # speedtraffic (통합 분석)
                 result = self.run_integrated_analysis(symbol)
-            
+
+            print(f"[PYTHON_API] {symbol} {analysis_type} 분석 완료: {result.get('traffic_light', 'unknown')}", file=sys.stderr)
+
             # 성공 응답
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-            self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+            self.send_header('Access-Control-Allow-Headers', 'Content-Type, User-Agent, Accept')
             self.end_headers()
-            
-            self.wfile.write(json.dumps(result).encode())
-            
+
+            response_json = json.dumps(result, ensure_ascii=False)
+            self.wfile.write(response_json.encode('utf-8'))
+
         except Exception as e:
+            print(f"[PYTHON_API] 오류 발생: {str(e)}", file=sys.stderr)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
             self.send_error_response(500, f"Internal server error: {str(e)}")
     
     def do_OPTIONS(self):
@@ -64,13 +77,23 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
     
     def send_error_response(self, status_code, message):
+        import sys
+        print(f"[PYTHON_API] 오류 응답 전송: {status_code} - {message}", file=sys.stderr)
+
         self.send_response(status_code)
         self.send_header('Content-type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, User-Agent, Accept')
         self.end_headers()
-        
-        error_response = {"error": message}
-        self.wfile.write(json.dumps(error_response).encode())
+
+        error_response = {
+            "error": message,
+            "timestamp": datetime.now().isoformat(),
+            "status": status_code
+        }
+        response_json = json.dumps(error_response, ensure_ascii=False)
+        self.wfile.write(response_json.encode('utf-8'))
     
     def load_stock_data(self, symbol):
         """주식 데이터 로드 (한국 주식 지원)"""

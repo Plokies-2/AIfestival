@@ -16,9 +16,9 @@ const LandingPage: React.FC<LandingPageProps> = () => {
   const sections = [
     {
       id: 'hero',
-      title: '사용자 맞춤형 AI 투자 분석 플랫폼',
+      title: '사용자 맞춤형 투자지원 AI',
       subtitle: '의도 분석, 뉴스 분석, 포트폴리오 백테스팅, SpeedTraffic™',
-      description: '자연어로 질문하면 AI가 맞춤형 투자 전략을 제안하는 혁신적인 플랫폼',
+      description: '자연어 아이디어로부터 맞춤형 투자 전략을 제안하는 종합 플랫폼',
       bgColor: 'from-slate-900 via-blue-900 to-indigo-900',
       textColor: 'text-white'
     },
@@ -53,13 +53,12 @@ const LandingPage: React.FC<LandingPageProps> = () => {
     {
       id: 'portfolio-testing',
       title: 'AI 포트폴리오 테스트',
-      subtitle: '실전에서도 강건한 투자 전략 확보',
+      subtitle: '실전에서도 강건한 투자 전략을 확보합니다',
       description: 'AI가 제공한 투자 포트폴리오를 백테스팅할 수 있습니다. 과거가 미래를 정확히 예측할 수는 없지만, 항상 과거는 교훈을 남긴다는 점을 기억해 주세요.',
       features: [
-        { icon: '💾', title: '자동 저장', desc: 'AI 추천 포트폴리오 저장' },
-        { icon: '📈', title: '백테스팅', desc: '과거 데이터 기반 검증' },
-        { icon: '⚠️', title: '위험도 분석', desc: '포트폴리오 리스크 평가' },
-        { icon: '📋', title: '성과 지표', desc: '샤프 비율, 최대 낙폭 등' }
+        { icon: '💾', title: '자동 저장', desc: 'AI가 추천한 포트폴리오는 모두 저장됩니다.' },
+        { icon: '📈', title: '백테스팅', desc: '과거 데이터를 기반으로 수익률을 확인할 수 있습니다.' },
+        { icon: '⚠️', title: '위험도 분석', desc: 'AI의 추천 포트폴리오의 최대 낙폭을 확인하며 리스크를 평가할 수 있습니다.' }
       ],
       bgColor: 'from-green-50 to-emerald-100',
       textColor: 'text-gray-900'
@@ -67,11 +66,11 @@ const LandingPage: React.FC<LandingPageProps> = () => {
     {
       id: 'speedtraffic',
       title: 'SpeedTraffic™ 개별 기업 분석',
-      subtitle: '포트폴리오를 넘어선 섬세한 개별 주식 분석',
+      subtitle: '포트폴리오를 넘어선 섬세한 개별 주식 분석 기능을 사용하세요요',
       description: '개별 주식에 대한 초직관적인 정보를 제공하는 Speedtraffic은 차트 분석에 대한 정보가 없는 사용자에게도 빠르고 정확한 정보를 제공합니다. 상세 분석 기법이 궁금하다면, 언제든지 AI에게 물어보세요!',
       features: [
-        { icon: '📊', title: '기술적 분석 3종', desc: 'MFI, 볼린저 밴드, RSI' },
-        { icon: '📉', title: 'VaR 측정', desc: 'Value at Risk 리스크 분석' },
+        { icon: '📊', title: '기술적 분석 3종', desc: 'MFI, 볼린저 밴드, RSI 지표를 다수결로 묶어 기술적 지표를 종합 분석합니다.' },
+        { icon: '📉', title: 'VaR 측정', desc: 'Value at Risk 리스크 분석, GARCH(1,1)을 통해 통계적인 변동성과 리스크를 측정합니다.' },
         { icon: '🏭', title: '산업베타', desc: '산업 포트폴리오 회귀를 통한 산업 민감도 분석' },
         { icon: '📈', title: '시장베타', desc: 'CAPM 기반 분석' },
         { icon: '🚦', title: 'SpeedTraffic™', desc: '직관적 UI와 직관적 해설' }
@@ -143,8 +142,8 @@ const LandingPage: React.FC<LandingPageProps> = () => {
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <img
-              src="/hanyang-logo.png"
-              alt="한양대학교 로고"
+              src="/image.png"
+              alt="로고"
               className="w-8 h-8 rounded-full"
             />
             <span className="text-xl font-semibold text-gray-900">
@@ -603,7 +602,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                     </div>
                   )}
 
-                  {/* SpeedTraffic 실제 구현 모습 - 실제 SpeedTraffic 페이지 복제 */}
+                  {/* SpeedTraffic*/}
                   {index === 4 && (
                     <div className="mt-12 bg-white rounded-xl shadow-sm border border-slate-200 max-w-6xl mx-auto overflow-hidden">
                       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-slate-200">

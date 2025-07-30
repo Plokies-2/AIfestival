@@ -27,25 +27,31 @@ export async function executePythonAnalysis(symbol: string, analysisType: string
   const isVercel = process.env.VERCEL || process.env.VERCEL_URL;
 
   if (isVercel) {
-    // Vercel 환경: HTTP 요청 사용
+    // Vercel 환경: Python 서버리스 함수 직접 호출
     try {
+      // Vercel에서는 절대 URL이 필요함
       const baseUrl = process.env.VERCEL_URL
         ? `https://${process.env.VERCEL_URL}`
         : (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
 
-      const response = await fetch(`${baseUrl}/api/python/unified_analysis_vercel`, {
-        method: 'POST',
+      // GET 요청으로 변경 (unified_analysis.py가 GET을 처리함)
+      const queryParams = new URLSearchParams({
+        symbol: symbol.toUpperCase(),
+        type: analysisType.toLowerCase()
+      });
+
+      const response = await fetch(`${baseUrl}/api/python/unified_analysis?${queryParams}`, {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'SpeedTraffic-API/1.0'
         },
-        body: JSON.stringify({
-          symbol: symbol.toUpperCase(),
-          analysis_type: analysisType.toLowerCase()
-        }),
-        signal: AbortSignal.timeout(30000)
+        signal: AbortSignal.timeout(45000) // 45초로 증가
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ [UNIFIED_ANALYSIS] Python API 응답 오류: ${response.status} ${response.statusText}`, errorText);
         throw new Error(`Python API 호출 실패: ${response.status} ${response.statusText}`);
       }
 

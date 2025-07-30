@@ -135,50 +135,66 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     console.log(`[SPEEDTRAFFIC_API] ${ticker} 분석 시작`);
 
-    // 직접 Python 분석 함수 호출 (localhost 호출 대신)
-    // 6개 분석 서비스 병렬 실행 (직접 함수 호출 방식)
+    // Python 분석 함수 호출 (개선된 오류 처리)
+    // 6개 분석 서비스 병렬 실행 - 각각 독립적으로 실패 처리
+    console.log(`[SPEEDTRAFFIC_API] ${ticker} - 6개 분석 서비스 병렬 실행 시작`);
+
     const [mfiResult, bollingerResult, rsiResult, industryResult, capmResult, garchResult] = await Promise.allSettled([
       executePythonAnalysis(ticker, 'mfi').catch(error => {
-        console.error(`[MFI_ERROR] ${ticker}:`, error);
-        return null;
+        console.error(`[MFI_ERROR] ${ticker}: ${error.message}`);
+        return { error: error.message, traffic_light: 'red', signal: 'error' };
       }),
       executePythonAnalysis(ticker, 'bollinger').catch(error => {
-        console.error(`[BOLLINGER_ERROR] ${ticker}:`, error);
-        return null;
+        console.error(`[BOLLINGER_ERROR] ${ticker}: ${error.message}`);
+        return { error: error.message, traffic_light: 'red', signal: 'error' };
       }),
       executePythonAnalysis(ticker, 'rsi').catch(error => {
-        console.error(`[RSI_ERROR] ${ticker}:`, error);
-        return null;
+        console.error(`[RSI_ERROR] ${ticker}: ${error.message}`);
+        return { error: error.message, traffic_light: 'red', signal: 'error' };
       }),
       executePythonAnalysis(ticker, 'industry').catch(error => {
-        console.error(`[INDUSTRY_ERROR] ${ticker}:`, error);
-        return null;
+        console.error(`[INDUSTRY_ERROR] ${ticker}: ${error.message}`);
+        return { error: error.message, traffic_light: 'red', signal: 'error' };
       }),
       executePythonAnalysis(ticker, 'capm').catch(error => {
-        console.error(`[CAPM_ERROR] ${ticker}:`, error);
-        return null;
+        console.error(`[CAPM_ERROR] ${ticker}: ${error.message}`);
+        return { error: error.message, traffic_light: 'red', signal: 'error' };
       }),
       executePythonAnalysis(ticker, 'garch').catch(error => {
-        console.error(`[GARCH_ERROR] ${ticker}:`, error);
-        return null;
+        console.error(`[GARCH_ERROR] ${ticker}: ${error.message}`);
+        return { error: error.message, traffic_light: 'red', signal: 'error' };
       })
     ]);
 
-    // 결과 추출 (Promise.allSettled 결과에서 값 추출)
-    const finalMFIResult = mfiResult.status === 'fulfilled' ? mfiResult.value : null;
-    const finalBollingerResult = bollingerResult.status === 'fulfilled' ? bollingerResult.value : null;
-    const finalRSIResult = rsiResult.status === 'fulfilled' ? rsiResult.value : null;
-    const finalIndustryResult = industryResult.status === 'fulfilled' ? industryResult.value : null;
-    const finalCAPMResult = capmResult.status === 'fulfilled' ? capmResult.value : null;
-    const finalGARCHResult = garchResult.status === 'fulfilled' ? garchResult.value : null;
+    // 결과 추출 및 검증 (Promise.allSettled 결과에서 값 추출)
+    const finalMFIResult = mfiResult.status === 'fulfilled' && mfiResult.value && !mfiResult.value.error ? mfiResult.value : null;
+    const finalBollingerResult = bollingerResult.status === 'fulfilled' && bollingerResult.value && !bollingerResult.value.error ? bollingerResult.value : null;
+    const finalRSIResult = rsiResult.status === 'fulfilled' && rsiResult.value && !rsiResult.value.error ? rsiResult.value : null;
+    const finalIndustryResult = industryResult.status === 'fulfilled' && industryResult.value && !industryResult.value.error ? industryResult.value : null;
+    const finalCAPMResult = capmResult.status === 'fulfilled' && capmResult.value && !capmResult.value.error ? capmResult.value : null;
+    const finalGARCHResult = garchResult.status === 'fulfilled' && garchResult.value && !garchResult.value.error ? garchResult.value : null;
 
-    // 실패한 서비스 로그
-    if (mfiResult.status === 'rejected') console.error(`[MFI_ERROR] ${ticker}:`, mfiResult.reason);
-    if (bollingerResult.status === 'rejected') console.error(`[BOLLINGER_ERROR] ${ticker}:`, bollingerResult.reason);
-    if (rsiResult.status === 'rejected') console.error(`[RSI_ERROR] ${ticker}:`, rsiResult.reason);
-    if (industryResult.status === 'rejected') console.error(`[INDUSTRY_ERROR] ${ticker}:`, industryResult.reason);
-    if (capmResult.status === 'rejected') console.error(`[CAPM_ERROR] ${ticker}:`, capmResult.reason);
-    if (garchResult.status === 'rejected') console.error(`[GARCH_ERROR] ${ticker}:`, garchResult.reason);
+    // 성공/실패 통계
+    const successCount = [finalMFIResult, finalBollingerResult, finalRSIResult, finalIndustryResult, finalCAPMResult, finalGARCHResult].filter(r => r !== null).length;
+    const totalServices = 6;
+
+    console.log(`[SPEEDTRAFFIC_API] ${ticker} 분석 결과: ${successCount}/${totalServices} 서비스 성공`);
+
+    // 실패한 서비스 상세 로그
+    if (mfiResult.status === 'rejected') console.error(`[MFI_REJECTED] ${ticker}:`, mfiResult.reason);
+    if (bollingerResult.status === 'rejected') console.error(`[BOLLINGER_REJECTED] ${ticker}:`, bollingerResult.reason);
+    if (rsiResult.status === 'rejected') console.error(`[RSI_REJECTED] ${ticker}:`, rsiResult.reason);
+    if (industryResult.status === 'rejected') console.error(`[INDUSTRY_REJECTED] ${ticker}:`, industryResult.reason);
+    if (capmResult.status === 'rejected') console.error(`[CAPM_REJECTED] ${ticker}:`, capmResult.reason);
+    if (garchResult.status === 'rejected') console.error(`[GARCH_REJECTED] ${ticker}:`, garchResult.reason);
+
+    // 오류가 있는 서비스 로그
+    if (mfiResult.status === 'fulfilled' && mfiResult.value?.error) console.error(`[MFI_ERROR] ${ticker}:`, mfiResult.value.error);
+    if (bollingerResult.status === 'fulfilled' && bollingerResult.value?.error) console.error(`[BOLLINGER_ERROR] ${ticker}:`, bollingerResult.value.error);
+    if (rsiResult.status === 'fulfilled' && rsiResult.value?.error) console.error(`[RSI_ERROR] ${ticker}:`, rsiResult.value.error);
+    if (industryResult.status === 'fulfilled' && industryResult.value?.error) console.error(`[INDUSTRY_ERROR] ${ticker}:`, industryResult.value.error);
+    if (capmResult.status === 'fulfilled' && capmResult.value?.error) console.error(`[CAPM_ERROR] ${ticker}:`, capmResult.value.error);
+    if (garchResult.status === 'fulfilled' && garchResult.value?.error) console.error(`[GARCH_ERROR] ${ticker}:`, garchResult.value.error);
 
     // 기술적 분석 통합 색상 계산
     const technicalColor = getTechnicalAnalysisColor(finalMFIResult, finalBollingerResult, finalRSIResult);
@@ -187,6 +203,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const result = {
       symbol: ticker,
       timestamp: new Date().toISOString(),
+      analysisDate: new Date().toISOString().split('T')[0],
+      companyName: ticker, // 회사명은 별도 조회 필요
       mfi: finalMFIResult,
       bollinger: finalBollingerResult,
       rsi: finalRSIResult,
@@ -198,10 +216,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         industry: finalIndustryResult ? getServiceTrafficLight(finalIndustryResult) : 'inactive', // 산업 민감도
         market: finalCAPMResult ? getServiceTrafficLight(finalCAPMResult) : 'inactive', // 시장 민감도 (CAPM)
         risk: finalGARCHResult ? getServiceTrafficLight(finalGARCHResult) : 'inactive' // 변동성 리스크
+      },
+      // 분석 성공률 정보 추가
+      analysis_stats: {
+        total_services: totalServices,
+        successful_services: successCount,
+        success_rate: Math.round((successCount / totalServices) * 100)
       }
     };
 
-    console.log(`[SPEEDTRAFFIC_API] ${ticker} 분석 완료 - 신호등: ${JSON.stringify(result.traffic_lights)}`);
+    console.log(`[SPEEDTRAFFIC_API] ${ticker} 분석 완료 - 성공률: ${result.analysis_stats.success_rate}% - 신호등: ${JSON.stringify(result.traffic_lights)}`);
 
     return res.status(200).json(result);
 
