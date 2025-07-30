@@ -627,7 +627,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                         {/* 좌우 배치: 신호등(좌측) + 해설 채팅창(우측) */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                           {/* 좌측: 4개 신호등 - 원형, 세로 정렬 */}
-                          <div className="flex justify-center">
+                          <div className="flex justify-center self-start">
                             <div className="bg-slate-800 rounded-lg p-3 flex flex-col space-y-2 w-fit">
                               {/* 기술적 분석 - Red */}
                               <div className="flex items-center space-x-2">

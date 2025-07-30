@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AIChat from '@/components/AIChat';
+import RealTimeAnalysis from '@/components/RealTimeAnalysis';
 
 export default function AnalysisPage() {
   const router = useRouter();
@@ -36,12 +37,6 @@ export default function AnalysisPage() {
               >
                 포트폴리오
               </button>
-              <button
-                onClick={() => router.push('/speedtraffic')}
-                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-lg transition-all duration-200 text-sm font-medium"
-              >
-                SpeedTraffic
-              </button>
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                 <span className="text-sm text-gray-600">실시간</span>
@@ -65,50 +60,21 @@ export default function AnalysisPage() {
           </p>
         </div>
 
-        {/* 채팅 인터페이스 */}
-        <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
-          <AIChat
-            ref={chatRef}
-            onLoadingChange={setIsLoading}
-          />
-        </div>
-
-        {/* 도움말 섹션 */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-slate-200">
-            <div className="flex items-center space-x-3 mb-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <span className="text-xl">💡</span>
-              </div>
-              <h3 className="font-semibold text-slate-900">투자 아이디어</h3>
+        {/* 채팅 인터페이스와 실시간 분석 */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* 채팅창 - 3/4 너비 */}
+          <div className="lg:col-span-3">
+            <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden" style={{ height: 'calc(100vh - 300px)' }}>
+              <AIChat
+                ref={chatRef}
+                onLoadingChange={setIsLoading}
+              />
             </div>
-            <p className="text-sm text-slate-600">
-              "ESG 관련주에 투자하고 싶어요", "반도체 업종 전망이 궁금해요" 등 자유롭게 질문하세요.
-            </p>
           </div>
 
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-slate-200">
-            <div className="flex items-center space-x-3 mb-3">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <span className="text-xl">📊</span>
-              </div>
-              <h3 className="font-semibold text-slate-900">뉴스 분석</h3>
-            </div>
-            <p className="text-sm text-slate-600">
-              실시간 뉴스 데이터를 분석하여 시장 동향과 투자 기회를 찾아드립니다.
-            </p>
-          </div>
-
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-slate-200">
-            <div className="flex items-center space-x-3 mb-3">
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <span className="text-xl">🎯</span>
-              </div>
-              <h3 className="font-semibold text-slate-900">포트폴리오</h3>
-            </div>
-            <p className="text-sm text-slate-600">
-              AI가 추천한 포트폴리오를 자동으로 저장하고 백테스팅을 진행할 수 있습니다.
-            </p>
+          {/* 실시간 분석 - 1/4 너비 */}
+          <div className="lg:col-span-1">
+            <RealTimeAnalysis />
           </div>
         </div>
       </main>

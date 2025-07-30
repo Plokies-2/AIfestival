@@ -2,9 +2,8 @@
 """
 산업군 포트폴리오(동일가중) ↔ 개별 종목 OLS 회귀, 신호등 JSON 출력
 ────────────────────────────────────────────────────────────────────────
-필수 파일 2개  ─ 위치 고정
+필수 파일 1개  ─ 위치 고정
   1) kospi_enriched_final.ts  (티커 ↔ industry 매핑)
-  2) kospi_adj_close_3y.csv   (3년치 수정종가, Date 컬럼 포함)
 ────────────────────────────────────────────────────────────────────────
 """
 
@@ -28,13 +27,12 @@ try:
     YFINANCE_AVAILABLE = True
 except ImportError:
     YFINANCE_AVAILABLE = False
-    print("Warning: yfinance not available, falling back to CSV", file=sys.stderr)
+    print("Warning: yfinance not available", file=sys.stderr)
 
 # ――― 경로 상수 ―――
 BASE_DIR   = Path(__file__).resolve().parent              # …/src/services
 DATA_DIR   = BASE_DIR.parent / "data"                     # …/src/data
 MAP_FILE   = DATA_DIR / "kospi_enriched_final.ts"
-PRICE_FILE = DATA_DIR / "kospi_adj_close_3y.csv"
 WIN = 126  # 6 개월(거래일 21×6)
 
 # ――― 매핑 로드 ―――
@@ -281,35 +279,14 @@ def main(ticker: str):
     target_prices, industry_prices = load_target_and_industry_data(ticker)
 
     if target_prices is None or industry_prices is None:
-        print(f"📁 Falling back to CSV data for industry regression", file=sys.stderr)
-        # CSV 폴백
-        try:
-            if not PRICE_FILE.exists():
-                raise FileNotFoundError(f"가격 파일 없음 → {PRICE_FILE}")
-            prices = pd.read_csv(PRICE_FILE)
-            if "Date" not in prices.columns:
-                raise ValueError("'Date' 컬럼이 없습니다 → CSV 형식 확인")
-            prices["Date"] = pd.to_datetime(prices["Date"])
-            prices.set_index("Date", inplace=True)
-            prices = prices.apply(pd.to_numeric, errors="coerce")
+        print(f"❌ 실시간 데이터 로드 실패: {ticker}", file=sys.stderr)
+        sys.exit(1)
 
-            if ticker not in prices.columns:
-                raise KeyError(f"{ticker} ➜ 가격 CSV에 열이 없습니다.")
-
-            peers = [t for t, ind in mapping.items() if ind == industry]
-            # 종목-산업군 수익률
-            ind_ret = pct(prices[peers]).mean(axis=1)
-            stk_ret = pct(prices[[ticker]])[ticker]
-
-        except Exception as e:
-            print(f"Error with CSV fallback: {e}", file=sys.stderr)
-            sys.exit(1)
-    else:
-        # yfinance 데이터 사용
-        print(f"📊 Using realtime data for industry regression", file=sys.stderr)
-        # 산업 포트폴리오 평균 수익률 계산
-        ind_ret = pct(industry_prices).mean(axis=1)
-        stk_ret = pct(pd.DataFrame({ticker: target_prices}))[ticker]
+    # yfinance 데이터 사용
+    print(f"📊 Using realtime data for industry regression", file=sys.stderr)
+    # 산업 포트폴리오 평균 수익률 계산
+    ind_ret = pct(industry_prices).mean(axis=1)
+    stk_ret = pct(pd.DataFrame({ticker: target_prices}))[ticker]
 
     common = stk_ret.index.intersection(ind_ret.index)
     ind_ret, stk_ret = ind_ret[common], stk_ret[common]
