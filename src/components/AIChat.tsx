@@ -11,6 +11,7 @@ interface AIChatProps {
   showingCompanyList?: boolean; // 기업 리스트 표시 여부
   currentSymbol?: string; // 현재 분석 중인 심볼
   analysisData?: any; // 분석 데이터 (SpeedTraffic 결과)
+  regenerateKey?: string | number; // 예시 질문 강제 재생성용 키
 }
 
 export interface AIChatRef {
@@ -31,7 +32,7 @@ interface ChatApiResponse {
   // Add other fields from the API response if needed
 }
 
-const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolError, onShowingCompanyList, hasChart, showingCompanyList, currentSymbol, analysisData }, ref) => {
+const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolError, onShowingCompanyList, hasChart, showingCompanyList, currentSymbol, analysisData, regenerateKey }, ref) => {
   const [history, setHistory] = useState<ChatMessage[]>([]);
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
   const [isHidingSuggestions, setIsHidingSuggestions] = useState(false);
@@ -94,6 +95,15 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
     console.log('Generated suggested questions:', questions);
     setSuggestedQuestions(questions);
   }, [generateSuggestedQuestions]);
+
+  // regenerateKey 변경 시 새로운 예시 질문 생성 (페이지 접근 시마다)
+  useEffect(() => {
+    if (regenerateKey !== undefined) {
+      const questions = generateSuggestedQuestions();
+      console.log('Regenerated suggested questions:', questions);
+      setSuggestedQuestions(questions);
+    }
+  }, [regenerateKey, generateSuggestedQuestions]);
 
   /* 자동 스크롤 - history 변경 시와 차트 상태 변경 시 */
   useEffect(() => {

@@ -455,7 +455,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                       <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-4 border-b border-slate-200">
                         <div className="text-xl font-bold text-gray-900 flex items-center">
                           <span className="mr-2">📈</span>
-                          실제 포트폴리오 백테스팅 결과 (1년)
+                          실제 조선 산업 AI 추천 포트폴리오 백테스팅 결과 (1년)
                         </div>
                       </div>
 

@@ -9,6 +9,12 @@ export default function AnalysisPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const chatRef = useRef<any>(null);
+  const [regenerateKey, setRegenerateKey] = useState<number>(Date.now());
+
+  // 페이지 접근 시마다 새로운 예시 질문 생성
+  useEffect(() => {
+    setRegenerateKey(Date.now());
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -67,6 +73,7 @@ export default function AnalysisPage() {
             <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden" style={{ height: 'calc(100vh - 300px)' }}>
               <AIChat
                 ref={chatRef}
+                regenerateKey={regenerateKey}
               />
             </div>
           </div>
