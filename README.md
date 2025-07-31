@@ -129,8 +129,8 @@ api/python/
    ```bash
    # .env.local 파일 생성
    CLOVA_STUDIO_API_KEY=your_clova_studio_api_key
-   NAVER_NEWS_CLIENT_ID=your_naver_news_client_id
-   NAVER_NEWS_CLIENT_SECRET=your_naver_news_client_secret
+   NAVER_CLIENT_ID=your_naver_news_client_id
+   NAVER_CLIENT_SECRET=your_naver_news_client_secret
    NCP_API_KEY_ID=your_naver_summary_client_id
    NCP_API_KEY=your_naver_summary_client_secret
    ```
