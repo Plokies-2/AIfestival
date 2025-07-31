@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AIChat from '@/components/AIChat';
-import RealTimeAnalysis from '@/components/RealTimeAnalysis';
+import MarketStatus from '@/components/MarketStatus';
 
 export default function AnalysisPage() {
   const router = useRouter();
@@ -73,7 +73,7 @@ export default function AnalysisPage() {
 
           {/* 실시간 분석 - 1/4 너비 */}
           <div className="lg:col-span-1">
-            <RealTimeAnalysis />
+            <MarketStatus />
           </div>
         </div>
       </main>

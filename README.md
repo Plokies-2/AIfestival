@@ -219,12 +219,11 @@ src/
 │   ├── LandingPageNew.tsx     # 랜딩 페이지 (4가지 기능 소개)
 │   ├── RealTimeThinkingBox.tsx # AI 추론 과정 실시간 표시(뉴스 내용 요약 중... 이 표시되는 박스)
 │   ├── MarketStatus.tsx       # 시장 현황 (KOSPI, KRW/USD, VIX)
-│   ├── RealTimeAnalysis.tsx   # 실시간 시장 분석
 │   └── ReportModal.tsx        # SpeedTraffic 보고서 모달
 ├── data/ (4개)                # 핵심 데이터
-│   ├── KOSPI_companies.json   # 🔥 4,454개 KOSPI 기업 데이터
+│   ├── KOSPI_companies.json   # 🔥 KOSPI 기업 데이터
 │   ├── kospi_enriched_final.ts # 🔥 기업 정보 빠른 조회용
-│   ├── kospi_industry_vectors.ts # 🔥 396개 산업 키워드 벡터
+│   ├── kospi_industry_vectors.ts # 🔥 산업 키워드 벡터(산업 분류에 사용됩니다)
 │   └── KOSPI_industry_mapping.json # 산업 매핑 정보
 ├── lib/ (4개)                 # 핵심 라이브러리
 │   ├── clova-embedding.ts     # 🔥 Clova Studio bge-m3 임베딩
@@ -259,7 +258,6 @@ src/
 │   ├── csv_chart_data.ts      # CSV 차트 데이터 API
 │   ├── generate_report.ts     # 보고서 생성 API
 │   ├── speedtraffic_log.ts    # SpeedTraffic 로그 API
-│   └── simple_ai_chat.ts      # 단순 AI 채팅 API (레거시)
 ├── utils/ (2개)               # 유틸리티
 │   ├── companyLookup.ts       # 🔥 기업 정보 조회 및 변환
 │   └── resultsStorage.ts      # SpeedTraffic 결과 타입 정의
