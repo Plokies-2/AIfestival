@@ -575,9 +575,9 @@ class handler(BaseHTTPRequestHandler):
             # 무조건부 변동성 (장기 평균)
             unconditional_vol_annualized = unconditional_volatility * np.sqrt(252) / 100
 
-            # VaR 계산 (정규분포 가정)
-            var_95 = -1.645 * conditional_volatility / 100  # 5% VaR
-            var_99 = -2.326 * conditional_volatility / 100  # 1% VaR
+            # VaR 계산 (정규분포 가정) - 손실률로 양수 반환
+            var_95 = 1.645 * conditional_volatility / 100  # 95% 신뢰도 손실률
+            var_99 = 2.326 * conditional_volatility / 100  # 99% 신뢰도 손실률
 
             # 최근 실현 변동성과 비교
             recent_returns = returns.tail(30)
@@ -620,8 +620,9 @@ class handler(BaseHTTPRequestHandler):
             daily_volatility = returns.std() / 100
             annualized_volatility = daily_volatility * np.sqrt(252)
 
-            var_95 = np.percentile(returns, 5) / 100
-            var_99 = np.percentile(returns, 1) / 100
+            # percentile 기반 VaR 계산 - 손실률로 양수 반환
+            var_95 = -np.percentile(returns, 5) / 100  # 95% 신뢰도 손실률
+            var_99 = -np.percentile(returns, 1) / 100  # 99% 신뢰도 손실률
 
             recent_returns = returns.tail(30)
             recent_volatility = recent_returns.std() * np.sqrt(252) / 100
