@@ -30,8 +30,8 @@ const LandingPage: React.FC<LandingPageProps> = () => {
       features: [
         { icon: '⚡', title: '빠른 1차 답변', desc: '이미 구성된 백터 지도를 통해 3초 내로 사용자의 아이디어를 타겟팅할 수 있는 산업군을 추출합니다.' },
         { icon: '🧠', title: 'KRX 분류 기준 데이터베이스', desc: '기분류된 데이터베이스를 활용해 LLM의 고질적인 문제인 일관성 문제를 해결해 정확한 산업 타겟팅을 구현합니다.' },
-        { icon: '🎯', title: '정확한 의도 파악', desc: 'HCX-002-DASH 모델이 사용자의 질의를 임베딩하기 전   ' },
-        { icon: '🔍', title: 'RAG 기반 매칭', desc: '정확한 산업/기업 매칭' }
+        { icon: '🎯', title: '정확한 의도 파악', desc: 'HCX-002-DASH 모델이 사용자의 질의를 임베딩하기 전 표현을 정제합니다.  ' },
+        { icon: '🔍', title: 'RAG 기반 매칭', desc: 'KRX 분류 기준 데이터베이스에 사용자의 아이디어를 매칭시켜 아이디어를 관통하는 산업군을 찾아냅니다.' }
       ],
       bgColor: 'from-blue-50 to-indigo-100',
       textColor: 'text-gray-900'
@@ -67,7 +67,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
       id: 'speedtraffic',
       title: 'SpeedTraffic™ 개별 기업 분석',
       subtitle: '포트폴리오를 넘어선 섬세한 개별 주식 분석 기능을 사용하세요',
-      description: '개별 주식에 대한 초직관적인 정보를 제공하는 Speedtraffic은 차트 분석에 대한 정보가 없는 사용자에게도 빠르고 정확한 정보를 제공합니다. 상세 분석 기법이 궁금하다면, 언제든지 AI에게 물어보세요!',
+      description: '개별 주식에 대한 초직관적인 정보를 제공하는 Speedtraffic은 차트 분석법을 모르는 사용자에게도 빠르고 정확한 정보를 제공합니다. 상세 분석 기법이 궁금하다면, 언제든지 AI에게 물어보세요!',
       features: [
         { icon: '📊', title: '기술적 분석 3종', desc: 'MFI, 볼린저 밴드, RSI 지표를 다수결로 묶어 기술적 지표를 종합 분석합니다.' },
         { icon: '📉', title: 'VaR 측정', desc: 'Value at Risk 리스크 분석, GARCH(1,1)을 통해 통계적인 변동성과 리스크를 측정합니다.' },
@@ -319,7 +319,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
                       <div className="bg-gradient-to-r from-purple-50 to-pink-50 px-6 py-4 border-b border-slate-200">
                         <div className="text-xl font-bold text-gray-900 flex items-center">
                           <span className="mr-2">📰</span>
-                          실시간 뉴스 분석 진행 상황
+                          실제 뉴스 분석 진행 상황
                         </div>
                       </div>
 
