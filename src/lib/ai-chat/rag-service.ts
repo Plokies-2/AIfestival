@@ -12,7 +12,6 @@ import { KOSPI_ENRICHED_FINAL as DATA } from '@/data/kospi_enriched_final';
 import { CompanyData, InvestmentIntentResult } from './types';
 import { RAG_THRESHOLDS } from './config';
 import { createEmbeddingCompatible } from '@/lib/clova-embedding';
-// 제거된 기능: classifyIndustryWithGPT import - GPT 기반 산업 분류 백업 로직 제거됨
 
 // ============================================================================
 // Clova Studio 네이티브 임베딩 API 사용
@@ -84,8 +83,7 @@ export async function findBestPersona(userInput: string): Promise<string | null>
       .map(([persona, score]) => `${persona}: ${score.toFixed(3)}`)
       .join(', ');
 
-    // Threshold check: If score is below threshold, classify as greeting
-    // 수정된 로직: AND 조건으로 변경하여 더 정확한 분류
+    // < 조건으로 변경
     if (bestScore < RAG_THRESHOLDS.PERSONA_MIN_SCORE) {
       console.log(`🎯 Scores: ${scoreText} → Selected: greeting (score ${bestScore.toFixed(3)} < ${RAG_THRESHOLDS.PERSONA_MIN_SCORE})`);
       return null; // Will be classified as greeting
@@ -101,14 +99,9 @@ export async function findBestPersona(userInput: string): Promise<string | null>
 }
 
 // ============================================================================
-// Investment Intent Classification Functions
+// 투자 의도 생성 함수
 // ============================================================================
 
-/**
- * Classifies investment intent using RAG with company and industry data
- * Returns investment_query, company_direct, or null
- * 제거된 기능: investment_recommendation 의도 처리
- */
 export async function classifyInvestmentIntent(userInput: string): Promise<InvestmentIntentResult> {
   try {
     // Generate embedding for user input using Clova Studio native API
@@ -336,8 +329,3 @@ export function getAllAvailableIndustries(): string[] {
   return getAvailableIndustries();
 }
 
-// ============================================================================
-// RAG Testing and Debugging
-// ============================================================================
-
-// 디버깅용 testRAGThresholds 함수 제거됨 - 프로덕션에서 사용되지 않음

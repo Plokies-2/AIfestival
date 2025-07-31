@@ -54,7 +54,7 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
     about_ai: [
       '너 누구야?',
       '무슨 기능이 있어?',
-      '투자 아이디어 분석은 어떻게 수행돼?',
+      '아이디어 분석은 어떻게 수행돼?',
       '차트 분석 기능은 어떻게 동작하나요?',
       '산업 분류는 어떤 기준으로 이루어지나요?',
       '가장 자신있는 건 뭐야?',
