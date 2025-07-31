@@ -33,6 +33,7 @@ export default function SpeedTrafficPage() {
   const [chatMessages, setChatMessages] = useState<Array<{message: string, isBot: boolean, timestamp: Date}>>([]);
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
   const [isQuestionLoading, setIsQuestionLoading] = useState(false);
+  const [currentAnalysisData, setCurrentAnalysisData] = useState<any>(null); // 현재 분석 결과 저장
 
   // 분석 중복 방지
   const inFlight = useRef(false);
@@ -115,13 +116,23 @@ export default function SpeedTrafficPage() {
     ]);
 
     try {
+      // 현재 분석 결과를 state에서 가져오기 (Vercel 배포 환경 호환)
+      let analysisData = null;
+      if (currentAnalysisData && currentAnalysisData.symbol === currentSymbol) {
+        analysisData = currentAnalysisData;
+        console.log('📊 현재 종목 분석 데이터 사용:', currentSymbol);
+      } else if (currentSymbol) {
+        console.warn('⚠️ 현재 종목의 분석 데이터가 없습니다. 먼저 분석을 실행해주세요.');
+      }
+
       const response = await fetch('/api/simple_ai_chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: `${question} ${currentSymbol ? `(현재 분석 중인 종목: ${currentSymbol})` : ''}`
+          message: question,
+          analysisData: analysisData
         })
       });
 
@@ -137,6 +148,17 @@ export default function SpeedTrafficPage() {
           }
         ]);
         // 스크롤을 최하단으로 이동
+        scrollToBottom();
+      } else {
+        // API 오류 처리
+        setChatMessages(prev => [
+          ...prev,
+          {
+            message: '죄송합니다. 서버 오류로 답변을 생성할 수 없습니다.',
+            isBot: true,
+            timestamp: new Date()
+          }
+        ]);
         scrollToBottom();
       }
     } catch (error) {
@@ -203,24 +225,31 @@ export default function SpeedTrafficPage() {
       });
     }
 
-    // 분석 결과를 로컬 스토리지에 저장
+    // 현재 분석 결과를 state에 저장 (Vercel 배포 환경 호환)
     const savedResults = {
       ...results,
       savedAt: new Date().toISOString(),
       id: `analysis_${results.symbol}_${Date.now()}`
     };
 
+    // state 업데이트
+    setCurrentAnalysisData(savedResults);
+    console.log('📊 현재 분석 데이터 state 업데이트:', results.symbol);
+
+    // 로컬 스토리지에 저장 (클라이언트 사이드에서만, Vercel 환경 호환)
     try {
-      const existingResults = JSON.parse(localStorage.getItem('speedtraffic_results') || '[]');
-      existingResults.push(savedResults);
-      // 최근 10개만 유지
-      if (existingResults.length > 10) {
-        existingResults.splice(0, existingResults.length - 10);
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const existingResults = JSON.parse(localStorage.getItem('speedtraffic_results') || '[]');
+        existingResults.push(savedResults);
+        // 최근 10개만 유지
+        if (existingResults.length > 10) {
+          existingResults.splice(0, existingResults.length - 10);
+        }
+        localStorage.setItem('speedtraffic_results', JSON.stringify(existingResults));
+        console.log('📊 SpeedTraffic 분석 결과 로컬 저장됨:', savedResults.id);
       }
-      localStorage.setItem('speedtraffic_results', JSON.stringify(existingResults));
-      console.log('📊 SpeedTraffic 분석 결과 저장됨:', savedResults.id);
     } catch (error) {
-      console.error('분석 결과 저장 실패:', error);
+      console.warn('로컬 스토리지 저장 실패 (무시됨):', error);
     }
   }, []);
 

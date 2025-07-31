@@ -1,3 +1,6 @@
+
+
+
 ### AI를 통해 수정된 readme.md입니다 ###
 
 
@@ -122,7 +125,7 @@ api/python/
    # 주요 패키지: yfinance, pandas, numpy
    ```
 
-4. **환경 변수 설정**
+4. **환경 변수 설정** 
    ```bash
    # .env.local 파일 생성
    CLOVA_STUDIO_API_KEY=your_clova_studio_api_key
@@ -131,6 +134,7 @@ api/python/
    NCP_API_KEY_ID=your_naver_summary_client_id
    NCP_API_KEY=your_naver_summary_client_secret
    ```
+   **GPT API 키 미검출 오류는 무시하세요. GPT API는 사용하지 않습니다.**
 
 ### 로컬 실행
 ```bash
@@ -209,6 +213,8 @@ graph TD
 ### ⚡ SpeedTraffic™ 분석 파라미터
 - **데이터 기간**: 252일 (1년)
 - **기술적 지표**: MFI(14일), 볼린저밴드(20일, 2σ), RSI(14일)
+- **산업 분석**: 동일 업종 포트폴리오 회귀분석(단, yfinance api 블록을 우려해 일단 10개만 추출함)
+- **시장 분석**: KOSPI 지수에 대한 capm 분석. beta 확보가 목적이므로 무위험수익률은 수집 X
 - **신호등 임계값**: 녹색(70+), 노랑(30-70), 빨강(30-)
 - **종합 점수**: 4개 영역 가중평균 (기술적 30%, 산업 25%, 시장 25%, 리스크 20%)
 
