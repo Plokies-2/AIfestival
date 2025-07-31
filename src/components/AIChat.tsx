@@ -183,32 +183,27 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
     }
   }, []);
 
-  // 컴포넌트 마운트 시 채팅 기록 복원 또는 초기화
+  // 컴포넌트 마운트 시 채팅 기록 완전 초기화 (새로고침 시 깨끗한 상태로 시작)
   useEffect(() => {
     const initializeChat = async () => {
-      // 저장된 채팅 기록 확인 (포트폴리오에서 돌아온 경우)
-      const savedHistory = localStorage.getItem('ai_chat_history');
-      const savedTimestamp = localStorage.getItem('ai_chat_timestamp');
+      // 새로고침 시 항상 localStorage 초기화하여 깨끗한 상태로 시작
+      localStorage.removeItem('ai_chat_history');
+      localStorage.removeItem('ai_chat_timestamp');
+      console.log('🔄 새로고침 감지 - 채팅 기록 완전 초기화');
 
-      // 5분 이내의 기록만 복원 (너무 오래된 기록은 무시)
-      const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-
-      if (savedHistory && savedTimestamp && parseInt(savedTimestamp) > fiveMinutesAgo) {
-        try {
-          const parsedHistory = JSON.parse(savedHistory);
-          if (parsedHistory.length > 0) {
-            console.log('🔄 채팅 기록 복원됨');
-            setHistory(parsedHistory);
-            // 질문 예시는 기록이 있으면 숨김
-            setSuggestedQuestions([]);
-            return;
-          }
-        } catch (error) {
-          console.error('채팅 기록 복원 실패:', error);
-        }
+      // 서버 세션도 명시적으로 리셋
+      try {
+        await fetch('/api/ai-chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '__RESET_SESSION__' })
+        });
+        console.log('🔄 서버 세션 리셋 완료');
+      } catch (error) {
+        console.error('서버 세션 리셋 실패:', error);
       }
 
-      // 저장된 기록이 없거나 오래된 경우 새로 초기화
+      // 새로 초기화
       setHistory([]);
 
       // 질문 예시 생성
