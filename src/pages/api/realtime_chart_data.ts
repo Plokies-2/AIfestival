@@ -144,7 +144,6 @@ export default async function handler(
 
   try {
     // 캐시 로직 제거 - 항상 실시간 데이터 사용
-    console.log(`🔄 Fetching realtime data for ${ticker}...`);
     const chartData = await fetchRealtimeData(yahooSymbol);
     const source = 'yfinance';
 

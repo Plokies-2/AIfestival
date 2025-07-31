@@ -66,8 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       throw new Error('AI로부터 유효한 응답을 받지 못했습니다');
     }
 
-    // 로깅
-    console.log(`🤖 [SPEEDTRAFFIC_AI] ${analysisData.symbol} 해설 생성 완료 (${fullResponse.length}자)`);
+    // AI 해설 생성 완료
 
     return res.status(200).json({
       success: true,

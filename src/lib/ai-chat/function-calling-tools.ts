@@ -53,23 +53,9 @@ class FunctionCallLogger {
 
     this.logs.push(logEntry);
 
-    // 콘솔에 상세 로그 출력
-    console.log(`🔧 [Function Call] ${functionName} 실행:`);
-    console.log(`   📥 매개변수:`, JSON.stringify(parameters, null, 2));
-    console.log(`   ⏱️ 실행시간: ${executionTime}ms`);
-    console.log(`   ${success ? '✅ 성공' : '❌ 실패'}`);
-
-    if (success) {
-      if (result && typeof result === 'object') {
-        if ('news_items' in result) {
-          console.log(`   📰 뉴스 결과: ${result.news_items?.length || 0}개`);
-        }
-        if ('total_found' in result) {
-          console.log(`   🔍 총 검색결과: ${result.total_found}개`);
-        }
-      }
-    } else {
-      console.log(`   ❌ 오류:`, result);
+    // 간단한 로그 출력
+    if (!success) {
+      console.log(`❌ [Function Call] ${functionName} 실패:`, result);
     }
   }
 
@@ -149,10 +135,9 @@ export class FunctionCallingExecutor {
     target_industries: string[];
     reasoning: string;
   }> {
-    const startTime = Date.now();
     const functionName = 'refine_user_query';
 
-    console.log(`🔍 [Function Call] ${functionName} 실행 시작 - 사용자 입력 정제`);
+    // 사용자 입력 정제 시작
 
     try {
       const messages = [
@@ -214,8 +199,6 @@ export class FunctionCallingExecutor {
 
       const response = await this.hcxClient.callFunctionCallingAPI(messages, tools, 'auto');
 
-      const executionTime = Date.now() - startTime;
-
       if (response.status?.code === '20000' && response.result?.message) {
         const toolCalls = response.result.message.toolCalls;
         if (toolCalls && toolCalls.length > 0) {
@@ -240,10 +223,6 @@ export class FunctionCallingExecutor {
           }
 
           if (functionArgs) {
-            console.log(`✅ [Function Call] ${functionName} 성공!`);
-            console.log(`   원본: "${args.user_message}"`);
-            console.log(`   변환: "${functionArgs.refined_query}"`);
-
             return functionArgs;
           }
         }
@@ -252,7 +231,6 @@ export class FunctionCallingExecutor {
       throw new Error('Function call 응답에서 결과를 찾을 수 없습니다.');
 
     } catch (error: any) {
-      const executionTime = Date.now() - startTime;
       console.error(`❌ [Function Call] ${functionName} 실패:`, error.message);
 
       // 폴백: 기본 변환

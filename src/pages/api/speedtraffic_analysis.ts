@@ -248,6 +248,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } finally {
     // 처리 완료 표시 (성공/실패 관계없이 항상 실행)
     processing.delete(ticker);
-    console.log(`[SPEEDTRAFFIC_API] ${ticker} 처리 완료 - 뮤텍스 해제`);
   }
 }

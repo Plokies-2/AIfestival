@@ -29,8 +29,6 @@ export default async function handler(
   }
 
   // 🔄 실시간 데이터 API로 리다이렉트
-  console.log(`🔄 Redirecting CSV request for ${symbol} to realtime API`);
-
   try {
     // 실시간 데이터 API 호출
     const realtimeUrl = `${req.headers.host}/api/realtime_chart_data?symbol=${symbol}`;

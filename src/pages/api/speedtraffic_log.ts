@@ -142,16 +142,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // 메모리 로그에 추가
     addToMemoryLog(logEntry);
 
-    // 콘솔에도 상세 요약 출력 (AI 해석용)
-    const techSummary = technical_analysis ?
-      `MFI:${technical_analysis.mfi?.value?.toFixed(1) || 'N/A'} RSI:${technical_analysis.rsi?.value?.toFixed(1) || 'N/A'} BB:${technical_analysis.bollinger?.percent_b?.toFixed(2) || 'N/A'}` : 'N/A';
-    const marketSummary = market_analysis ?
-      `CAPM_β:${market_analysis.capm?.beta?.toFixed(2) || 'N/A'} IND_β:${market_analysis.industry?.beta?.toFixed(2) || 'N/A'}` : 'N/A';
-    const riskSummary = risk_analysis ?
-      `VOL:${risk_analysis.garch?.volatility?.toFixed(2) || 'N/A'}% VaR95:${risk_analysis.garch?.var_95?.toFixed(2) || 'N/A'}%` : 'N/A';
-
-    console.log(`🚦 [SPEEDTRAFFIC_RESULT] ${symbol} | 신호등: 기술적:${traffic_lights.technical} 업종:${traffic_lights.industry} 시장:${traffic_lights.market} 리스크:${traffic_lights.risk}`);
-    console.log(`📊 [SPEEDTRAFFIC_DATA] ${symbol} | 기술적:[${techSummary}] 시장:[${marketSummary}] 리스크:[${riskSummary}]`);
+    // SpeedTraffic 결과 로깅 완료
 
     return res.status(200).json({ 
       success: true, 

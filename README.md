@@ -133,11 +133,11 @@ npm run dev
 ### 🔍 1차 RAG 기반 산업 매칭 파이프라인
 ```mermaid
 graph TD
-    A[사용자 입력] --> B[1차: 페르소나 분류<br/>bge-m3 임베딩]
-    B --> C{임계값 0.7<br/>이상?}
+    A[사용자 입력] --> B[1차: 페르소나 분류<br/>greetings.md, about_ai.md 등에 미리 <br/>의도별 질문을 bge-m3로 임베딩]
+    B --> C{투자 임계값보다<br/>임계값이 큰가?}
     C -->|Yes| D[greeting/about_ai<br/>hcx-dash-002 응답]
-    C -->|No| E[2차: 산업 매칭<br/>396개 산업 벡터]
-    E --> F{임계값 0.65<br/>이상?}
+    C -->|No| E[2차: 산업 매칭<br/>63개 산업 벡터]
+    E --> F{임계값 0.52<br/>이상?}
     F -->|Yes| G[단일 산업 선택]
     F -->|No| H[상위 2개 산업 추출]
     G --> I[hcx-dash-002<br/>1차 응답 생성]
@@ -147,13 +147,14 @@ graph TD
 ### 📰 2차 뉴스 기반 전략 도출 파이프라인
 ```mermaid
 graph TD
-    A[상세 분석 요청] --> B[HCX-005<br/>입력 정제]
-    B --> C[네이버 뉴스 검색<br/>sim/date 정렬]
-    C --> D{뉴스 길이<br/>2000자 이상?}
-    D -->|Yes| E[네이버 요약 API<br/>30% 압축]
-    D -->|No| F[HCX-005<br/>투자 전략 생성]
-    E --> F
-    F --> G[전통적 + 창의적<br/>포트폴리오 구성]
+    A[상세 분석 요청] --> B[HCX-002-DASH<br/>입력 정제]
+    B --> C[RAG Reasoning<br/>검색에 맞는 키워드 변환]
+    C --> D[네이버 뉴스 검색<br/>sim/date 정렬]
+    D --> E{뉴스 길이<br/>2000자 이상?}
+    E -->|Yes| E[네이버 요약 API<br/>30% 압축]
+    E -->|No| F[HCX-005<br/>투자 전략 생성]
+    F --> G
+    G --> H[전통적 + 창의적<br/>포트폴리오 구성]
 ```
 
 ### ⚡ SpeedTraffic™ 4중 분석 파이프라인

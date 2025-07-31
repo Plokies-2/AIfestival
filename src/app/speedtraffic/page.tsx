@@ -358,8 +358,6 @@ export default function SpeedTrafficPage() {
           session_id: `speedtraffic_${Date.now()}`
         };
 
-        console.log('🔍 [SPEEDTRAFFIC_PAGE] enhancedAnalysisData:', JSON.stringify(enhancedAnalysisData, null, 2));
-
         const logResponse = await fetch('/api/speedtraffic_log', {
           method: 'POST',
           headers: {
@@ -368,17 +366,10 @@ export default function SpeedTrafficPage() {
           body: JSON.stringify(enhancedAnalysisData)
         });
 
-        console.log('🔍 [SPEEDTRAFFIC_PAGE] 로그 API 응답 상태:', logResponse.status);
-
-        if (logResponse.ok) {
-          const logResult = await logResponse.json();
-          console.log('✅ [SPEEDTRAFFIC_PAGE] 로그 전송 성공:', logResult);
-        } else {
+        if (!logResponse.ok) {
           const errorText = await logResponse.text();
           console.error('❌ [SPEEDTRAFFIC_PAGE] 로그 전송 실패:', errorText);
         }
-
-        console.log('📝 SpeedTraffic 확장 결과가 백엔드로 전송되었습니다.');
       } catch (logError) {
         console.error('❌ [SPEEDTRAFFIC_PAGE] 백엔드 로깅 실패:', logError);
         // 로깅 실패해도 사용자 경험에는 영향 없음
