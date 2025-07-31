@@ -387,18 +387,25 @@ export class RAGNewsSearchSystem {
     const searchIntent = refinementResult.search_intent;
     const thinkingContent = refinementResult.thinking_content || '';
 
-    // 2단계: 최신 뉴스 우선 검색 (더 많은 결과를 가져온 후 필터링)
+    // 2단계: 관련성 우선 검색 후 날짜순 재정렬 (sim -> date 정렬)
     const searchResult = await this.newsSearcher.searchNews(
       refinedQuery,
       Math.min(maxResults * 3, 100), // API 최대 제한인 100개까지 가져와서 필터링
-      'date' // 최신순 정렬
+      'sim' // 관련성 정렬 (첫 번째 정렬)
     );
 
     const overallTime = Date.now() - overallStartTime;
 
     if (searchResult.success) {
+      // 관련성으로 가져온 뉴스를 날짜순으로 재정렬 (두 번째 정렬)
+      const sortedByDate = searchResult.items.sort((a, b) => {
+        const dateA = new Date(a.pubDate);
+        const dateB = new Date(b.pubDate);
+        return dateB.getTime() - dateA.getTime(); // 최신순 정렬
+      });
+
       // 최근 3일 뉴스만 필터링
-      const recentItems = this.newsSearcher.filterRecentNews(searchResult.items, 3);
+      const recentItems = this.newsSearcher.filterRecentNews(sortedByDate, 3);
 
       // 필요한 개수만큼 선택
       const selectedItems = recentItems.slice(0, maxResults);
@@ -457,18 +464,25 @@ export class RAGNewsSearchSystem {
     console.log(`   정제된 쿼리: "${refinedQuery}"`);
     console.log(`   검색 의도: ${searchIntent}`);
 
-    // 2단계: 최신 뉴스 우선 검색 (API 최대 제한인 100개 가져와서 최근 3일 필터링)
+    // 2단계: 관련성 우선 검색 후 날짜순 재정렬 (sim -> date 정렬)
     const searchResult = await this.newsSearcher.searchNews(
       refinedQuery,
       100, // API 최대 제한인 100개로 수정 (Naver API 제한)
-      'date' // 최신순 정렬
+      'sim' // 관련성 정렬 (첫 번째 정렬)
     );
 
     const overallTime = Date.now() - overallStartTime;
 
     if (searchResult.success) {
+      // 관련성으로 가져온 뉴스를 날짜순으로 재정렬 (두 번째 정렬)
+      const sortedByDate = searchResult.items.sort((a, b) => {
+        const dateA = new Date(a.pubDate);
+        const dateB = new Date(b.pubDate);
+        return dateB.getTime() - dateA.getTime(); // 최신순 정렬
+      });
+
       // 최근 7일 뉴스부터 시작 (정부 정책, 국제 정세 중심)
-      let recentItems = this.newsSearcher.filterRecentNews(searchResult.items, 7);
+      let recentItems = this.newsSearcher.filterRecentNews(sortedByDate, 7);
       let dayRange = 7;
 
       // 최근 7일 뉴스가 부족하면 점진적으로 범위 확대
@@ -476,19 +490,19 @@ export class RAGNewsSearchSystem {
         console.log(`⚠️ [Investment Trend Search] 최근 7일 뉴스 ${recentItems.length}개 부족 - 범위 확대`);
 
         // 14일로 확대
-        recentItems = this.newsSearcher.filterRecentNews(searchResult.items, 14);
+        recentItems = this.newsSearcher.filterRecentNews(sortedByDate, 14);
         dayRange = 14;
 
         if (recentItems.length === 0) {
           console.log(`⚠️ [Investment Trend Search] 최근 14일 뉴스 ${recentItems.length}개 부족 - 30일로 확대`);
           // 30일로 확대
-          recentItems = this.newsSearcher.filterRecentNews(searchResult.items, 30);
+          recentItems = this.newsSearcher.filterRecentNews(sortedByDate, 30);
           dayRange = 30;
 
           if (recentItems.length === 0) {
             console.log(`⚠️ [Investment Trend Search] 최근 30일 뉴스도 없음 - 모든 뉴스 사용`);
-            // 모든 뉴스 사용
-            recentItems = searchResult.items.map(item => this.newsSearcher.formatNewsItem(item));
+            // 모든 뉴스 사용 (이미 날짜순 정렬됨)
+            recentItems = sortedByDate.map(item => this.newsSearcher.formatNewsItem(item));
             dayRange = 999;
           }
         }
@@ -534,25 +548,32 @@ export class RAGNewsSearchSystem {
   }
 
   /**
-   * 기업별 최신 동향 검색 (더 많은 뉴스를 가져와서 최근 7일 필터링)
+   * 기업별 최신 동향 검색 (더 많은 뉴스를 가져와서 최근 12일 필터링)
    */
   async searchCompanyNews(companyName: string, maxResults: number = 3): Promise<NewsSearchResult> {
     const startTime = Date.now();
     const fixedQuery = `${companyName}`;
     console.log(`🏢 [Company Search] 기업 뉴스 검색 시작: "${fixedQuery}"`);
 
-    // 더 많은 뉴스를 가져와서 최근 7일 필터링 후 관련성 높은 뉴스 선택
+    // 관련성 우선 검색 후 날짜순 재정렬 (sim -> date 정렬)
     const searchResult = await this.newsSearcher.searchNews(
       fixedQuery,
       100, // API 최대 제한인 100개 가져와서 필터링 (뉴스 다양성 확보)
-      'date' // 최신순으로 변경
+      'sim' // 관련성 정렬 (첫 번째 정렬)
     );
 
     const processingTime = Date.now() - startTime;
 
     if (searchResult.success) {
-      // 최근 7일 뉴스만 필터링
-      const recentItems = this.newsSearcher.filterRecentNews(searchResult.items, 7);
+      // 관련성으로 가져온 뉴스를 날짜순으로 재정렬 (두 번째 정렬)
+      const sortedByDate = searchResult.items.sort((a, b) => {
+        const dateA = new Date(a.pubDate);
+        const dateB = new Date(b.pubDate);
+        return dateB.getTime() - dateA.getTime(); // 최신순 정렬
+      });
+
+      // 최근 12일 뉴스만 필터링
+      const recentItems = this.newsSearcher.filterRecentNews(sortedByDate, 12);
 
       // 필요한 개수만큼 선택
       const selectedItems = recentItems.slice(0, maxResults);
@@ -561,7 +582,7 @@ export class RAGNewsSearchSystem {
         this.newsSearcher.formatNewsItem(item)
       );
 
-      console.log(`✅ [Company Search] 완료 (${processingTime}ms): 전체 ${searchResult.items.length}개 중 최근 7일 ${recentItems.length}개, 최종 ${formattedItems.length}개 뉴스 반환`);
+      console.log(`✅ [Company Search] 완료 (${processingTime}ms): 전체 ${searchResult.items.length}개 중 최근 12일 ${recentItems.length}개, 최종 ${formattedItems.length}개 뉴스 반환`);
 
       return {
         success: true,
@@ -572,7 +593,7 @@ export class RAGNewsSearchSystem {
         items_returned: formattedItems.length,
         news_items: formattedItems,
         refinement_success: true,
-        thinking_content: `기업명 '${companyName}'에 대한 최근 7일 뉴스 필터링 적용`
+        thinking_content: `기업명 '${companyName}'에 대한 최근 12일 뉴스 필터링 적용`
       };
     } else {
       console.error(`❌ [Company Search] 실패 (${processingTime}ms):`, searchResult.error);

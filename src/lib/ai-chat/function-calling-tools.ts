@@ -648,7 +648,7 @@ export class FunctionCallingExecutor {
   }
 
   /**
-   * 투자 전략 생성 실행 - 실제 HCX-005 Function Calling 사용
+   * 투자 전략 생성 실행
    */
   async executeGenerateInvestmentStrategies(args: {
     user_message: string;
@@ -675,10 +675,10 @@ export class FunctionCallingExecutor {
     console.log(`💡 [Function Call] ${functionName} 실행 시작 - HCX-005 Function Calling 사용`);
 
     try {
-      // 검색 결과를 포함한 확장된 사용자 메시지 구성
+      // 검색 결과를 포함
       let enhancedUserMessage = args.user_message;
 
-      // 최신 동향 뉴스 추가 (요약 기능 적용)
+      // 최신 동향 뉴스
       let totalNewsCount = 0;
       if (args.trend_news && args.trend_news.length > 0) {
         // 뉴스 요약 필요성 판단
@@ -778,7 +778,7 @@ export class FunctionCallingExecutor {
       }
 
       // 핵심 지시사항 강화
-      enhancedUserMessage += `\n\n**🚨 절대 준수 사항:**
+      enhancedUserMessage += `\n\n** 절대 준수 사항:**
 1. **동향 뉴스 분석 시 특정 기업명 절대 언급 금지! 산업 전반의 트렌드만 언급하며, 8줄 내외로 적당한 분량의 동향 보고서를 작성하세요.**
 2. **동향 뉴스에서는 전체 산업을 아우를 만한 이슈를 찾아주세요. 종합적 인사이트에 집중하세요**
 3. **각 기업마다 반드시 서로 다른 2개 이상의 뉴스를 인용하세요**

@@ -108,7 +108,7 @@ export async function classifyUserIntent(userInput: string): Promise<IntentClass
 
 
 // ============================================================================
-// llm 기반 동적 응답 생성 (복구됨)
+// llm 기반 동적 응답
 // ============================================================================
 
 /**
@@ -240,7 +240,7 @@ export interface InvestmentRecommendationResult {
 
 
 // ============================================================================
-// 검색 기능이 통합된 투자 분석 (새로운 기능)
+// 검색 기능이 통합된 투자 분석
 // ============================================================================
 
 /**
@@ -449,7 +449,7 @@ export async function generateEnhancedInvestmentAnalysis(
 
     console.log(`✅ [Function Call] 동향 뉴스 + 기업 뉴스 통합 분석 완료!`);
 
-    // 최종 결과 구성 (기업 뉴스 분석 결과 활용) - 안전한 접근
+    // 최종 결과 구성 (기업 뉴스 분석 결과 활용)
     console.log(`🔧 [New Pipeline] finalInvestmentResult 필드 확인:`, {
       traditionalStrategy: finalInvestmentResult?.traditionalStrategy?.length || 0,
       creativeStrategy: finalInvestmentResult?.creativeStrategy?.length || 0,
