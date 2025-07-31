@@ -8,7 +8,7 @@
 src/data/corpus/
 ├── about_ai.md              # AI 정체성/능력 질문 예시
 ├── greeting.md              # 인사말 예시
-├── investment.md            # 투자 관련 (사용하지 않음)
+├── investment.md            # 투자 관련
 ├── regenerate-embeddings.js # 캐시 재생성 스크립트
 └── README.md               # 이 파일
 ```
@@ -69,7 +69,7 @@ AI의 정체성이나 능력에 대한 질문 예시를 추가/수정할 때:
 
 1. **환경 변수 확인**: OPENAI_API_KEY 존재 여부 확인
 2. **MD 파일 검증**: about_ai.md, greeting.md 파일 및 Examples 섹션 확인
-3. **캐시 삭제**: 기존 `.cache/sp500_vectors.json` 파일 삭제
+3. **캐시 삭제**: 기존 `.cache/kospi_vectors.json` 파일 삭제
 4. **임베딩 생성**: 
    - 기업 임베딩 (496개)
    - 산업 임베딩 (40개)
@@ -89,7 +89,7 @@ AI의 정체성이나 능력에 대한 질문 예시를 추가/수정할 때:
 ✅ about_ai.md: 36개 예시 발견
 ✅ greeting.md: 26개 예시 발견
 🔄 기존 캐시 파일 확인 중...
-⚠️ 기존 캐시 파일 발견: .cache/sp500_vectors.json
+⚠️ 기존 캐시 파일 발견: .cache/kospi_vectors.json
 🔄 기존 캐시 파일 삭제 중...
 ✅ 기존 캐시 파일 삭제 완료
 🔄 임베딩 생성을 위한 API 호출 준비 중...
@@ -128,7 +128,7 @@ AI의 정체성이나 능력에 대한 질문 예시를 추가/수정할 때:
 ## 🔧 개발자 정보
 
 - **스크립트 위치**: `src/data/corpus/regenerate-embeddings.js`
-- **캐시 위치**: `.cache/sp500_vectors.json`
+- **캐시 위치**: `.cache/kospi_vectors.json`
 - **소요 시간**: 약 2-3분 (네트워크 상황에 따라 다름)
 - **API 호출 수**: 약 10-15회 (배치 처리로 최적화됨)
 

@@ -70,7 +70,7 @@ export interface SessionState {
  * User intent classification result
  */
 export interface IntentClassificationResult {
-  intent: 'greeting' | 'about_ai' | 'investment_query' | 'casual_chat'; // company_direct 제거
+  intent: 'greeting' | 'about_ai' | 'investment_query' | 'casual_chat';
   confidence: number;
   reasoning: string;
 }
@@ -122,10 +122,10 @@ export interface PersonaRow {
  * Investment intent matching result
  */
 export interface InvestmentIntentResult {
-  intent: 'investment_query' | null; // company_direct 제거
+  intent: 'investment_query' | null;
   score: number;
   matchedEntity?: string; // 매칭된 산업명
-  method: 'rag_industry' | 'investment_keywords' | 'none'; // rag_company 제거
+  method: 'rag_industry' | 'investment_keywords' | 'none';
 }
 
 // ============================================================================

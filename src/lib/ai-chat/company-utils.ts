@@ -2,10 +2,9 @@
  * Company Utilities Module
  * 
  * This module provides utility functions for company-related operations including:
- * - Random investment recommendation generation
  * - Company data lookup and validation
  * - Pattern matching for user responses
- * - Company name translation and formatting
+ * - Company name formatting
  */
 
 import { KOSPI_ENRICHED_FINAL as DATA } from '@/data/kospi_enriched_final';
@@ -93,8 +92,6 @@ export function getCompaniesByIndustry(industry: string): Array<{ticker: string,
   return companies;
 }
 
-// 랜덤 기업 추천 기능 제거됨 - RAG 기반 투자 분석만 제공
-
 // ============================================================================
 // Company Name and Description Utilities
 // ============================================================================
@@ -126,18 +123,4 @@ export function formatCompanyList(
     .join('\n');
 }
 
-// ============================================================================
-// Industry Statistics and Analysis (사용되지 않는 함수들 제거됨)
-// ============================================================================
 
-// ============================================================================
-// Search and Filtering Utilities
-// ============================================================================
-
-// ============================================================================
-// Search and Filtering Utilities (사용되지 않는 함수들 제거됨)
-// ============================================================================
-
-// ============================================================================
-// Data Validation Utilities (사용되지 않는 함수들 제거됨)
-// ============================================================================

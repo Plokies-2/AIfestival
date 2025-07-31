@@ -92,19 +92,7 @@ export async function classifyUserIntent(userInput: string): Promise<IntentClass
       }
     }
 
-    // 3. Fallback: Korean company name check (legacy support) - 주석처리: company direct match 제거
-    // const lowerInput = userInput.toLowerCase().trim();
-
-    // for (const koreanName of Object.keys(KOREAN_COMPANY_MAPPING)) {
-    //   if (lowerInput.includes(koreanName)) {
-    //     // 제거된 기능: 한국 기업명 컨텍스트 기반 필터링 - 사용되지 않던 레거시 코드
-    //     return {
-    //       intent: 'company_direct',
-    //       confidence: 0.8, // Lower confidence for fallback
-    //       reasoning: `한국 기업명 매칭 (fallback): ${koreanName}`
-    //     };
-    //   }
-    // }
+    // Company direct match 기능 제거됨
 
     // 4. Default: classify as greeting (수정된 로직)
     return {

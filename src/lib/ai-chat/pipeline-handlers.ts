@@ -53,8 +53,7 @@ export async function handleStartStage(context: PipelineContext): Promise<StageH
     case 'casual_chat':
       return await handleConversationalIntent(context, intentResult);
 
-    // case 'company_direct': // 주석처리: company direct match 제거
-    //   return await handleDirectCompanyQuery(context);
+    // Company direct match 기능 제거됨
 
     case 'investment_query':
     default:

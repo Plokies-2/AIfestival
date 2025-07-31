@@ -4,7 +4,6 @@
  * This module handles all RAG-related functionality including:
  * - Industry matching using embeddings and cosine similarity
  * - Company finding and matching
- * - Korean-English translation mapping
  * - Embedding generation and similarity calculations
  */
 
@@ -125,25 +124,7 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
       return { intent: null, score: 0, method: 'none' };
     }
 
-    // 1. Check for direct company match (highest priority) - 주석처리: company direct match 제거
-    // let bestCompanyScore = -1;
-    // let bestCompanyMatch = null;
-
-    // const topCompanies = companies.slice(0, PERFORMANCE_CONFIG.maxCompaniesForRAG);
-
-    // for (const company of topCompanies) {
-    //   if (!company.vec || !Array.isArray(company.vec)) continue;
-
-    //   const score = cosine(company.vec, normalizedQuery);
-    //   if (score > bestCompanyScore) {
-    //     bestCompanyScore = score;
-    //     bestCompanyMatch = company;
-    //   }
-    // }
-
-    // company direct match 제거로 인한 기본값 설정 - 변수 제거
-    // let bestCompanyScore = -1;
-    // let bestCompanyMatch = null;
+    // Company direct match 기능이 제거되어 산업 매칭만 사용
 
     // 2. Check for industry match
     let bestIndustryScore = -1;
@@ -159,29 +140,12 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
       }
     }
 
-    // 3. Determine intent based on scores and patterns
-    // 제거된 기능: investment_recommendation 패턴 매칭 - 더 이상 사용되지 않음
+    // 산업 매칭 기반 의도 분류
 
-    // Check for direct company mention (high confidence) - 주석처리: company direct match 제거
-    // if (bestCompanyScore >= RAG_THRESHOLDS.COMPANY_DIRECT_MIN_SCORE) {
-    //   console.log(`🏢 Selected: ${bestCompanyMatch?.name} (${bestCompanyScore.toFixed(3)})`);
-    //   return {
-    //     intent: 'company_direct',
-    //     score: bestCompanyScore,
-    //     matchedEntity: bestCompanyMatch?.name,
-    //     method: 'rag_company'
-    //   };
-    // }
-
-    // Check for investment query (medium confidence) - 산업 매칭만 사용
-    // 로그 최적화: 상세 점수 로그 제거
-    // console.log(`🔍 [Investment Intent] Industry score: ${bestIndustryScore.toFixed(3)}, Threshold: ${RAG_THRESHOLDS.INVESTMENT_INTENT_MIN_SCORE}`);
-
-    // 산업 매칭만 고려 (company direct match 제거)
+    // 투자 의도 분류 - 산업 매칭 기반
     if (bestIndustryScore >= RAG_THRESHOLDS.INVESTMENT_INTENT_MIN_SCORE) {
       const selectedEntity = bestIndustryMatch?.industry_ko;
       const selectedScore = bestIndustryScore;
-      // 로그 최적화: 최종 결과만 출력
       console.log(`🏭 [RAG] Selected: ${selectedEntity}`);
       return {
         intent: 'investment_query',
@@ -189,9 +153,6 @@ export async function classifyInvestmentIntent(userInput: string): Promise<Inves
         matchedEntity: selectedEntity,
         method: 'rag_industry'
       };
-    } else {
-      // 로그 최적화: 실패 로그 제거
-      // console.log(`❌ [Investment Intent] Industry score below threshold, returning null`);
     }
 
     // Check for basic investment keywords (fallback)
@@ -334,10 +295,8 @@ export function getIndustryCompanies(industry: string): string[] {
   // console.log(`Total companies in DATA: ${allCompanies.length}`);
 
   const matchingCompanies = allCompanies
-    .filter(([ticker, company]: [string, any]) => {
+    .filter(([, company]: [string, any]) => {
       const matches = company.industry === industry;
-      // 로그 최적화: 개별 회사 매칭 로그 제거
-      // if (matches) {
       //   console.log(`Found matching company: ${company.name} (${ticker}) in ${company.industry}`);
       // }
       return matches;
