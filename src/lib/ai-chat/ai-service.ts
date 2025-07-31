@@ -1,12 +1,3 @@
-/**
- * AI Service Integration Module (단순화됨)
- *
- * This module handles:
- * - OpenAI client initialization and configuration
- * - 100% RAG-based intent classification
- * - GPT-based industry classification
- * - 단순화된 응답 생성
- */
 
 import OpenAI from 'openai';
 import { IntentClassificationResult } from './types';
