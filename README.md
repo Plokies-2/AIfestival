@@ -13,14 +13,14 @@
 ### 🔍 1. 1차:  RAG 기반 2단계 의도 파악
 - **2단계 RAG 시스템**: 페르소나 분류 → 산업 매칭의 이중 검증
 - **Clova Studio bge-m3 임베딩**: 기분류된 KOSPI 산업과 정확한 매칭
-- **hcx-dash-002 모델**: 빠른 1차 응답 생성 (120토큰, 온도 0.7)
-- **상위 2개 산업 추출**: 정확도 0.65 미만 시 Top 2 산업을 언급하고, 2차 응답에 정보를 모두 제공
+- **hcx-dash-002 모델**: 빠른 1차 응답 생성
+- **상위 2개 산업 추출**: 정확도 미흡 시 Top 2 산업을 언급하고, 2차 응답에 정보를 모두 제공
 - **실시간 의도 분류**: greeting, about_ai, investment_query, casual_chat 자동 분류
 
 ### 📰 2. 2차:  뉴스 기반 전략 도출
 - **HCX-005 Function Calling**: 고급 모델의 자율적 뉴스 검색 및 분석
 - **사용자 입력 정제**: 비정형 질문을 구체적 투자 쿼리로 변환
-- **네이버 뉴스 API**: 최근 n일간 관련 뉴스 수집 (sim/date 기준 정렬)
+- **RAG Reasoning/네이버 뉴스 API**: 최근 n일간 관련 뉴스 수집 (sim/date 기준 정렬)
 - **자동 요약**: 2000자 이상 뉴스 시 네이버 요약 API 호출 (30% 정도 토큰을 절약함)
 - **투자 전략 생성**: 정통적 + 창의적 전략 조합으로 포트폴리오 구성
 
@@ -50,7 +50,7 @@
   - **요약 API**: 방대한 뉴스 기사 요약
 
 - **데이터**: 
-  - 산업군 분류 지도 백터 : 
+  - 산업군 분류 지도 백터 : KRX 데이터를 활용하였음. (src/data의 상장법인목록.xls 를 참조하세요.)
 
 
 
@@ -136,7 +136,7 @@ api/python/
 ```bash
 npm run dev
 ```
-브라우저에서 `http://localhost:3000`에 접속하여 플랫폼을 이용할 수 있습니다. **여러 개를 동시 실행해 포트가 3001 이상이 되면 일부 기능에 버그가가 생깁니다**
+브라우저에서 `http://localhost:3000`에 접속하여 플랫폼을 이용할 수 있습니다. **여러 개를 동시 실행해 포트가 3001 이상이 되면 일부 기능에 버그가 생깁니다**
 
 ## 🔄 파이프라인
 
@@ -196,14 +196,14 @@ graph TD
 ## 📊 핵심 기술 세부사항
 
 ### 🎯 RAG 시스템 정확도 관리
-- **2단계 검증**: 페르소나 분류(임계값 0.7) → 산업 매칭(임계값 0.65)
-- **다중 매칭 로직**: 최고 점수 < 0.65일 경우 상위 2개 산업 추출
-- **임베딩 모델**: Clova Studio bge-m3 (1024차원 벡터)
+- **2단계 검증**: 페르소나 분류(투자 의도 여부 분류) 후 → 산업 매칭
+- **다중 매칭 로직**: 최고 점수 미습 시 상위 2개 산업 추출
+- **임베딩 모델**: Clova Studio에서 호출 가능한 bge-m3
 - **유사도 계산**: 정규화된 코사인 유사도
 
 ### 📰 뉴스 수집 및 처리 알고리즘
-- **수집 기준**: 유사도(sim) 우선, 날짜(date) 보조 정렬 - date 정렬하면 빈약한 뉴스가 너무 많이 들어옴
-- **수집 기간**: 기본 12일, 수집량에 따라 최대 30일
+- **수집 기준**: 유사도(sim) 우선, 날짜(date) 보조 정렬 - date로만만 정렬하면 빈약한 뉴스가 너무 많이 들어옴
+- **수집 기간**: 산업 7일, 기업 12일, 수집량에 확장됨
 - **요약 임계값**: 2000자 이상 시 네이버 요약 API 호출
 
 ### ⚡ SpeedTraffic™ 분석 파라미터
@@ -218,11 +218,11 @@ graph TD
 - **포트폴리오**: AI는 한 답변의 2개의 포트폴리오를 제공하며, 각각의 포트폴리오에 대해 백테스팅 하거나 둘을 한꺼번에 백테스팅 가능.
 
 
-## 📁 완전한 프로젝트 구조 (총 56개 파일)
+## 📁 완전한 프로젝트 구조 (총 55개 파일)
 
 ```
 src/
-├── components/ (9개)           # React UI 컴포넌트
+├── components/ (9개)          ## React UI 컴포넌트
 │   ├── AIChat.tsx             # 🔥 메인 AI 채팅 인터페이스
 │   ├── FinancialChart.tsx     # 🔥 실시간 주가 차트 (lightweight-charts)
 │   ├── SpeedTraffic.tsx       # 🔥 SpeedTraffic 분석 백그라운드 실행
@@ -231,17 +231,17 @@ src/
 │   ├── RealTimeThinkingBox.tsx # AI 추론 과정 실시간 표시(뉴스 내용 요약 중... 이 표시되는 박스)
 │   ├── MarketStatus.tsx       # 시장 현황 (KOSPI, KRW/USD, VIX)
 │   └── ReportModal.tsx        # SpeedTraffic 보고서 모달
-├── data/ (4개)                # 핵심 데이터
+├── data/ (4개)                ## 핵심 데이터
 │   ├── KOSPI_companies.json   # 🔥 KOSPI 기업 데이터
 │   ├── kospi_enriched_final.ts # 🔥 기업 정보 빠른 조회용
 │   ├── kospi_industry_vectors.ts # 🔥 산업 키워드 벡터(산업 분류에 사용됩니다)
 │   └── KOSPI_industry_mapping.json # 산업 매핑 정보
-├── lib/ (4개)                 # 핵심 라이브러리
+├── lib/ (4개)                 ## 핵심 라이브러리
 │   ├── clova-embedding.ts     # 🔥 Clova Studio bge-m3 임베딩
 │   ├── embeddings.ts          # 🔥 임베딩 캐시 및 코사인 유사도
 │   ├── server-session.ts      # 서버 세션 관리
 │   └── utils.ts               # Tailwind 유틸리티
-├── lib/ai-chat/ (13개)        # 🔥 모듈화된 AI 채팅 시스템
+├── lib/ai-chat/ (13개)        ##  AI 채팅 시스템
 │   ├── ai-service.ts          # 🔥 Clova Studio API 클라이언트
 │   ├── rag-service.ts         # 🔥 2단계 RAG 시스템 핵심
 │   ├── function-calling-tools.ts # 🔥 HCX-005 Function Calling
@@ -255,7 +255,7 @@ src/
 │   ├── company-utils.ts       # 기업 조회 유틸리티
 │   ├── speedtraffic-prompts.ts # SpeedTraffic 프롬프트
 │   └── index.ts               # 모듈 진입점
-├── pages/api/ (14개)          # API 엔드포인트
+├── pages/api/ (14개)          ## API 엔드포인트
 │   ├── ai_chat.ts             # 🔥 메인 AI 채팅 API
 │   ├── ai_chat_detailed.ts    # 🔥 HCX-005 상세 분석 API
 │   ├── speedtraffic_analysis.ts # 🔥 SpeedTraffic 분석 API
@@ -269,7 +269,7 @@ src/
 │   ├── csv_chart_data.ts      # CSV 차트 데이터 API (레거시)
 │   ├── generate_report.ts     # 보고서 생성 API
 │   ├── speedtraffic_log.ts    # SpeedTraffic 로그 API
-├── utils/ (2개)               # 유틸리티
+├── utils/ (2개)               ## 유틸리티
 │   ├── companyLookup.ts       # 🔥 기업 정보 조회 및 변환
 │   └── resultsStorage.ts      # SpeedTraffic 결과 타입 정의
 └── api/python/ (10개)         # 🔥 Python 분석 엔진
@@ -289,8 +289,7 @@ src/
 
 ### 🔬 **기술 결합**
 - **2단계 RAG 시스템**: 페르소나 → 산업 매칭의 이중 검증으로 정확도 향상
-- **하이브리드 아키텍처**: TypeScript + Python 최적 조합
-- **실시간 Function Calling**: HCX-005 모델의 자율적 뉴스 분석
+- **Function Calling**: HCX-005 모델 응답에 함수 호출을 통한 뉴스 검색, 요약, 전략 생성
 - **4중 분석 신호등**: 기술적/산업/시장/리스크 종합 평가
 
 ### 📊 **데이터 정확성**
