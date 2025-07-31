@@ -18,7 +18,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
       id: 'hero',
       title: '사용자 맞춤형 투자지원 AI',
       subtitle: '의도 분석, 뉴스 분석, 포트폴리오 백테스팅, SpeedTraffic™',
-      description: '자연어 아이디어로부터 맞춤형 투자 전략을 제안하는 종합 플랫폼',
+      description: '자연어 아이디어로부터 맞춤형 투자 전략을 제안하는 종합 플랫폼을 소개합니다',
       bgColor: 'from-slate-900 via-blue-900 to-indigo-900',
       textColor: 'text-white'
     },
@@ -29,7 +29,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
       description: 'BGE-M3 모델을 통해 KRX 기업공시채널 분류 기준 데이터베이스를 백터화하였습니다. 이 지도를 통해 사용자의 전략에 맞는 산업을 추론합니다.',
       features: [
         { icon: '⚡', title: '빠른 1차 답변', desc: '이미 구성된 백터 지도를 통해 3초 내로 사용자의 아이디어를 타겟팅할 수 있는 산업군을 추출합니다.' },
-        { icon: '🧠', title: 'KRX 분류 기준 데이터베이스', desc: '기분류된 데이터를 활용해 LLM의 고질적인 문제인 일관성 문제를 해결해 정확한 산업 타겟팅을 구현합니다.' },
+        { icon: '🧠', title: 'KRX 분류 기준 데이터베이스', desc: '기분류된 데이터베이스를 활용해 LLM의 고질적인 문제인 일관성 문제를 해결해 정확한 산업 타겟팅을 구현합니다.' },
         { icon: '🎯', title: '정확한 의도 파악', desc: 'HCX-002-DASH 모델이 사용자의 질의를 임베딩하기 전   ' },
         { icon: '🔍', title: 'RAG 기반 매칭', desc: '정확한 산업/기업 매칭' }
       ],
@@ -66,7 +66,7 @@ const LandingPage: React.FC<LandingPageProps> = () => {
     {
       id: 'speedtraffic',
       title: 'SpeedTraffic™ 개별 기업 분석',
-      subtitle: '포트폴리오를 넘어선 섬세한 개별 주식 분석 기능을 사용하세요요',
+      subtitle: '포트폴리오를 넘어선 섬세한 개별 주식 분석 기능을 사용하세요',
       description: '개별 주식에 대한 초직관적인 정보를 제공하는 Speedtraffic은 차트 분석에 대한 정보가 없는 사용자에게도 빠르고 정확한 정보를 제공합니다. 상세 분석 기법이 궁금하다면, 언제든지 AI에게 물어보세요!',
       features: [
         { icon: '📊', title: '기술적 분석 3종', desc: 'MFI, 볼린저 밴드, RSI 지표를 다수결로 묶어 기술적 지표를 종합 분석합니다.' },

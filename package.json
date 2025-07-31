@@ -16,6 +16,7 @@
     "clsx": "^2.1.1",
     "lightweight-charts": "^4.2.3",
     "lucide-react": "^0.364.0",
+    "mathjs": "^14.6.0",
     "next": "^15.4.5",
     "openai": "^4.98.0",
     "react": "^19.0.0",
@@ -23,7 +24,9 @@
     "recharts": "^2.12.4",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
-    "uuid": "^11.1.0"
+    "technicalindicators": "^3.1.0",
+    "uuid": "^11.1.0",
+    "yahoo-finance2": "^2.13.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.54.1",

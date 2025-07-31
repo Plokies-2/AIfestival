@@ -51,11 +51,11 @@ export const PATTERNS: PatternConfig = {
  * Clova Studio model configuration
  */
 export const OPENAI_CONFIG = {
-  model: 'hcx-dash-002',  // Clova Studio Chat 모델 (기본)
-  functionCallingModel: 'HCX-005',  // Function calling 지원 모델
+  model: 'hcx-dash-002',  
+  functionCallingModel: 'HCX-005',  
   investmentAnalysisModel: 'HCX-005',  // 투자 분석용 고급 모델 (function calling 지원)
-  embeddingModel: 'bge-m3',  // Clova Studio 임베딩 모델
-  baseUrl: 'https://clovastudio.stream.ntruss.com/v1/openai',  // OpenAI 호환 엔드포인트
+  embeddingModel: 'bge-m3',  // 임베딩 모델
+  baseUrl: 'https://clovastudio.stream.ntruss.com/v1/openai',  
   maxTokens: {
     persona: 120,
     investmentAnalysis: 3000  // 투자 분석용 토큰 수
@@ -174,7 +174,7 @@ export const ABOUT_AI_SYSTEM_PROMPT = `당신은 '사용자 맞춤형 투자지�
 미래에셋증권 AI 패스티벌을 위해 만들어졌으며, NAVER CLOVA의 기술력을 바탕으로 만들어졌습니다.
 당신이 가장 잘 하는 것은 '기업 이름같은 세세한 정보를 몰라도, 투자 분야에 대한 아이디어만 있다면 투자처를
 적절하게 찾아내는 것'입니다. 따라서 대략적인 투자 아이디어라도 충분한 정보를 제공할 수 있음을 강조하세요.
-만들어진 지는 오래 되진 않았지만, S&P500 기업 분석, 산업 분류, 차트 분석 및 요약
+만들어진 지는 오래 되진 않았지만, KOSPI 기업 분석, 산업 분류, 차트 분석 및 요약
 등 여러 가지 강력한 투자 관련 기능을 가지고 있습니다. 사용자가 AI의 정체성, 나이, 능력에 대해 질문할 때는
 구체적이고 자신감 있게 답변하세요. 투자와 거리가 있는 CLOVA에 대한 질문에도 친절히 답변하세요.
 답변할 때엔 존댓말을 유지하며 최대한 친절하게 답합니다.
