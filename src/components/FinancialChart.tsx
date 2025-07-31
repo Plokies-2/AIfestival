@@ -105,6 +105,15 @@ const FinancialChart: React.FC<FinancialChartProps> = memo(({ symbol, isMinimize
           borderColor: '#cccccc',
           timeVisible: true,
           secondsVisible: false,
+          // 5년치 데이터에 맞는 시간축 설정
+          rightOffset: 12,
+          barSpacing: 3,
+          fixLeftEdge: false,
+          fixRightEdge: false,
+          lockVisibleTimeRangeOnResize: false,
+          rightBarStaysOnScroll: true,
+          borderVisible: true,
+          visible: true,
         },
         rightPriceScale: {
           borderColor: '#cccccc',
@@ -200,9 +209,21 @@ const FinancialChart: React.FC<FinancialChartProps> = memo(({ symbol, isMinimize
         // 시리즈에 데이터 설정
         seriesRef.current?.setData(chartData);
 
-        // 차트를 데이터에 맞게 조정
-        if (chartRef.current) {
+        // 차트를 데이터에 맞게 조정 - 5년치 데이터 전체 범위 표시
+        if (chartRef.current && chartData.length > 0) {
+          // 전체 데이터 범위를 표시하도록 설정
           chartRef.current.timeScale().fitContent();
+
+          // 추가적으로 시간 범위를 명시적으로 설정
+          const timeScale = chartRef.current.timeScale();
+          const firstTime = chartData[0].time;
+          const lastTime = chartData[chartData.length - 1].time;
+
+          // 시간 범위를 전체 데이터에 맞게 설정
+          timeScale.setVisibleRange({
+            from: firstTime,
+            to: lastTime,
+          });
         }
 
         // 현재 심볼 업데이트

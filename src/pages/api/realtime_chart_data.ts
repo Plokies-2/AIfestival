@@ -38,7 +38,7 @@ async function fetchRealtimeData(symbol: string): Promise<ChartDataPoint[] | nul
 
     // Yahoo Finance API 호출
     const endDate = Math.floor(Date.now() / 1000);
-    const startDate = endDate - (3 * 365 * 24 * 60 * 60); // 3년 전
+    const startDate = endDate - (5 * 365 * 24 * 60 * 60); // 5년 전
 
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?period1=${startDate}&period2=${endDate}&interval=1d`;
 
@@ -112,7 +112,7 @@ async function fetchRealtimeData(symbol: string): Promise<ChartDataPoint[] | nul
       }
     }
 
-    console.log(`✅ Fetched ${chartData.length} data points for ${symbol} from Yahoo Finance (with OHLCV data)`);
+    console.log(`✅ Fetched ${chartData.length} data points for ${symbol} from Yahoo Finance (5년치 OHLCV 데이터)`);
     return chartData;
 
   } catch (error) {
