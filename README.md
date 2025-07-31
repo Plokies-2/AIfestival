@@ -158,7 +158,7 @@ graph TD
 ```mermaid
 graph TD
     A[상세 분석 요청] --> B[HCX-002-DASH<br/>입력 정제]
-    B --> C[RAG Reasoning<br/>검색에 맞는 키워드 변환]
+    B --> C[RAG Reasoning<br/>검색에 적합한 키워드 변환]
     C --> D[네이버 뉴스 검색<br/>sim/date 정렬]
     D --> E{뉴스 길이<br/>2000자 이상?}
     E -->|Yes| F[네이버 요약 API<br/>30% 압축]
@@ -266,7 +266,7 @@ src/
 │   ├── realtime_chart_data.ts # 실시간 차트 데이터 API
 │   ├── market_data.ts         # 시장 데이터 API
 │   ├── server-status.ts       # 서버 상태 API
-│   ├── csv_chart_data.ts      # CSV 차트 데이터 API
+│   ├── csv_chart_data.ts      # CSV 차트 데이터 API (레거시)
 │   ├── generate_report.ts     # 보고서 생성 API
 │   ├── speedtraffic_log.ts    # SpeedTraffic 로그 API
 ├── utils/ (2개)               # 유틸리티

@@ -36,7 +36,7 @@ export const RAG_THRESHOLDS: RAGThresholds = {
 
 /**
  * Pattern matching for positive and negative responses
- * 한국어 입력만 지원하도록 패턴 최적화
+ * 한국어 입력만 지원하도록 패턴 최적화 ****(이제 사용하지 않으나 삭제하지 않음)****
  */
 export const PATTERNS: PatternConfig = {
   positive: /^(네|예|응|좋아|맞아|그래|맞습니다|좋습니다|그렇습니다|알겠습니다|시작|분석|확인)/i,

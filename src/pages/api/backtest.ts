@@ -34,17 +34,24 @@ interface BacktestResult {
 async function executePythonBacktest(portfolio: Portfolio, period: '3M' | '6M' | '1Y'): Promise<BacktestResult> {
   console.log(`[BACKTEST] Python 백테스팅 시작: ${portfolio.name} - ${period}`);
 
-  // 기간별 일수 계산
-  const periodDays = {
-    '3M': 90,
-    '6M': 180,
-    '1Y': 365
-  };
-
-  const days = periodDays[period];
+  // 기간별 정확한 날짜 계산
   const endDate = new Date();
-  const startDate = new Date();
-  startDate.setDate(endDate.getDate() - days);
+  const startDate = new Date(endDate);
+
+  // 각 기간에 맞는 정확한 날짜 계산
+  switch(period) {
+    case '3M':
+      startDate.setMonth(endDate.getMonth() - 3);
+      break;
+    case '6M':
+      startDate.setMonth(endDate.getMonth() - 6);
+      break;
+    case '1Y':
+      startDate.setFullYear(endDate.getFullYear() - 1);
+      break;
+    default:
+      throw new Error(`지원하지 않는 기간입니다: ${period}`);
+  }
 
   // 한국 주식 티커에 .KS 추가 (6자리 패딩)
   const tickers = portfolio.companies.map(company => {
