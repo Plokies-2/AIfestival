@@ -81,7 +81,7 @@ def calculate_portfolio_backtest(tickers, weights, start_date, end_date, period)
         
         # 연환산 수익률
         days = len(portfolio_returns)
-        annualized_return = ((1 + total_return/100) ** (252/days) - 1) * 100
+        annualized_return = ((cumulative_returns.iloc[-1]) ** (252/days) - 1) * 100
         
         # 변동성 (연환산)
         volatility = portfolio_returns.std() * np.sqrt(252) * 100

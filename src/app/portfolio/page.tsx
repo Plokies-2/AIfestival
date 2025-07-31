@@ -259,7 +259,7 @@ export default function PortfolioPage() {
     if (isNaN(value) || value === null || value === undefined) {
       return '0.00%';
     }
-    return `${(value * 100).toFixed(2)}%`;
+    return `${value.toFixed(2)}%`;
   };
 
   const getMetricTooltip = (metric: string) => {
@@ -526,7 +526,7 @@ export default function PortfolioPage() {
                     />
                     <Line
                       type="monotone"
-                      dataKey="returnRate"
+                      dataKey="value"
                       stroke="#3b82f6"
                       strokeWidth={3}
                       dot={false}

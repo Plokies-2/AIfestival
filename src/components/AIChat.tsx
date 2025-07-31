@@ -50,23 +50,42 @@ const AIChat = forwardRef<AIChatRef, AIChatProps>(({ onSymbolSubmit, onSymbolErr
 
   // 성능 최적화된 질문 예시 생성 (메모이제이션)
   const QUESTION_POOLS = useMemo(() => ({
-    casual: ['넌 누구니?', '잘할 수 있어?', '뭐하고 있어?', '안녕하세요', '고마워', '넌 뭐야?', '넌 몇 살이야?'],
-    industry: ['반도체 산업', '자동차 관련 기업', '바이오테크놀로지', '은행 금융 기업', '미디어 엔터테인먼트', '소프트웨어 회사들', '클라우드 IT 서비스', '의료기기 회사', '제약회사들', '항공우주 방위산업', '투자 추천해줘', '어떤 기업이 좋을까?'],
-    company: ['테슬라', '애플', '마이크로소프트', '인텔', '엔비디아', '구글', '아마존', '메타', 'AMD', '퀄컴']
+    about_ai: [
+      '너 누구야?',
+      '무슨 기능이 있어?',
+      '투자 아이디어 분석은 어떻게 수행돼?',
+      '차트 분석 기능은 어떻게 동작하나요?',
+      '산업 분류는 어떤 기준으로 이루어지나요?',
+      '가장 자신있는 건 뭐야?',
+      '이 AI는 어떤 기술 기반으로 작동하나요?'
+    ],
+    greetings: [
+      '안녕하세요! 어떻게 시작하면 되나요?',
+      '여긴 어떻게 쓰지?',
+      '사용법 좀 알려주라',
+      '무엇을 할 수 있나요?',
+      '기능 소개 부탁해',
+      '어떤 질문을 해볼 수 있나요?',
+      '안녕'
+    ],
+    investment: [
+      '한국 반도체 기업에 투자하고 싶어',
+      '요즘 조선업이 뜨는 것 같은데, 조선업에 투자하려고 해',
+      '요즘 자연재해 뉴스가 많이 뜨네. 보험업 투자전략이 필요해',
+      '요즘 종이책 인기가 다시 늘고 있어. 종이나 신문을 만드는 회사들에 투자하고 싶어',
+      '해외여행 수요가 폭발적인 것 같아서 항공업에 투자할거야',
+      '부동산 시장이 다시 달아오르고 있어. 부동산 업계에 투자하고 싶어'
+    ]
   }), []);
 
   const generateSuggestedQuestions = useCallback((): string[] => {
     const getRandomItem = (arr: readonly string[]) => arr[Math.floor(Math.random() * arr.length)];
 
-    const casualQ = getRandomItem(QUESTION_POOLS.casual);
-    const industryQ1 = getRandomItem(QUESTION_POOLS.industry);
-    let industryQ2 = getRandomItem(QUESTION_POOLS.industry);
-    while (industryQ2 === industryQ1) {
-      industryQ2 = getRandomItem(QUESTION_POOLS.industry);
-    }
-    const companyQ = getRandomItem(QUESTION_POOLS.company);
+    const aboutAiQ = getRandomItem(QUESTION_POOLS.about_ai);
+    const greetingQ = getRandomItem(QUESTION_POOLS.greetings);
+    const investmentQ = getRandomItem(QUESTION_POOLS.investment);
 
-    return [casualQ, industryQ1, industryQ2, companyQ];
+    return [aboutAiQ, greetingQ, investmentQ];
   }, [QUESTION_POOLS]);
 
   // 컴포넌트 마운트 시 질문 예시 생성
